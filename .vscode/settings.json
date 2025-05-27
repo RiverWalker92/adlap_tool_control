@@ -75,6 +75,16 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "strstream": "cpp",
+        "cfenv": "cpp",
+        "coroutine": "cpp",
+        "regex": "cpp",
+        "slist": "cpp",
+        "future": "cpp",
+        "stdfloat": "cpp",
+        "valarray": "cpp"
     }
 }

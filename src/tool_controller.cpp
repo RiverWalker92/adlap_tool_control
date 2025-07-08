@@ -13,22 +13,28 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 using namespace std::chrono_literals;
 
-constexpr char TOPIC[] = "tool_status";
-constexpr char POSE_TOPIC[] = "/servo_node/pose_target_cmds";
+const std::string STATUS_TOPIC = "/tool_status";
+const std::string TOOL_CONTROL_TOPIC = "/instrument_angles";
 
-const float UPPER_MOTOR_FACTOR = 15/25;
+const float UPPER_MOTOR_FACTOR = 15.0f/25;
 /* Motor gearbox is 150:1. The motors are equipped with a 3 pulse per rotation hall encoder.
 This means 450 pulses equals 1 full rotation.*/
 const int MOTOR_PULSES_PER_ROTATION = 450;
+/* The lower motors bend the shaft. The difference approximates the max bending.*/
 const int LOWER_MOTORS_MAX_DIFFERENCE = 160;
 const int MIN_WAIT_TIME = 40; // Minimum wait time in milliseconds for the motors to respond
 
-/* This example creates a subclass of Node and uses std::bind() to register a
-* member function as a callback from the timer. */
+std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
+std::array<int, 4>  positions = {0, 0, 0, 0}; // Current positions of the motors
+std::array<int, 6>  response_values = {0, 0, 0, 0, 0, 0}; // Response values from the motors
+int blocking_current = 3000; // Amperage threshold for blocking the motors
+bool blocked[4] = {false, false, false, false}; // Flag to indicate if the motors are blocked
+int max_current = 8000; // Maximum current value for the motors
+bool maxed[4] = {false, false, false, false}; // Flag to indicate if the motors are at maximum current
 
 constexpr int8_t KEYCODE_RIGHT = 0x43;
 constexpr int8_t KEYCODE_LEFT = 0x44;
@@ -81,18 +87,15 @@ class ToolController : public rclcpp::Node
 {
   public:
   ToolController(std::shared_ptr<SerialPort> serial)
-    : Node("tool_controller"), serial_(serial)
+    : Node("tool_control_node"), serial_(serial)
     {
       this->declare_parameter("side", "right");
 
-      publisher_ = this->create_publisher<std_msgs::msg::String>(TOPIC, 10);
-      auto side = this->get_parameter("side").as_string();
-      //TODO: use side to determine the topic name
-      auto topic_name = "/servo_node/right_pose_target_cmds";
-      subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-        topic_name, 10, std::bind(&ToolController::topic_callback, this, std::placeholders::_1));  
+      publisher_ = this->create_publisher<std_msgs::msg::String>("~" + STATUS_TOPIC, 10);
+      subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+        "~" + TOOL_CONTROL_TOPIC, 10, std::bind(&ToolController::topic_callback, this, std::placeholders::_1));  
 
-      auto message = motor_message(0,0,0,0);
+      auto message = motor_message(positions);
       RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
       serial_->writeData(message);
 
@@ -110,16 +113,78 @@ class ToolController : public rclcpp::Node
     }
 
   private:
-    std::string motor_message(int motor0, int motor1, int motor2, int motor3){
+    std::string motor_message(const std::array<int, 4>& m_array){
       std::string response = 
-        std::to_string(motor0) + ", " 
-        + std::to_string(motor1) + ", " 
-        + std::to_string(motor2) + ", " 
-        + std::to_string(motor3) + "\n";
+        std::to_string(m_array[0]) + ", " 
+        + std::to_string(m_array[1]) + ", " 
+        + std::to_string(m_array[2]) + ", " 
+        + std::to_string(m_array[3]) + "\n";
       return response;
     }
 
-    std::vector<int> response_values(){
+    void send_relative_motor_positions(const std::array<int, 4>& m_array) {
+      send_relative_motor_positions(m_array[0], m_array[1], m_array[2], m_array[3]);
+    }
+
+    void send_relative_motor_positions(int m0, int m1, int m2, int m3) {
+      std::array<int, 4>  new_positions = {0, 0, 0, 0};
+      new_positions[0] = positions[0] + m0;
+      new_positions[1] = positions[1] + m1;
+      new_positions[2] = positions[2] + m2;
+      new_positions[3] = positions[3] + m3;
+      send_motor_positions(new_positions);
+    }
+
+    void send_motor_positions(int m0, int m1, int m2, int m3) {
+      std::array<int, 4>  new_positions = {m0, m1, m2, m3};
+      send_motor_positions(new_positions);
+    }
+
+    void send_motor_positions(const std::array<int, 4>& new_positions) {
+      std::string message = motor_message(new_positions);
+      RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
+      serial_->writeData(message);
+      rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+      bool motor_status = set_response_values();
+      if (!motor_status) {
+        RCLCPP_ERROR(this->get_logger(), "Motor response not ok, reversing movement");
+        serial_->writeData(motor_message(positions));
+        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+        motor_status = set_response_values();
+
+        
+        // TODO: This is a workaround for the motors not responding the first loop.
+        // Write the positions again, cause the current return values are one loop behind
+        
+        if (!motor_status) {
+          RCLCPP_ERROR(this->get_logger(), "Motor response still not ok, reversing further");
+          std::array<int, 4> rev_positions;
+          for (size_t i = 0; i < new_positions.size(); ++i) {
+              rev_positions[i] = 2 * positions[i] - new_positions[i];
+          }
+          message = motor_message(rev_positions);
+          RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
+          serial_->writeData(message);
+          rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+          motor_status = set_response_values();
+          // Write again, cause the current return values are one loop behind
+          serial_->writeData(message);
+          rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+          motor_status = set_response_values();
+        }
+        // End of workaround
+        
+        if (!motor_status) {
+          throw std::runtime_error("Motor response still not ok after reversing movement");
+        }
+      }else{
+        positions = new_positions;
+      }
+      return;
+    }
+
+    bool set_response_values(){
+      bool response_ok = true;
       std::string response = serial_->readData();
       if (!response.empty()) {
         RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
@@ -136,47 +201,59 @@ class ToolController : public rclcpp::Node
         RCLCPP_ERROR(this->get_logger(), "Received less than 6 values from the motor: %zu", values.size());
         throw std::runtime_error("Received less than 6 values from the motor");
       }
-      return values;
-    }
+      for (int i = 0; i < 6; ++i) {
+        // Update the response values
 
-    bool not_blocked()
-    {
-      std::vector<int> values = response_values();
-      for (int i = 0; i < 4; i++)
-      {
-        if (values[i] > 3000) {
-          RCLCPP_ERROR(this->get_logger(), "Motor %d value out of range: %d", i, values[i]);
-          return false;
+        //TODO: the order of the current values is not the same as the order of the motors
+        if (i == 2) {
+          response_values[3] = values[2];
+        }
+        else if (i == 3)
+        {
+          response_values[2] = values[3];
+        }
+        else{
+          response_values[i] = values[i];
         }
       }
-      return true;   
+      for (int i = 0; i < 4; ++i) {
+        // Check if the current value exceeds the blocking current
+        if (response_values[i] > blocking_current){
+          blocked[i] = true;
+          RCLCPP_WARN(this->get_logger(), "Motor %d value out of range: %d", i, response_values[i]);
+        }
+        else {
+          blocked[i] = false;
+        }
+        // Check if the current value exceeds the maximum current
+        if(response_values[i] > max_current){
+          maxed[i] = true;
+          response_ok = false;
+          RCLCPP_ERROR(this->get_logger(), "Motor %d current exceeded maximum: %d", i, response_values[i]);
+        }
+        else {
+          maxed[i] = false;
+        }
+      }
+      return response_ok;
     }
 
     void initialize(){
-      std::string response;
-      int m0 = 0, m1 = 0, m2 = 0, m3 = 0;
-      
-      do{
-        m0 += 10;
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      } while (not_blocked());
-      do {
-        m0 -= 10;
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      } while (!not_blocked());
 
-      do {
-        m3 -= 10;
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      } while (not_blocked());
-      do {
-        m3 += 10;
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      } while (!not_blocked());
+      // Couple the upper motors
+      for (int i : {0,3}){
+        for (int j : {10, -10}){
+          // Move the motor till it is blocked (coupled and reached its end position)
+          std::array<int, 4> driving_values  = {0, 0, 0, 0};
+          driving_values[i] = j;
+          do{
+            send_relative_motor_positions(driving_values);
+          } while (!blocked[i]);
+          // Unblock the motor
+          driving_values[i] = -j;
+          send_relative_motor_positions(driving_values);
+        }
+      }
 
       // TODO: one hall value is low (motor1) when passing and the other is high (motor2).
       int hall1_position = 0;
@@ -184,27 +261,24 @@ class ToolController : public rclcpp::Node
       int hall2_position = 0;
       int hall2_value = 0;
       for (int i = 0; i < 135; i++) {
-        m1 += 10;
-        m2 += 10;
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-        std::vector<int> values = response_values();
-        if (values[4] < hall1_value) {
-          hall1_value = values[4];
-          hall1_position = m1 % MOTOR_PULSES_PER_ROTATION;
+        send_relative_motor_positions(0,10,10,0);
+        if (response_values[4] < hall1_value) {
+          hall1_value = response_values[4];
+          hall1_position = positions[1] % MOTOR_PULSES_PER_ROTATION;
           RCLCPP_INFO(this->get_logger(), "Hall1 position: '%d'", hall1_position);
         }
-        if (values[5] > hall2_value) {
-          hall2_value = values[5];
-          hall2_position = m2 % MOTOR_PULSES_PER_ROTATION;
+        if (response_values[5] > hall2_value) {
+          hall2_value = response_values[5];
+          hall2_position = positions[2] % MOTOR_PULSES_PER_ROTATION;
           RCLCPP_INFO(this->get_logger(), "Hall2 position: '%d'", hall2_position);
         }
       }  
 
-      RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_position - m1 % MOTOR_PULSES_PER_ROTATION);
-      m1 += hall1_position - m1 % MOTOR_PULSES_PER_ROTATION;
-      m2 += hall2_position - m2 % MOTOR_PULSES_PER_ROTATION;
-      serial_->writeData(motor_message(m0,m1,m2,m3));
+      int hall1_correction = hall1_position - positions[1] % MOTOR_PULSES_PER_ROTATION;
+      RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
+      int hall2_correction = hall2_position - positions[2] % MOTOR_PULSES_PER_ROTATION;
+      RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
+      send_relative_motor_positions(0,hall1_correction,hall2_correction,0);
 
       KeyboardReader input;
       char c;
@@ -225,101 +299,91 @@ class ToolController : public rclcpp::Node
         {
           case KEYCODE_RIGHT:
             RCLCPP_DEBUG(this->get_logger(), "RIGHT");
-            m1 += 10;
+            send_relative_motor_positions(0,10,0,0);
             break;
           case KEYCODE_LEFT:
             RCLCPP_DEBUG(this->get_logger(), "LEFT");
-            m1 -= 10;
+            send_relative_motor_positions(0,-10,0,0);
             break;
           case KEYCODE_UP:
             RCLCPP_DEBUG(this->get_logger(), "UP");
-            m2 += 10;
+            send_relative_motor_positions(0,0,10,0);
             break;
           case KEYCODE_DOWN:
             RCLCPP_DEBUG(this->get_logger(), "DOWN");
-            m2 -= 10;
+            send_relative_motor_positions(0,0,-10,0);
             break;
           case KEYCODE_W:
             RCLCPP_DEBUG(this->get_logger(), "W");
-            m0 += 10;
+            send_relative_motor_positions(10,0,0,0);
             break;
           case KEYCODE_S:
             RCLCPP_DEBUG(this->get_logger(), "S");
-            m0 -= 10;
+            send_relative_motor_positions(-10,0,0,0);
             break;
           case KEYCODE_D:
             RCLCPP_DEBUG(this->get_logger(), "D");
-            m3 += 10;
-            m0 += 10;
+            send_relative_motor_positions(10,0,0,10);
             break;
           case KEYCODE_A:
             RCLCPP_DEBUG(this->get_logger(), "A");
-            m3 -= 10;
-            m0 -= 10;
+            send_relative_motor_positions(-10,0,0,-10);
             break;
           case KEYCODE_E:
-            m1 += 10;
-            m2 += 10;
-            RCLCPP_DEBUG(this->get_logger(), "Q");
-            break;
-          case KEYCODE_Q:
-            m1 -= 10;
-            m2 -= 10;
+            send_relative_motor_positions(0,10,10,0);
             RCLCPP_DEBUG(this->get_logger(), "E");
             break;
-          
-          case KEYCODE_J:
+          case KEYCODE_Q:
+            send_relative_motor_positions(0,-10,-10,0);
             RCLCPP_DEBUG(this->get_logger(), "Q");
+            break;
+          case KEYCODE_J:
+            RCLCPP_DEBUG(this->get_logger(), "J");
             input.shutdown();
+            starting_positions = positions;
             return;
           default:
             RCLCPP_DEBUG(this->get_logger(), "Unknown key pressed: 0x%02X", c);
             continue;
         }
-        RCLCPP_INFO(this->get_logger(), "Setting motor positions: m0: %d, m1: %d, m2: %d, m3: %d", m0, m1, m2, m3);
-        serial_->writeData(motor_message(m0,m1,m2,m3));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-        response_values();
       }
     }
 
-    void topic_callback(const geometry_msgs::msg::PoseStamped msg) const
+    void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
-      RCLCPP_INFO(this->get_logger(), "I heard quaternion: '%f' '%f' '%f' '%f'", msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w);
-
-      std::string motor_positions = std::to_string(msg.pose.orientation.x / M_PI * 180) + ","
-        + std::to_string(msg.pose.orientation.y / M_PI * 180) + ","
-        + std::to_string(msg.pose.orientation.z / M_PI * 180) + ","
-        + std::to_string(msg.pose.orientation.w / M_PI * 180) + "\n";
-      RCLCPP_INFO(this->get_logger(), "Writing: '%s'", motor_positions.c_str());
-      serial_->writeData(motor_positions);
-
-      int i = 0;
-      do {
-        // Wait for a short period to allow the device to respond
-        std::this_thread::sleep_for(std::chrono::microseconds(500));
-        std::string response = serial_->readData();
-        if (!response.empty()) {
-          RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
-          break;
-        }else {
-          RCLCPP_INFO(this->get_logger(), "Failed to read from serial port on attempt %d", i);
-        }
-        i++;
-      } while (i < 10 && serial_->isOpen());
-
-      if (i == 10) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to read from serial port after 10 attempts");
+      if (msg->data.size() < 4) {
+        RCLCPP_WARN(this->get_logger(), "Received data size less than 4");
+        return;
       }
+      std::vector<double> angles = msg->data;
+      RCLCPP_INFO(this->get_logger(), "I heard array: '%f' '%f' '%f' '%f'", angles[0], angles[1], angles[2], angles[3]);
 
-      auto message = std_msgs::msg::String();
-      message.data = "Hello, world!";
-      RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
-      publisher_->publish(message);
+      // Tip rotation
+      int tip_rot = static_cast<int>(std::round(angles[0] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
+
+      int gripper_factor = static_cast<int>(std::round(0.6f * MOTOR_PULSES_PER_ROTATION / UPPER_MOTOR_FACTOR));
+      //gripper position
+      int gripper_pos = static_cast<int>(std::round(8 * angles[3] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
+
+      RCLCPP_INFO(this->get_logger(), "tip_rot, gripper_factor, gripper_pos: '%d' '%d' '%d'", tip_rot, gripper_factor, gripper_pos);
+      send_motor_positions(
+        static_cast<int>(std::round(starting_positions[0] + tip_rot - gripper_factor - gripper_pos)),
+        static_cast<int>(std::round(starting_positions[1])),
+        static_cast<int>(std::round(starting_positions[2])),
+        static_cast<int>(std::round(starting_positions[3] + tip_rot))
+      );
+
+      auto status_msg = std_msgs::msg::String();
+      status_msg.data = "Currents: ";
+      for (size_t i = 0; i < 6; ++i){
+        status_msg.data += std::to_string(response_values[i]) + (i < 5 ? ", " : ";");
+      } 
+      RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", status_msg.data.c_str());
+      publisher_->publish(status_msg);
     }
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscription_;
+    rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
     std::shared_ptr<SerialPort> serial_;
 };
 

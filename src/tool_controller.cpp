@@ -1,15 +1,5 @@
 #include "adlap_tool_control/serial_port.hpp"
-
-#include <chrono>
-#include <functional>
-#include <memory>
-#include <string>
-#include <cmath>
-#include <format>
-//#include <signal.h>
-//#include <stdio.h>
-#include <termios.h>
-//#include <unistd.h>
+#include "adlap_tool_control/keyboard_reader.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -31,57 +21,10 @@ const int MIN_WAIT_TIME = 40; // Minimum wait time in milliseconds for the motor
 std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
 std::array<int, 4>  positions = {0, 0, 0, 0}; // Current positions of the motors
 std::array<int, 6>  response_values = {0, 0, 0, 0, 0, 0}; // Response values from the motors
-int blocking_current = 3000; // Amperage threshold for blocking the motors
+int blocking_current = 5000; // Blocking current threshold for the motors (used at initialization)
 bool blocked[4] = {false, false, false, false}; // Flag to indicate if the motors are blocked
-int max_current = 8000; // Maximum current value for the motors
+int max_current = 8000; // Maximum current threshold for the motors
 bool maxed[4] = {false, false, false, false}; // Flag to indicate if the motors are at maximum current
-
-constexpr int8_t KEYCODE_RIGHT = 0x43;
-constexpr int8_t KEYCODE_LEFT = 0x44;
-constexpr int8_t KEYCODE_UP = 0x41;
-constexpr int8_t KEYCODE_DOWN = 0x42;
-constexpr int8_t KEYCODE_W = 0x77;
-constexpr int8_t KEYCODE_A = 0x61;
-constexpr int8_t KEYCODE_S = 0x73;
-constexpr int8_t KEYCODE_D = 0x64;
-constexpr int8_t KEYCODE_Q = 0x71;
-constexpr int8_t KEYCODE_R = 0x72;
-constexpr int8_t KEYCODE_J = 0x6A;
-constexpr int8_t KEYCODE_T = 0x74;
-constexpr int8_t KEYCODE_E = 0x65;
-// A class for reading the key inputs from the terminal
-class KeyboardReader
-{
-public:
-  KeyboardReader() : file_descriptor_(0)
-  {
-    // get the console in raw mode
-    tcgetattr(file_descriptor_, &cooked_);
-    struct termios raw;
-    memcpy(&raw, &cooked_, sizeof(struct termios));
-    raw.c_lflag &= ~(ICANON | ECHO);
-    // Setting a new line, then end of file
-    raw.c_cc[VEOL] = 1;
-    raw.c_cc[VEOF] = 2;
-    tcsetattr(file_descriptor_, TCSANOW, &raw);
-  }
-  void readOne(char* c)
-  {
-    int rc = read(file_descriptor_, c, 1);
-    if (rc < 0)
-    {
-      throw std::runtime_error("read failed");
-    }
-  }
-  void shutdown()
-  {
-    tcsetattr(file_descriptor_, TCSANOW, &cooked_);
-  }
-
-private:
-  int file_descriptor_;
-  struct termios cooked_;
-};
 
 class ToolController : public rclcpp::Node
 {
@@ -89,24 +32,23 @@ class ToolController : public rclcpp::Node
   ToolController(std::shared_ptr<SerialPort> serial)
     : Node("tool_control_node"), serial_(serial)
     {
-      this->declare_parameter("side", "right");
-
+      // The publisher and subscriber topics are relative, so they are mapped to left or right with the node namespace
       publisher_ = this->create_publisher<std_msgs::msg::String>("~" + STATUS_TOPIC, 10);
       subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
         "~" + TOOL_CONTROL_TOPIC, 10, std::bind(&ToolController::topic_callback, this, std::placeholders::_1));  
 
+      // Test the serial port connection
       auto message = motor_message(positions);
       RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
       serial_->writeData(message);
 
       // Wait for a short period to allow the device to respond
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+      std::this_thread::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
       std::string response = serial_->readData();
       if (!response.empty()) {
         RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
       }else {
-        RCLCPP_ERROR(this->get_logger(), "Failed to read from serial port");
+        throw std::runtime_error("Failed to read from serial port");
       }
 
       initialize();
@@ -140,6 +82,9 @@ class ToolController : public rclcpp::Node
       send_motor_positions(new_positions);
     }
 
+    /// @brief Send new absolute motor positions to the motor controller
+    /// @param new_positions Array of 4 integers representing the new motor positions
+    /// @throws std::runtime_error if the motor response is not ok after reversing movement
     void send_motor_positions(const std::array<int, 4>& new_positions) {
       std::string message = motor_message(new_positions);
       RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
@@ -183,7 +128,10 @@ class ToolController : public rclcpp::Node
       return;
     }
 
+    /// @brief Read and set response values from the motor
+    /// @return True if the currents are within limits, false otherwise
     bool set_response_values(){
+      
       bool response_ok = true;
       std::string response = serial_->readData();
       if (!response.empty()) {
@@ -204,7 +152,7 @@ class ToolController : public rclcpp::Node
       for (int i = 0; i < 6; ++i) {
         // Update the response values
 
-        //TODO: the order of the current values is not the same as the order of the motors
+        // TODO: the order of the current values is not the same as the order of the motors
         if (i == 2) {
           response_values[3] = values[2];
         }
@@ -238,8 +186,10 @@ class ToolController : public rclcpp::Node
       return response_ok;
     }
 
+    /// @brief Initialize the motors by coupling them to the gearbox and allowing manual adjustment
     void initialize(){
-
+      ////// Coupling the motors to the gearbox //////
+      // Making some rotations to get the pins do drop into the holes of the gearbox
       // Couple the upper motors
       for (int i : {0,3}){
         for (int j : {10, -10}){
@@ -254,7 +204,9 @@ class ToolController : public rclcpp::Node
           send_relative_motor_positions(driving_values);
         }
       }
-
+      // Couple the lower motors
+      // These motors also control the front gears, which have to be aligned for the tool to be able to be inserted
+      // The hall sensors can be used to find the correct position
       // TODO: one hall value is low (motor1) when passing and the other is high (motor2).
       int hall1_position = 0;
       int hall1_value = 1000;
@@ -273,13 +225,15 @@ class ToolController : public rclcpp::Node
           RCLCPP_INFO(this->get_logger(), "Hall2 position: '%d'", hall2_position);
         }
       }  
-
+      // Move back to the position where the hall sensor triggers (assumed to be the correct position for instrument insertion)
       int hall1_correction = hall1_position - positions[1] % MOTOR_PULSES_PER_ROTATION;
       RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
       int hall2_correction = hall2_position - positions[2] % MOTOR_PULSES_PER_ROTATION;
       RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
       send_relative_motor_positions(0,hall1_correction,hall2_correction,0);
+      ///// End of coupling /////
 
+      ///// Workaround  - manual adjustment of the lower motors to get the shaft straight and do some testing ////
       KeyboardReader input;
       char c;
       for (;;)
@@ -337,8 +291,8 @@ class ToolController : public rclcpp::Node
             send_relative_motor_positions(0,-10,-10,0);
             RCLCPP_DEBUG(this->get_logger(), "Q");
             break;
-          case KEYCODE_J:
-            RCLCPP_DEBUG(this->get_logger(), "J");
+          case KEYCODE_ENTER:
+            RCLCPP_DEBUG(this->get_logger(), "ENTER");
             input.shutdown();
             starting_positions = positions;
             return;
@@ -356,23 +310,33 @@ class ToolController : public rclcpp::Node
         return;
       }
       std::vector<double> angles = msg->data;
+      // data values are: roll, pitch, yaw, gripper angle
       RCLCPP_INFO(this->get_logger(), "I heard array: '%f' '%f' '%f' '%f'", angles[0], angles[1], angles[2], angles[3]);
 
       // Tip rotation
       int tip_rot = static_cast<int>(std::round(angles[0] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
 
-      int gripper_factor = static_cast<int>(std::round(0.6f * MOTOR_PULSES_PER_ROTATION / UPPER_MOTOR_FACTOR));
-      //gripper position
-      int gripper_pos = static_cast<int>(std::round(8 * angles[3] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
+      int gripper_offset = static_cast<int>(std::round(0.6f * MOTOR_PULSES_PER_ROTATION / UPPER_MOTOR_FACTOR));
+      int gripper_factor = 8;
+      int gripper_position = static_cast<int>(std::round(gripper_factor * angles[3] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
 
-      RCLCPP_INFO(this->get_logger(), "tip_rot, gripper_factor, gripper_pos: '%d' '%d' '%d'", tip_rot, gripper_factor, gripper_pos);
+      int pitch = static_cast<int>(std::round(angles[1] * MOTOR_PULSES_PER_ROTATION / (2 * M_PI)));
+      int yaw = static_cast<int>(std::round((angles[2] - 2 * M_PI) * MOTOR_PULSES_PER_ROTATION / (2 * M_PI))); // Todo fix 2 pi offset in publishing node 
+      
+      // TODO: drive the lower motors with the pitch and yaw. 
+      // Motor 1 angles the shaft.
+      // Motor 1 and 2 together change the direction of the bend.
+      // Only gripper open/close and tip rotation are currently implemented
+
+      RCLCPP_INFO(this->get_logger(), "tip_rot, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rot, gripper_offset, gripper_position);
       send_motor_positions(
-        static_cast<int>(std::round(starting_positions[0] + tip_rot - gripper_factor - gripper_pos)),
-        static_cast<int>(std::round(starting_positions[1])),
-        static_cast<int>(std::round(starting_positions[2])),
+        static_cast<int>(std::round(starting_positions[0] + tip_rot - gripper_offset - gripper_position)),
+        static_cast<int>(std::round(starting_positions[1])), // TODO: drive this motor
+        static_cast<int>(std::round(starting_positions[2])), // TODO: drive this motor
         static_cast<int>(std::round(starting_positions[3] + tip_rot))
       );
 
+      // Publish the response values for now, later publish the actual status of the tool
       auto status_msg = std_msgs::msg::String();
       status_msg.data = "Currents: ";
       for (size_t i = 0; i < 6; ++i){
@@ -398,9 +362,7 @@ int main(int argc, char * argv[])
     if (!serial->openPort()) {
       throw std::runtime_error("Failed to open serial port");
     }
-
     rclcpp::spin(std::make_shared<ToolController>(serial));
-
 
     serial->closePort();
   } catch (const std::exception & e) {

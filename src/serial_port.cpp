@@ -9,10 +9,10 @@ SerialPort::SerialPort(const std::string& device, int baudrate)
     : device_(device), baudrate_(baudrate), fd_(-1) {}
 
 SerialPort::~SerialPort() {
-    closePort();
+    close_port();
 }
 
-bool SerialPort::openPort() {
+bool SerialPort::open_port() {
     fd_ = open(device_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (fd_ < 0) {
         std::cerr << "Error opening serial port " << device_ << "\n";
@@ -59,20 +59,20 @@ bool SerialPort::openPort() {
     return true;
 }
 
-void SerialPort::closePort() {
+void SerialPort::close_port() {
     if (fd_ != -1) {
         close(fd_);
         fd_ = -1;
     }
 }
 
-bool SerialPort::writeData(const std::string& data) {
+bool SerialPort::write_data(const std::string& data) {
     if (fd_ == -1) return false;
     ssize_t n = write(fd_, data.c_str(), data.size());
     return n == static_cast<ssize_t>(data.size());
 }
 
-std::string SerialPort::readData(size_t max_bytes) {
+std::string SerialPort::read_data(size_t max_bytes) {
     if (fd_ == -1) return "";
 
     char buffer[1024];

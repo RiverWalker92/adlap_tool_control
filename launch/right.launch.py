@@ -6,7 +6,7 @@ def generate_launch_description():
     right_controller = ExecuteProcess(
         cmd=[
         'gnome-terminal', '--', 'bash', '-c',
-        'ros2 run adlap_tool_control controller --ros-args -r __ns:=/right; exec bash'
+        'ros2 run adlap_tool_control controller --ros-args -r __ns:=/right --log-level debug; exec bash'
 
         ],
         output='screen',

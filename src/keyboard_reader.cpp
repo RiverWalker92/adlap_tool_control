@@ -16,7 +16,7 @@ KeyboardReader::KeyboardReader() : file_descriptor_(0)
   tcsetattr(file_descriptor_, TCSANOW, &raw);
 }
 
-void KeyboardReader::readOne(char* c)
+void KeyboardReader::read_one(char* c)
 {
   int rc = read(file_descriptor_, c, 1);
   if (rc < 0)

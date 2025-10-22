@@ -37,13 +37,28 @@ constexpr int8_t KEYCODE_W = 0x77;
 constexpr int8_t KEYCODE_X = 0x78;
 constexpr int8_t KEYCODE_Y = 0x79;
 constexpr int8_t KEYCODE_Z = 0x7A;
+constexpr int8_t KEYCODE_ESCAPE = 0x1B;
+constexpr int8_t KEYCODE_TAB = 0x09;
+constexpr int8_t KEYCODE_1 = 0x31;
+constexpr int8_t KEYCODE_2 = 0x32;
+constexpr int8_t KEYCODE_3 = 0x33;
+constexpr int8_t KEYCODE_4 = 0x34;
+constexpr int8_t KEYCODE_5 = 0x35;
+constexpr int8_t KEYCODE_6 = 0x36;
+constexpr int8_t KEYCODE_7 = 0x37;
+constexpr int8_t KEYCODE_8 = 0x38;
+constexpr int8_t KEYCODE_9 = 0x39;
+constexpr int8_t KEYCODE_0 = 0x30;
+constexpr int8_t KEYCODE_MINUS = 0x2D; // '-'
+constexpr int8_t KEYCODE_EQUAL = 0x3D; // '='
+
 
 // A class for reading key inputs from the terminal
 class KeyboardReader
 {
 public:
   KeyboardReader();
-  void readOne(char* c);
+  void read_one(char* c);
   void shutdown();
 
 private:

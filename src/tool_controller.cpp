@@ -16,15 +16,32 @@ This means 450 pulses equals 1 full rotation.*/
 const int MOTOR_PULSES_PER_ROTATION = 450;
 /* The lower motors bend the shaft. The difference approximates the max bending.*/
 const int LOWER_MOTORS_MAX_DIFFERENCE = 160;
+const int LOWER_MOTORS_PLAY = 30; // in pulses. When changing directions, you need to move twice the play before the gearbox starts moving
+const double LOWER_MOTORS_MAX_BEND_ANGLE = 50.0; // degrees
 const int MIN_WAIT_TIME = 40; // Minimum wait time in milliseconds for the motors to respond
+const double TWO_PI = 2.0 * M_PI;      
 
 std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
 std::array<int, 4>  positions = {0, 0, 0, 0}; // Current positions of the motors
 std::array<int, 6>  response_values = {0, 0, 0, 0, 0, 0}; // Response values from the motors
+
+std::deque<double> roll_history; // History of roll values for smoothing
+std::deque<double> pitch_history; // History of pitch values for smoothing
+std::deque<double> yaw_history; // History of yaw values for smoothing
+std::deque<double> gripper_history; // History of gripper values for smoothing
+
+double smoothed_roll = 0.0;
+double smoothed_pitch = 0.0;
+double smoothed_yaw = 0.0;
+double smoothed_gripper = 0.0;
+
 int blocking_current = 5000; // Blocking current threshold for the motors (used at initialization)
 bool blocked[4] = {false, false, false, false}; // Flag to indicate if the motors are blocked
 int max_current = 8000; // Maximum current threshold for the motors
 bool maxed[4] = {false, false, false, false}; // Flag to indicate if the motors are at maximum current
+
+int bend_angle = 0; // Current articulation angles
+double absolute_omega = 0.0; // Absolute omega value for shortest rotation calculation
 
 class ToolController : public rclcpp::Node
 {
@@ -40,18 +57,19 @@ class ToolController : public rclcpp::Node
       // Test the serial port connection
       auto message = motor_message(positions);
       RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
-      serial_->writeData(message);
+      serial_->write_data(message);
 
       // Wait for a short period to allow the device to respond
       std::this_thread::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      std::string response = serial_->readData();
+      std::string response = serial_->read_data();
       if (!response.empty()) {
         RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
       }else {
         throw std::runtime_error("Failed to read from serial port");
       }
-
-      initialize();
+      // Initialize the motors by coupling them to the gearbox
+      //initialize();
+      manual_adjustment();
     }
 
   private:
@@ -74,6 +92,7 @@ class ToolController : public rclcpp::Node
       new_positions[1] = positions[1] + m1;
       new_positions[2] = positions[2] + m2;
       new_positions[3] = positions[3] + m3;
+      
       send_motor_positions(new_positions);
     }
 
@@ -88,37 +107,31 @@ class ToolController : public rclcpp::Node
     void send_motor_positions(const std::array<int, 4>& new_positions) {
       std::string message = motor_message(new_positions);
       RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
-      serial_->writeData(message);
+      serial_->write_data(message);
       rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
       bool motor_status = set_response_values();
+
+      // TODO: This is a workaround for the motors not responding the first loop.
+      // Write the positions again, cause the current return values are one loop behind
+      serial_->write_data(message);
+      rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+      motor_status = set_response_values();
+      // End of workaround
+
       if (!motor_status) {
         RCLCPP_ERROR(this->get_logger(), "Motor response not ok, reversing movement");
-        serial_->writeData(motor_message(positions));
-        rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+        serial_->write_data(motor_message(positions));
+        rclcpp::sleep_for(std::chrono::milliseconds(500));
         motor_status = set_response_values();
 
         
         // TODO: This is a workaround for the motors not responding the first loop.
         // Write the positions again, cause the current return values are one loop behind
-        
-        if (!motor_status) {
-          RCLCPP_ERROR(this->get_logger(), "Motor response still not ok, reversing further");
-          std::array<int, 4> rev_positions;
-          for (size_t i = 0; i < new_positions.size(); ++i) {
-              rev_positions[i] = 2 * positions[i] - new_positions[i];
-          }
-          message = motor_message(rev_positions);
-          RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
-          serial_->writeData(message);
-          rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-          motor_status = set_response_values();
-          // Write again, cause the current return values are one loop behind
-          serial_->writeData(message);
-          rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-          motor_status = set_response_values();
-        }
+        serial_->write_data(motor_message(positions));
+        rclcpp::sleep_for(std::chrono::milliseconds(500));
+        motor_status = set_response_values();
         // End of workaround
-        
+
         if (!motor_status) {
           throw std::runtime_error("Motor response still not ok after reversing movement");
         }
@@ -133,7 +146,7 @@ class ToolController : public rclcpp::Node
     bool set_response_values(){
       
       bool response_ok = true;
-      std::string response = serial_->readData();
+      std::string response = serial_->read_data();
       if (!response.empty()) {
         RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
       }else {
@@ -186,9 +199,8 @@ class ToolController : public rclcpp::Node
       return response_ok;
     }
 
-    /// @brief Initialize the motors by coupling them to the gearbox and allowing manual adjustment
-    void initialize(){
-      ////// Coupling the motors to the gearbox //////
+    /// @brief Couple the motors to the gearbox
+    void couple_sequence(){
       // Making some rotations to get the pins do drop into the holes of the gearbox
       // Couple the upper motors
       for (int i : {0,3}){
@@ -231,8 +243,33 @@ class ToolController : public rclcpp::Node
       int hall2_correction = hall2_position - positions[2] % MOTOR_PULSES_PER_ROTATION;
       RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
       send_relative_motor_positions(0,hall1_correction,hall2_correction,0);
-      ///// End of coupling /////
+    }
 
+    /// @brief Initialize the tool by moving the motors through their ranges to find the limits
+    void initialize(){
+      // TODO: find the lower motor 1 limits
+    }
+
+    int get_relative_motor1_value_for_angle(int degrees){
+
+      if (bend_angle == degrees) {
+        RCLCPP_DEBUG(this->get_logger(), "Same angle, no adjustment needed");
+        return 0;
+      }
+      int play_compensation = 0;
+      if (degrees > bend_angle) {
+        play_compensation = LOWER_MOTORS_PLAY;
+      }
+      else{
+        play_compensation = -LOWER_MOTORS_PLAY;
+      }
+      bend_angle = degrees;
+      int starting_difference = starting_positions[1] - starting_positions[2];
+      return int((LOWER_MOTORS_MAX_DIFFERENCE - play_compensation) / LOWER_MOTORS_MAX_BEND_ANGLE * degrees + play_compensation + starting_difference - positions[1] + positions[2]);
+    }
+
+    /// @brief Allow manual adjustment of the lower motors using keyboard input
+    void manual_adjustment(){
       ///// Workaround  - manual adjustment of the lower motors to get the shaft straight and do some testing ////
       KeyboardReader input;
       char c;
@@ -241,7 +278,7 @@ class ToolController : public rclcpp::Node
         // get the next event from the keyboard
         try
         {
-          input.readOne(&c);
+          input.read_one(&c);
         }
         catch (const std::runtime_error&)
         {
@@ -251,6 +288,46 @@ class ToolController : public rclcpp::Node
         RCLCPP_INFO(this->get_logger(), "value: 0x%02X\n", c);
         switch (c)
         {
+          case KEYCODE_C:
+            RCLCPP_DEBUG(this->get_logger(), "C -> Couple sequence");
+            couple_sequence();
+            break;          
+          case KEYCODE_I:
+            RCLCPP_DEBUG(this->get_logger(), "I -> Initialize");
+            initialize();
+            break;      
+          case KEYCODE_U:
+            RCLCPP_DEBUG(this->get_logger(), "U -> Update starting positions");
+            starting_positions = positions;            
+            break;
+          case KEYCODE_R:
+            RCLCPP_DEBUG(this->get_logger(), "R -> Reset to starting positions");
+            send_motor_positions(starting_positions);
+            break;
+          case KEYCODE_0:
+            RCLCPP_DEBUG(this->get_logger(), "0 -> Set angle of bend to 0 degrees");
+            send_relative_motor_positions(0, get_relative_motor1_value_for_angle(0), 0, 0); // starting offset + current position of motor 2
+            break;
+          case KEYCODE_1:
+            RCLCPP_DEBUG(this->get_logger(), "1 -> Set angle of bend to 10 degrees");
+            send_relative_motor_positions(0, get_relative_motor1_value_for_angle(10), 0, 0); 
+            break;
+          case KEYCODE_2:
+            RCLCPP_DEBUG(this->get_logger(), "2 -> Set angle of bend to 20 degrees");
+            send_relative_motor_positions(0, get_relative_motor1_value_for_angle(20), 0, 0); 
+            break;
+          case KEYCODE_3:
+            RCLCPP_DEBUG(this->get_logger(), "3 -> Set angle of bend to 30 degrees");
+            send_relative_motor_positions(0, get_relative_motor1_value_for_angle(30), 0, 0);
+            break;
+          case KEYCODE_MINUS:
+            RCLCPP_DEBUG(this->get_logger(), "MINUS");
+            send_relative_motor_positions(0, -10, -10, 0);
+            break;
+          case KEYCODE_EQUAL:
+            RCLCPP_DEBUG(this->get_logger(), "EQUAL");
+            send_relative_motor_positions(0, 10, 10, 0);
+            break;
           case KEYCODE_RIGHT:
             RCLCPP_DEBUG(this->get_logger(), "RIGHT");
             send_relative_motor_positions(0,10,0,0);
@@ -303,6 +380,23 @@ class ToolController : public rclcpp::Node
       }
     }
 
+    int get_m1_bend_pulses(double radians){
+      double degrees = radians * 180.0 / M_PI;
+      int play_compensation = 0;
+      if (bend_angle == static_cast<int>(std::round(degrees))) {
+        play_compensation = 0;
+      }
+      else if (degrees > bend_angle) {
+        play_compensation = LOWER_MOTORS_PLAY;
+      }
+      else{
+        play_compensation = -LOWER_MOTORS_PLAY;
+      }
+      bend_angle = static_cast<int>(std::round(degrees));
+      int starting_difference = starting_positions[1] - starting_positions[2];
+      return static_cast<int>(std::round((LOWER_MOTORS_MAX_DIFFERENCE - play_compensation) / LOWER_MOTORS_MAX_BEND_ANGLE * degrees + play_compensation + starting_difference));
+    }
+
     void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
       if (msg->data.size() < 4) {
@@ -313,28 +407,105 @@ class ToolController : public rclcpp::Node
       // data values are: roll, pitch, yaw, gripper angle
       RCLCPP_INFO(this->get_logger(), "I heard array: '%f' '%f' '%f' '%f'", angles[0], angles[1], angles[2], angles[3]);
 
-      // Tip rotation
-      int tip_rot = static_cast<int>(std::round(angles[0] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
+      double roll = angles[0];
+      double pitch = angles[1];
+      double yaw = angles[2] - TWO_PI; // Todo fix 2 pi offset in publishing node 
+      double gripper = angles[3];
 
+      // Add to history for smoothing
+      int smoothing_factor = 20;
+      roll_history.push_front(roll);
+      pitch_history.push_front(pitch);
+      yaw_history.push_front(yaw);
+      gripper_history.push_front(gripper);
+      if (roll_history.size() > smoothing_factor) {
+          roll_history.pop_back();
+      }
+      if (pitch_history.size() > smoothing_factor) { 
+          pitch_history.pop_back();
+      }
+      if (yaw_history.size() > smoothing_factor) {
+          yaw_history.pop_back();
+      }
+      if (gripper_history.size() > smoothing_factor) {
+          gripper_history.pop_back();
+      } 
+      // Calculate smoothed values
+      smoothed_roll = 0.0;
+      smoothed_pitch = 0.0;
+      smoothed_yaw = 0.0;
+      smoothed_gripper = 0.0;
+      for (const double& val : roll_history) {
+          smoothed_roll += val;
+      }
+      for (const double& val : pitch_history) {
+          smoothed_pitch += val;
+      }
+      for (const double& val : yaw_history) {
+          smoothed_yaw += val;
+      }
+      for (const double& val : gripper_history) {
+          smoothed_gripper += val;
+      }
+      smoothed_roll /= roll_history.size();
+      smoothed_pitch /= pitch_history.size();
+      smoothed_yaw /= yaw_history.size();
+      smoothed_gripper /= gripper_history.size();
+
+      int tip_rotation = static_cast<int>(std::round(smoothed_roll * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI)));
       int gripper_offset = static_cast<int>(std::round(0.6f * MOTOR_PULSES_PER_ROTATION / UPPER_MOTOR_FACTOR));
       int gripper_factor = 8;
-      int gripper_position = static_cast<int>(std::round(gripper_factor * angles[3] * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI))); // Convert degrees to radians
+      int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper * MOTOR_PULSES_PER_ROTATION / (2 * UPPER_MOTOR_FACTOR * M_PI)));
 
-      int pitch = static_cast<int>(std::round(angles[1] * MOTOR_PULSES_PER_ROTATION / (2 * M_PI)));
-      int yaw = static_cast<int>(std::round((angles[2] - 2 * M_PI) * MOTOR_PULSES_PER_ROTATION / (2 * M_PI))); // Todo fix 2 pi offset in publishing node 
-      
-      // TODO: drive the lower motors with the pitch and yaw. 
+      // Drive the lower motors with the pitch and yaw. 
       // Motor 1 angles the shaft.
       // Motor 1 and 2 together change the direction of the bend.
-      // Only gripper open/close and tip rotation are currently implemented
 
-      RCLCPP_INFO(this->get_logger(), "tip_rot, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rot, gripper_offset, gripper_position);
-      send_motor_positions(
-        static_cast<int>(std::round(starting_positions[0] + tip_rot - gripper_offset - gripper_position)),
-        static_cast<int>(std::round(starting_positions[1])), // TODO: drive this motor
-        static_cast<int>(std::round(starting_positions[2])), // TODO: drive this motor
-        static_cast<int>(std::round(starting_positions[3] + tip_rot))
-      );
+      double h = std::tan(smoothed_pitch);
+      double w = std::tan(smoothed_yaw);
+      double omega = std::atan2(w, h) + M_PI; // direction of the bend
+      double l1 = std::sqrt(h*h + w*w);
+      double theta = std::atan(l1); // angle of the bend
+
+      // Calculate the shortest rotation for omega
+      // We need to choose the new omega to be the closest to the current position to prevent unnecessary full rotations
+      // The motors are driven with absolute positions, so we need to keep track of the absolute omega
+      // TODO: implement bending the other way and add this to the shortest rotation calculation and solve singularity
+      double delta_omega = omega - absolute_omega;
+      double diff = std::fmod(delta_omega, TWO_PI);
+      if (diff < - M_PI) {
+          diff += TWO_PI;
+      } else if (diff >= M_PI) {
+          diff -= TWO_PI;
+      }
+      absolute_omega += diff; // Update absolute_omega with the shortest rotation
+
+      RCLCPP_INFO(this->get_logger(), "theta: '%f' omega: '%f'", theta, absolute_omega);    
+
+      int m1_bend = get_m1_bend_pulses(theta);
+      int shaft_rot = absolute_omega * MOTOR_PULSES_PER_ROTATION / (2 * M_PI);      
+
+      RCLCPP_INFO(this->get_logger(), "roll, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rotation, gripper_offset, gripper_position);
+      std::array<int, 4>  new_positions = {
+        static_cast<int>(std::round(starting_positions[0] + tip_rotation - gripper_offset - gripper_position)),
+        static_cast<int>(std::round(starting_positions[1] + shaft_rot + m1_bend)), // TODO: drive this motor
+        static_cast<int>(std::round(starting_positions[2] + shaft_rot)), // TODO: drive this motor
+        static_cast<int>(std::round(starting_positions[3] + roll))
+      };
+
+      // Check differences to prevent too large movements
+      for (size_t i = 0; i < 4; ++i){
+        int diff = new_positions[i] - positions[i];
+        if (std::abs(diff) > 30){
+          if (diff > 0){
+            new_positions[i] = positions[i] + 30;
+          }else{
+            new_positions[i] = positions[i] - 30;
+          }
+        }
+      }
+
+      send_motor_positions(new_positions);
 
       // Publish the response values for now, later publish the actual status of the tool
       auto status_msg = std_msgs::msg::String();
@@ -359,12 +530,12 @@ int main(int argc, char * argv[])
   try {
     auto serial = std::make_shared<SerialPort>("/dev/ttyUSB0", 115200);
 
-    if (!serial->openPort()) {
+    if (!serial->open_port()) {
       throw std::runtime_error("Failed to open serial port");
     }
     rclcpp::spin(std::make_shared<ToolController>(serial));
 
-    serial->closePort();
+    serial->close_port();
   } catch (const std::exception & e) {
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Exception: %s", e.what());
     ret = 1;

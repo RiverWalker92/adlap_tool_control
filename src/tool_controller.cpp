@@ -11,14 +11,18 @@ const std::string STATUS_TOPIC = "/tool_status";
 const std::string TOOL_CONTROL_TOPIC = "/instrument_angles";
 
 const float UPPER_MOTOR_FACTOR = 15.0f/25;
-/* Motor gearbox is 150:1. The motors are equipped with a 3 pulse per rotation hall encoder.
+/* Motor gearbox is 150:1. The motors are equipped with a 12 pulse per rotation hall encoder.
 This means 450 pulses equals 1 full rotation.*/
-const int MOTOR_PULSES_PER_ROTATION = 450;
+const int MOTOR_PULSES_PER_ROTATION = 1800; // pulses
 /* The lower motors bend the shaft. The difference approximates the max bending.*/
 const int LOWER_MOTORS_MAX_DIFFERENCE = 160;
-const int LOWER_MOTORS_PLAY = 30; // in pulses. When changing directions, you need to move twice the play before the gearbox starts moving
+const int LOWER_MOTORS_PLAY = 15; // in pulses. When changing directions, you need to move twice the play before the gearbox starts moving
+
+const int HALL1_OFFSET = -120; // in pulses, to align the hall sensor with the physical 0 degree position
+const int HALL2_OFFSET = -90; // in pulses, to align the hall sensor with the physical 0 degree position
+
 const double LOWER_MOTORS_MAX_BEND_ANGLE = 50.0; // degrees
-const int MIN_WAIT_TIME = 40; // Minimum wait time in milliseconds for the motors to respond
+const int MIN_WAIT_TIME = 4; // Minimum wait time in milliseconds for the motors to respond
 const double TWO_PI = 2.0 * M_PI;      
 
 std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
@@ -35,9 +39,9 @@ double smoothed_pitch = 0.0;
 double smoothed_yaw = 0.0;
 double smoothed_gripper = 0.0;
 
-int blocking_current = 5000; // Blocking current threshold for the motors (used at initialization)
+int blocking_current = 30; // Blocking current threshold for the motors (used at initialization)
 bool blocked[4] = {false, false, false, false}; // Flag to indicate if the motors are blocked
-int max_current = 8000; // Maximum current threshold for the motors
+int max_current = 60; // Maximum current threshold for the motors
 bool maxed[4] = {false, false, false, false}; // Flag to indicate if the motors are at maximum current
 
 int bend_angle = 0; // Current articulation angles
@@ -82,54 +86,57 @@ class ToolController : public rclcpp::Node
       return response;
     }
 
-    void send_relative_motor_positions(const std::array<int, 4>& m_array) {
-      send_relative_motor_positions(m_array[0], m_array[1], m_array[2], m_array[3]);
+    void send_relative_motor_positions(const std::array<int, 4>& m_array, bool verbose=true) {
+      send_relative_motor_positions(m_array[0], m_array[1], m_array[2], m_array[3], verbose);
     }
 
-    void send_relative_motor_positions(int m0, int m1, int m2, int m3) {
+    void send_relative_motor_positions(int m0, int m1, int m2, int m3, bool verbose=true) {
       std::array<int, 4>  new_positions = {0, 0, 0, 0};
       new_positions[0] = positions[0] + m0;
       new_positions[1] = positions[1] + m1;
       new_positions[2] = positions[2] + m2;
       new_positions[3] = positions[3] + m3;
       
-      send_motor_positions(new_positions);
+      send_motor_positions(new_positions, verbose);
     }
 
-    void send_motor_positions(int m0, int m1, int m2, int m3) {
+    void send_motor_positions(int m0, int m1, int m2, int m3, bool verbose=true) {
       std::array<int, 4>  new_positions = {m0, m1, m2, m3};
-      send_motor_positions(new_positions);
+      send_motor_positions(new_positions, verbose);
     }
 
     /// @brief Send new absolute motor positions to the motor controller
     /// @param new_positions Array of 4 integers representing the new motor positions
     /// @throws std::runtime_error if the motor response is not ok after reversing movement
-    void send_motor_positions(const std::array<int, 4>& new_positions) {
+    void send_motor_positions(const std::array<int, 4>& new_positions, bool verbose=true) {
       std::string message = motor_message(new_positions);
-      RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
-      serial_->write_data(message);
-      rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      bool motor_status = set_response_values();
 
-      // TODO: This is a workaround for the motors not responding the first loop.
-      // Write the positions again, cause the current return values are one loop behind
+      //TODO: Make steps smaller when large movements are commanded
+
+      if (verbose) {
+        RCLCPP_INFO(this->get_logger(), "Writing: '%s'", message.c_str());
+      }
       serial_->write_data(message);
       rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
-      motor_status = set_response_values();
+      bool motor_status = set_response_values(verbose);
+
+      // TODO: This is a workaround, cause the current return values are one loop behind
+      serial_->write_data(message);
+      rclcpp::sleep_for(std::chrono::milliseconds(MIN_WAIT_TIME));
+      motor_status = set_response_values(verbose);
       // End of workaround
 
       if (!motor_status) {
         RCLCPP_ERROR(this->get_logger(), "Motor response not ok, reversing movement");
         serial_->write_data(motor_message(positions));
         rclcpp::sleep_for(std::chrono::milliseconds(500));
-        motor_status = set_response_values();
+        motor_status = set_response_values(verbose);
 
         
-        // TODO: This is a workaround for the motors not responding the first loop.
-        // Write the positions again, cause the current return values are one loop behind
+        // TODO: This is a workaround, cause the current return values are one loop behind
         serial_->write_data(motor_message(positions));
         rclcpp::sleep_for(std::chrono::milliseconds(500));
-        motor_status = set_response_values();
+        motor_status = set_response_values(verbose);
         // End of workaround
 
         if (!motor_status) {
@@ -143,19 +150,21 @@ class ToolController : public rclcpp::Node
 
     /// @brief Read and set response values from the motor
     /// @return True if the currents are within limits, false otherwise
-    bool set_response_values(){
+    bool set_response_values(bool verbose=true) {
       
       bool response_ok = true;
       std::string response = serial_->read_data();
       if (!response.empty()) {
-        RCLCPP_INFO(this->get_logger(), "Received: '%s'", response.c_str());
+        if (verbose){
+          RCLCPP_INFO(this->get_logger(), "Raw response: '%s'", response.c_str());
+        }
       }else {
         RCLCPP_ERROR(this->get_logger(), "Failed to read from serial port");
       }
       std::vector<int> values;
       std::stringstream ss(response);
       std::string item;
-      while (std::getline(ss, item, ',')) {
+      while (std::getline(ss, item, ' ')) {
         values.push_back(std::stoi(item)); // Convert to int and store
       }
       if (values.size() < 6) {
@@ -163,19 +172,8 @@ class ToolController : public rclcpp::Node
         throw std::runtime_error("Received less than 6 values from the motor");
       }
       for (int i = 0; i < 6; ++i) {
-        // Update the response values
-
-        // TODO: the order of the current values is not the same as the order of the motors
-        if (i == 2) {
-          response_values[3] = values[2];
-        }
-        else if (i == 3)
-        {
-          response_values[2] = values[3];
-        }
-        else{
-          response_values[i] = values[i];
-        }
+        // Update the response values array
+        response_values[i] = values[i];
       }
       for (int i = 0; i < 4; ++i) {
         // Check if the current value exceeds the blocking current
@@ -212,36 +210,55 @@ class ToolController : public rclcpp::Node
             send_relative_motor_positions(driving_values);
           } while (!blocked[i]);
           // Unblock the motor
-          driving_values[i] = -j;
+          driving_values[i] = -5*j;
           send_relative_motor_positions(driving_values);
         }
       }
       // Couple the lower motors
       // These motors also control the front gears, which have to be aligned for the tool to be able to be inserted
       // The hall sensors can be used to find the correct position
-      // TODO: one hall value is low (motor1) when passing and the other is high (motor2).
-      int hall1_position = 0;
-      int hall1_value = 1000;
-      int hall2_position = 0;
-      int hall2_value = 0;
-      for (int i = 0; i < 135; i++) {
-        send_relative_motor_positions(0,10,10,0);
-        if (response_values[4] < hall1_value) {
-          hall1_value = response_values[4];
-          hall1_position = positions[1] % MOTOR_PULSES_PER_ROTATION;
-          RCLCPP_INFO(this->get_logger(), "Hall1 position: '%d'", hall1_position);
+
+      int hall1_value = response_values[4];
+      int hall1_up = 0;
+      int hall1_down = 0;
+      int hall2_value = response_values[5];
+      int hall2_up = 0;
+      int hall2_down = 0;
+      int step_size = 10;
+      for (int i = 0; i < 3*MOTOR_PULSES_PER_ROTATION/step_size; i++) {
+        send_relative_motor_positions(0,step_size,step_size,0, false);
+        if (response_values[4] == 1 and hall1_value == 0) {
+          hall1_up = positions[1] % MOTOR_PULSES_PER_ROTATION;
+          RCLCPP_INFO(this->get_logger(), "Hall1 up: '%d'", hall1_up);
         }
-        if (response_values[5] > hall2_value) {
-          hall2_value = response_values[5];
-          hall2_position = positions[2] % MOTOR_PULSES_PER_ROTATION;
-          RCLCPP_INFO(this->get_logger(), "Hall2 position: '%d'", hall2_position);
+        if (response_values[4] == 0 and hall1_value == 1) {
+          hall1_down = positions[1] % MOTOR_PULSES_PER_ROTATION;
+          RCLCPP_INFO(this->get_logger(), "Hall1 down: '%d'", hall1_down);
         }
+        if (response_values[5] == 1 and hall2_value == 0) {
+          hall2_up = positions[2] % MOTOR_PULSES_PER_ROTATION;
+          RCLCPP_INFO(this->get_logger(), "Hall2 up: '%d'", hall2_up);
+        }
+        if (response_values[5] == 0 and hall2_value == 1) {
+          hall2_down = positions[2] % MOTOR_PULSES_PER_ROTATION;
+          RCLCPP_INFO(this->get_logger(), "Hall2 down: '%d'", hall2_down);
+        }
+        hall1_value = response_values[4];
+        hall2_value = response_values[5];
       }  
       // Move back to the position where the hall sensor triggers (assumed to be the correct position for instrument insertion)
+      if (hall1_up > hall1_down) {
+        hall1_down += MOTOR_PULSES_PER_ROTATION;
+      }
+      if (hall2_up > hall2_down) {
+        hall2_down += MOTOR_PULSES_PER_ROTATION;
+      }
+      int hall1_position = (hall1_up + hall1_down) / 2 + HALL1_OFFSET;
       int hall1_correction = hall1_position - positions[1] % MOTOR_PULSES_PER_ROTATION;
       RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
+      int hall2_position = (hall2_up + hall2_down) / 2 + HALL2_OFFSET;
       int hall2_correction = hall2_position - positions[2] % MOTOR_PULSES_PER_ROTATION;
-      RCLCPP_INFO(this->get_logger(), "Setting hall1 position: '%d'", hall1_correction);
+      RCLCPP_INFO(this->get_logger(), "Setting hall2 position: '%d'", hall2_correction);
       send_relative_motor_positions(0,hall1_correction,hall2_correction,0);
     }
 
@@ -528,7 +545,7 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   try {
-    auto serial = std::make_shared<SerialPort>("/dev/ttyUSB0", 115200);
+    auto serial = std::make_shared<SerialPort>("/dev/ttyACM2", 115200);
 
     if (!serial->open_port()) {
       throw std::runtime_error("Failed to open serial port");

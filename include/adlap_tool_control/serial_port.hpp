@@ -13,6 +13,8 @@ public:
     std::string read_data(size_t max_bytes = 100);
     bool is_open() const { return fd_ != -1; }
 
+    static std::string find_device_by_manufacturer_product(const std::string& manufacturer, const std::string& product);
+
 private:
     std::string device_;
     int baudrate_;

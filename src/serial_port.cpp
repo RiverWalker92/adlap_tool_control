@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 
 SerialPort::SerialPort(const std::string& device, int baudrate)
     : device_(device), baudrate_(baudrate), fd_(-1) {}
@@ -83,4 +85,81 @@ std::string SerialPort::read_data(size_t max_bytes) {
     } else {
         return "";
     }
+}
+
+std::string SerialPort::find_device_by_manufacturer_product(const std::string& manufacturer, const std::string& product) {
+    const std::string sys_class_tty = "/sys/class/tty/";
+    
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(sys_class_tty)) {
+            if (!entry.is_directory()) {
+                continue;
+            }
+            
+            std::string device_name = entry.path().filename();
+            
+            // Only check ttyACM* and ttyUSB* devices
+            if (device_name.substr(0, 6) != "ttyACM" && device_name.substr(0, 6) != "ttyUSB") {
+                continue;
+            }
+            
+            // Check if device has USB info
+            std::filesystem::path device_path = entry.path() / "device";
+            if (!std::filesystem::exists(device_path)) {
+                continue;
+            }
+            
+            // Follow symlinks to find the USB device info
+            std::filesystem::path usb_device_path = device_path;
+            try {
+                while (std::filesystem::is_symlink(usb_device_path)) {
+                    std::filesystem::path link_target = std::filesystem::read_symlink(usb_device_path);
+                    if (link_target.is_relative()) {
+                        usb_device_path = usb_device_path.parent_path() / link_target;
+                        usb_device_path = std::filesystem::canonical(usb_device_path);
+                    } else {
+                        usb_device_path = link_target;
+                    }
+                }
+            } catch (const std::filesystem::filesystem_error&) {
+                continue; // Skip if we can't resolve the symlink
+            }
+            
+            // Navigate up to find USB device directory with manufacturer and product files
+            std::filesystem::path current_path = usb_device_path;
+            while (current_path != current_path.parent_path()) {
+                std::filesystem::path manufacturer_file = current_path / "manufacturer";
+                std::filesystem::path product_file = current_path / "product";
+                
+                if (std::filesystem::exists(manufacturer_file) && std::filesystem::exists(product_file)) {
+                    // Read manufacturer
+                    std::ifstream mfg_stream(manufacturer_file);
+                    std::string device_manufacturer;
+                    if (mfg_stream.is_open()) {
+                        std::getline(mfg_stream, device_manufacturer);
+                    }
+                    
+                    // Read product
+                    std::ifstream prod_stream(product_file);
+                    std::string device_product;
+                    if (prod_stream.is_open()) {
+                        std::getline(prod_stream, device_product);
+                    }
+                    
+                    // Check if this matches our target device
+                    if (device_manufacturer.find(manufacturer) != std::string::npos && 
+                        device_product.find(product) != std::string::npos) {
+                        return "/dev/" + device_name;
+                    }
+                    break;
+                }
+                current_path = current_path.parent_path();
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error searching for device: " << e.what() << std::endl;
+    }
+    
+    // Return empty string if not found
+    return "";
 }

@@ -201,7 +201,7 @@ class ToolController : public rclcpp::Node
     void couple_sequence(){
       // Making some rotations to get the pins do drop into the holes of the gearbox
       // Couple the upper motors
-      for (int i : {0,3}){
+      for (int i : {0,1,2,3}){
         for (int j : {10, -10}){
           // Move the motor till it is blocked (coupled and reached its end position)
           std::array<int, 4> driving_values  = {0, 0, 0, 0};
@@ -214,6 +214,10 @@ class ToolController : public rclcpp::Node
           send_relative_motor_positions(driving_values);
         }
       }
+    }
+
+    
+    void find_hall_sensor_positions() {
       // Couple the lower motors
       // These motors also control the front gears, which have to be aligned for the tool to be able to be inserted
       // The hall sensors can be used to find the correct position
@@ -545,18 +549,28 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   try {
-    auto serial = std::make_shared<SerialPort>("/dev/ttyACM2", 115200);
+    std::string device_path = SerialPort::find_device_by_manufacturer_product("Raspberry Pi", "Pico");
+    
+    if (device_path.empty()) {
+      throw std::runtime_error("Could not find Raspberry Pi Pico device. Please check if the device is connected.");
+    }
+    
+    std::cout << "Using device: " << device_path << std::endl;
+    
+    auto serial = std::make_shared<SerialPort>(device_path, 115200);
 
     if (!serial->open_port()) {
-      throw std::runtime_error("Failed to open serial port");
+      throw std::runtime_error("Failed to open serial port: " + device_path);
     }
+    
     rclcpp::spin(std::make_shared<ToolController>(serial));
-
     serial->close_port();
+    
   } catch (const std::exception & e) {
     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Exception: %s", e.what());
     ret = 1;
   }  
+  
   rclcpp::shutdown();
   return ret;
 }

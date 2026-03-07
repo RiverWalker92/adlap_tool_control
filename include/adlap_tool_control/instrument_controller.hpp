@@ -7,6 +7,7 @@
 #include <array>
 #include <deque>
 #include <memory>
+#include <limits>
 
 
 
@@ -17,32 +18,34 @@ class InstrumentController
 public:
     InstrumentController(MotorController& motor_controller, rclcpp::Logger logger);
 
-private:
     // Instrument control methods
     void manual_adjustment();
-    
-    // Calculation methods
-    int get_relative_motor1_value_for_angle(double radians);
     void set_angles(double roll, double pitch, double yaw, double gripper);
-    std::array<int, 4>& calculate_motor_positions_based_on_smoothed_angles();
-    void drive_motors(const std::array<int, 4>& m_array);
+    std::array<double, 4> angles_from_motors(const std::array<int, 4>& m_array);
+private:
+    // Calculation methods
+    int get_relative_motor2_value_for_angle(double radians);
+    std::array<int, 4> calculate_motor_positions_from_angles();
+    void drive_motors(std::array<int, 4> m_array);
 
     /// Push a new sample, cap history to smoothing_factor_, and return the mean.
-    static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size);
+        static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size,
+            double min_value = -std::numeric_limits<double>::infinity(),
+            double max_value = std::numeric_limits<double>::infinity());
     
     // Member variables
-    MotorController motor_controller_;
+    MotorController& motor_controller_;
     rclcpp::Logger logger_;
     std::deque<double> roll_history_; // History for smoothing
     std::deque<double> pitch_history_; // History for smoothing
     std::deque<double> yaw_history_; // History for smoothing
     std::deque<double> gripper_history_; // History for smoothing
 
-    int smoothing_factor_ = 20;
+    int smoothing_factor_ = 4; // Number of samples to average for smoothing
     
     // Instrument state
     double smoothed_roll_ = 0.0;
-    double smoothed_pitch_ = 0.0;
+    double smoothed_pitch_ = 0.01;
     double smoothed_yaw_ = 0.0;
     double smoothed_gripper_ = 0.0;
     int bend_angle_ = 0; // Current articulation angles
@@ -53,5 +56,5 @@ private:
 
     /* The lower motors bend the shaft. The difference approximates the max bending.*/
     const int LOWER_MOTORS_MAX_DIFFERENCE = 160; // in pulses, should be changed to radians
-    const double LOWER_MOTORS_MAX_BEND_ANGLE = 50.0; // degrees
+    const double LOWER_MOTORS_MAX_BEND_ANGLE = 30.0; // degrees
 };

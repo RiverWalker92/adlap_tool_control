@@ -51,6 +51,7 @@ constexpr int8_t KEYCODE_9 = 0x39;
 constexpr int8_t KEYCODE_0 = 0x30;
 constexpr int8_t KEYCODE_MINUS = 0x2D; // '-'
 constexpr int8_t KEYCODE_EQUAL = 0x3D; // '='
+constexpr int8_t KEYCODE_PLUS = 0x2B; // '+'
 
 
 // A class for reading key inputs from the terminal

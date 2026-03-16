@@ -85,7 +85,7 @@ void MotorController::reader_loop()
         continue;
       }
 
-      const bool ok = set_response_values_from_stream(line, /*verbose=*/true);
+      const bool ok = set_response_values_from_stream(line, /*verbose=*/false);
       if (ok) {
         last_message_time_ = std::chrono::steady_clock::now();  // Update last message time
         rx_seq_.fetch_add(1, std::memory_order_relaxed);
@@ -101,10 +101,16 @@ bool MotorController::set_response_values_from_stream(const std::string& line, b
     RCLCPP_INFO(logger_, "Raw response: '%s'", line.c_str());
   }
 
+  if (line.rfind("INFO:", 0) == 0) { // starts with "INFO:"
+    RCLCPP_INFO(logger_, "Motor controller info: %s", line.c_str());
+    return true;
+  }
+
   if (line.rfind("ERROR:", 0) == 0) { // starts with "ERROR:"
     RCLCPP_ERROR(logger_, "Motor controller: %s", line.c_str());
     return false;
   }
+
 
   std::vector<int> values;
   values.reserve(10);
@@ -314,6 +320,7 @@ void MotorController::send_duty_cycle(const std::array<int, 4>& duty_cycle_array
         RCLCPP_INFO(logger_, "Writing duty cycle: '%s'", message.c_str());
     }
     serial_->write_data(message);
+    rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
 }
 
 void MotorController::send_encoder_mode(const std::array<int, 4>& encoder_mode_array, bool verbose)
@@ -327,73 +334,26 @@ void MotorController::send_encoder_mode(const std::array<int, 4>& encoder_mode_a
         RCLCPP_INFO(logger_, "Writing encoder mode: '%s'", message.c_str());
     }
     serial_->write_data(message);
+    rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
 }
 
-// /// @brief Read and set response values from the motor
-// /// @return True if the currents are within limits, false otherwise
-// bool MotorController::set_response_values(bool verbose)
-// {
-//     bool response_ok = true;
-//     std::string response = serial_->read_data();
-    
-//     if (!response.empty()) {
-//         if (verbose) {
-//             RCLCPP_INFO(logger_, "Raw response: '%s'", response.c_str());
-//         }
-//     } else {
-//         RCLCPP_ERROR(logger_, "Failed to read from serial port");
-//     }
-    
-//     std::vector<int> values;
-//     std::stringstream ss(response);
-//     std::string item;
-//     while (std::getline(ss, item, ' ')) {
-//         values.push_back(std::stoi(item));
-//     }
-    
-//     if (values.size() < 10) {
-//         RCLCPP_ERROR(logger_, "Received less than 10 values from the motor: %zu", values.size());
-//         throw std::runtime_error("Received less than 10 values from the motor");
-//     }
-    
-//     for (int i = 0; i < 10; ++i) {
-//         response_values_[i] = values[i];
-//     }
-    
-//     for (int i = 4; i < 8; ++i) {
-//         // Check if the current value exceeds the blocking current
-//         if (response_values_[i] > BLOCKING_CURRENT) {
-//             blocked_[i] = true;
-//             RCLCPP_WARN(logger_, "Motor %d value out of range: %d", i, response_values_[i]);
-//         } else {
-//             blocked_[i] = false;
-//         }
-        
-//         // Check if the current value exceeds the maximum current
-//         if (response_values_[i] > MAX_CURRENT) {
-//             maxed_[i] = true;
-//             response_ok = false;
-//             RCLCPP_ERROR(logger_, "Motor %d current exceeded maximum: %d", i, response_values_[i]);
-//         } else {
-//             maxed_[i] = false;
-//         }
-//     }
-    
-//     return response_ok;
-// }
 
 /// @brief Couple the motors to the gearbox
 void MotorController::couple_sequence(){
     // Making some rotations to get the pins do drop into the holes of the gearbox
     for (int i : {0,1,2,3}){
-      int step_size = get_pulses_per_degree(is_upper_motor(i)) * 5; // Step size of 2 degrees in pulses
+      int step_size = get_pulses_per_degree(is_upper_motor(i)) * 3; // Step size of 2 degrees in pulses
       for (int j : {step_size, -step_size}){
         // Move the motor till it is blocked (coupled and reached its end position)
         std::array<int, 4> driving_values  = {0, 0, 0, 0};
-        driving_values[i] = j;
+        driving_values[i] = 2 * j;
+        std::array<int, 4> step_back  = {0, 0, 0, 0};
+        step_back[i] = -j;
         do{
           send_relative_motor_positions(driving_values);
-          rclcpp::sleep_for(std::chrono::milliseconds(50));
+          rclcpp::sleep_for(std::chrono::milliseconds(20));
+          send_relative_motor_positions(step_back);
+          rclcpp::sleep_for(std::chrono::milliseconds(20));
         } while (!get_blocked()[i]);
         RCLCPP_DEBUG(logger_, "Motor %d blocked at position %d", i, get_positions()[i]);
         // Unblock the motor

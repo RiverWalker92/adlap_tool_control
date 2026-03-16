@@ -24,7 +24,7 @@ public:
     std::array<double, 4> angles_from_motors(const std::array<int, 4>& m_array);
 private:
     // Calculation methods
-    int get_relative_motor2_value_for_angle(double radians);
+    int get_motor2_value_for_angle(double radians);
     std::array<int, 4> calculate_motor_positions_from_angles();
     void drive_motors(std::array<int, 4> m_array);
 
@@ -41,20 +41,19 @@ private:
     std::deque<double> yaw_history_; // History for smoothing
     std::deque<double> gripper_history_; // History for smoothing
 
-    int smoothing_factor_ = 4; // Number of samples to average for smoothing
+    int smoothing_factor_ = 1; // Number of samples to average for smoothing
     
     // Instrument state
     double smoothed_roll_ = 0.0;
     double smoothed_pitch_ = 0.01;
     double smoothed_yaw_ = 0.0;
     double smoothed_gripper_ = 0.0;
-    int bend_angle_ = 0; // Current articulation angles
+    int bend_play_compensation_ = 0; // Current compensation used
     double absolute_omega_ = 0.0; // Absolute omega value for shortest rotation calculation
 
     // Constants
     const double TWO_PI = 2.0 * M_PI;   
 
-    /* The lower motors bend the shaft. The difference approximates the max bending.*/
-    const int LOWER_MOTORS_MAX_DIFFERENCE = 160; // in pulses, should be changed to radians
-    const double LOWER_MOTORS_MAX_BEND_ANGLE = 30.0; // degrees
+    /* The lower motors bend the shaft. This factor relates the motor position to the bend angle.*/
+    const double BEND_FACTOR = 2.0;
 };

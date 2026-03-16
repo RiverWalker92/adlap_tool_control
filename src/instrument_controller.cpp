@@ -39,7 +39,12 @@ void InstrumentController::manual_adjustment(){
         break;          
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
-        motor_controller_.update_starting_positions();          
+        motor_controller_.update_starting_positions(); 
+        update_history_and_get_mean(roll_history_, 0.0, 1, -M_PI, M_PI); 
+        update_history_and_get_mean(pitch_history_, 0.0, 1, -M_PI, M_PI);  
+        update_history_and_get_mean(yaw_history_, 0.0, 1, -M_PI, M_PI);  
+        update_history_and_get_mean(gripper_history_, 0.0, 1, -M_PI, M_PI); 
+        absolute_omega_ = 0.0; // Reset absolute omega when updating starting positions         
         break;
       case KEYCODE_R:
         RCLCPP_INFO(logger_, "R -> Reset to starting positions");
@@ -162,23 +167,34 @@ std::array<double, 4> InstrumentController::angles_from_motors(const std::array<
 }
 
 
-int InstrumentController::get_relative_motor2_value_for_angle(double radians){
+int InstrumentController::get_motor2_value_for_angle(double radians){
   double degrees = radians * 180.0 / M_PI;
 
-  if (bend_angle_ == degrees) {
+  int starting_difference = motor_controller_.get_starting_positions()[2] - motor_controller_.get_starting_positions()[1];
+  int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
+  int wanted_difference = static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
+  int relative_difference = wanted_difference - current_difference + bend_play_compensation_;
+
+  RCLCPP_DEBUG(logger_, "degrees: %f", degrees);
+  RCLCPP_DEBUG(logger_, "Current difference: %d", current_difference);
+  RCLCPP_DEBUG(logger_, "Wanted difference: %d", wanted_difference);
+  RCLCPP_DEBUG(logger_, "Relative difference: %d", relative_difference);
+
+  if (abs(relative_difference) <= motor_controller_.get_pulses_per_degree(false) * 5) { // If the current difference is within 5 degrees of the target, don't adjust to prevent jitter
     RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
-    return 0;
+    return current_difference; // Return the current difference without adjustment
   }
+
   int play_compensation = 0;
-  if (degrees > bend_angle_) {
-    play_compensation = motor_controller_.get_lower_motors_play();
+  if (relative_difference > 0){
+    play_compensation = motor_controller_.get_lower_motors_play() * motor_controller_.get_pulses_per_degree(false);
   }
   else{
-    play_compensation = -motor_controller_.get_lower_motors_play();
+    play_compensation = -motor_controller_.get_lower_motors_play() * motor_controller_.get_pulses_per_degree(false);
   }
-  bend_angle_ = degrees;
-  int starting_difference = motor_controller_.get_starting_positions()[1] - motor_controller_.get_starting_positions()[2];
-  return int(std::round((LOWER_MOTORS_MAX_DIFFERENCE - play_compensation) / LOWER_MOTORS_MAX_BEND_ANGLE * degrees + play_compensation + starting_difference - motor_controller_.get_target_positions()[1] + motor_controller_.get_target_positions()[2]));
+  bend_play_compensation_ = play_compensation; // Store the current compensation for use in the next calculation
+
+  return wanted_difference + play_compensation;
 }
 
 
@@ -192,7 +208,7 @@ double InstrumentController::update_history_and_get_mean(std::deque<double>& his
     if (sample < min_value) sample = min_value;
     else if (sample > max_value) sample = max_value;
     history.push_front(sample);
-    if (history.size() > max_size) {
+    while (history.size() > max_size) {
         history.pop_back();
     }
 
@@ -236,11 +252,13 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
       diff -= TWO_PI;
   }
   absolute_omega_ += diff; // Update absolute_omega with the shortest rotation
-  
-  RCLCPP_INFO(logger_, "theta: '%f' omega: '%f'", theta, absolute_omega_);
 
-  int m2_bend = get_relative_motor2_value_for_angle(theta);
+  int m2_bend = get_motor2_value_for_angle(theta);
   int shaft_rot = absolute_omega_ * motor_controller_.get_motor_pulses_per_rotation(false) / (2 * M_PI);
+
+  RCLCPP_INFO(logger_, "### Calculated motor positions ### \n shaft_rot: '%d', m2_bend: '%d', ", shaft_rot, m2_bend);
+  RCLCPP_INFO(logger_, "theta: '%f' omega: '%f'", theta, absolute_omega_);
+  RCLCPP_INFO(logger_, "roll, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rotation, gripper_offset, gripper_position);
 
   /*TODO
   - Gripper distance is currently hardcoded as 0.6 times a full rotation, this is incorrect
@@ -248,11 +266,10 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   - limit angles correctly. ROll is to small and gripper too see first point.
   */ 
 
-  RCLCPP_INFO(logger_, "roll, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rotation, gripper_offset, gripper_position);
   std::array<int, 4>  start_positions = motor_controller_.get_starting_positions();
   std::array<int, 4>  new_positions = {
     static_cast<int>(std::round(start_positions[0] + tip_rotation)),
-    static_cast<int>(std::round(start_positions[1] + shaft_rot)),
+    static_cast<int>(std::round(start_positions[1] + shaft_rot - bend_play_compensation_)),
     static_cast<int>(std::round(start_positions[2] + shaft_rot + m2_bend)), 
     static_cast<int>(std::round(start_positions[3] + tip_rotation + gripper_position))    
   };

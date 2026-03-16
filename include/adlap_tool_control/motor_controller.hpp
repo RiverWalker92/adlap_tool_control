@@ -19,7 +19,7 @@ public:
     int max_current;             // Maximum safe current threshold (mA)
     
     float upper_motor_factor;    // Gear ratio factor for upper motors (if different)
-    int lower_motors_play;       // Backlash compensation in pulses
+    int lower_motors_play;       // Backlash compensation in degrees
     int min_wait_time_ms;        // Minimum wait time after commands (ms)
 
         Motor() = default;
@@ -99,7 +99,7 @@ public:
     const std::array<bool, 4>& get_blocked_status() const { return blocked_; }
     const std::array<bool, 4>& get_maxed_status() const { return maxed_; }
     int get_lower_motors_play() const { return motor_.lower_motors_play; }
-    int get_motor_pulses_per_rotation(bool upper) const { return upper ? motor_.get_pulses_per_rotation(): static_cast<int>(motor_.get_pulses_per_rotation() * motor_.upper_motor_factor); }
+    int get_motor_pulses_per_rotation(bool upper) const { return upper ? static_cast<int>(motor_.get_pulses_per_rotation() * motor_.upper_motor_factor) : motor_.get_pulses_per_rotation(); }
     float get_pulses_per_degree(bool upper = false) const { 
         int pulses = get_motor_pulses_per_rotation(upper);
         return static_cast<float>(pulses) / 360.0f;

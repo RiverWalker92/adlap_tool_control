@@ -11,7 +11,7 @@ class Motor
 {
 public:
     int encoder_resolution;      // Encoder resolution (pulses per motor rotation)
-    int gear_ratio;              // Gear ratio (e.g., 150:1)
+    float gear_ratio;              // Gear ratio (e.g., 150:1)
     int encoder_mode;            // Read rise and fall of both channels for higher resolution (1, 2, or 4)
  
     int duty_cycle_percentage;   // Duty cycle percentage for motor control (0-100)
@@ -24,7 +24,7 @@ public:
 
         Motor() = default;
         Motor(int encoder_resolution,
-                    int gear_ratio,
+                    float gear_ratio,
                     int encoder_mode,
                     int duty_cycle_percentage,
                     int blocking_current,
@@ -45,11 +45,11 @@ public:
     
     /// @brief Calculate pulses per rotation from hardware parameters
     int get_pulses_per_rotation() const {
-        return encoder_resolution * gear_ratio * encoder_mode;
+        return static_cast<int>(std::lround(encoder_resolution * gear_ratio * encoder_mode));
     }
     
     /// @brief Create motor configuration from gear ratio, encoder resolution, and mode
-    static Motor create(int encoder_resolution, int gear_ratio, int encoder_mode,
+    static Motor create(int encoder_resolution, float gear_ratio, int encoder_mode,
                              int duty_cycle = 7, int blocking_current = 30, int max_current = 60,
                              float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15,
                              int min_wait_time_ms = 4) {
@@ -68,7 +68,7 @@ public:
     
     /// @brief Create default motor configuration (150:1 gear ratio, 12 pulse encoder, mode=1)
     static Motor create_default() {
-        return create(3, 150, 4);  // 3 pulses/rotation * 150:1 gearbox * 4 mode = 1800 pulses
+        return create(3, 150.0f, 4);  // 3 pulses/rotation * 150:1 gearbox * 4 mode = 1800 pulses
     }
 };
 
@@ -79,18 +79,19 @@ public:
     ~MotorController();
     
     // Motor position control
-    void send_motor_positions(const std::array<int, 4>& new_positions, bool verbose = true);
-    void send_motor_positions(int m0, int m1, int m2, int m3, bool verbose = true);
-    void send_relative_motor_positions(const std::array<int, 4>& m_array, bool verbose = true);
-    void send_relative_motor_positions(int m0, int m1, int m2, int m3, bool verbose = true);
-    void send_duty_cycle(const std::array<int, 4>& duty_cycle_array, bool verbose = true);
-    void send_encoder_mode(const std::array<int, 4>& duty_cycle_array, bool verbose = true);
+    void send_motor_positions(const std::array<int, 4>& new_positions, bool verbose = false);
+    void send_motor_positions(int m0, int m1, int m2, int m3, bool verbose = false);
+    void send_relative_motor_positions(const std::array<int, 4>& m_array, bool verbose = false);
+    void send_relative_motor_positions(int m0, int m1, int m2, int m3, bool verbose = false);
+    void send_duty_cycle(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
+    void send_encoder_mode(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void couple_sequence();
+    void setup_lower_motors();
     void update_target_positions();
     void update_starting_positions();
 
     // Motor status and communication
-    bool set_response_values(bool verbose = true);
+    bool set_response_values(bool verbose = false);
     std::string motor_message(const std::array<int, 4>& m_array);
     
     // Getters for current state
@@ -98,16 +99,18 @@ public:
     const std::array<int, 4>& get_target_positions() const { return target_positions_; }
     const std::array<bool, 4>& get_blocked_status() const { return blocked_; }
     const std::array<bool, 4>& get_maxed_status() const { return maxed_; }
-    int get_lower_motors_play() const { return motor_.lower_motors_play; }
-    int get_motor_pulses_per_rotation(bool upper) const { return upper ? static_cast<int>(motor_.get_pulses_per_rotation() * motor_.upper_motor_factor) : motor_.get_pulses_per_rotation(); }
+    int get_pulses_per_rotation(bool upper) const { return upper ? static_cast<int>(motor_.get_pulses_per_rotation() * motor_.upper_motor_factor) : motor_.get_pulses_per_rotation(); }
     float get_pulses_per_degree(bool upper = false) const { 
-        int pulses = get_motor_pulses_per_rotation(upper);
+        int pulses = get_pulses_per_rotation(upper);
         return static_cast<float>(pulses) / 360.0f;
     }
+    int get_pulses_lower_motors_play() const { return static_cast<int>(std::lround(motor_.lower_motors_play * get_pulses_per_degree())); }
     bool is_upper_motor(int motor_index) const { return motor_index == 0 || motor_index == 3; }
 
     void start_stream_reader();
     void stop_stream_reader();
+
+    int lower_motor_start_offset = 0; // Compensation used
 
     // Thread-safe snapshots for your main thread
     std::array<int, 10> get_response_values() const;
@@ -134,7 +137,7 @@ private:
     std::atomic<uint64_t> rx_seq_{0};
     std::string rx_buffer_;
     std::chrono::steady_clock::time_point last_message_time_;
-    static constexpr int MESSAGE_TIMEOUT_MS = 10000;  // Timeout for no messages received
+    static constexpr int MESSAGE_TIMEOUT_MS = 1000;  // Timeout for no messages received
 
     void find_hall_sensor_positions();
 

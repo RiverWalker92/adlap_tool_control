@@ -17,7 +17,7 @@ class ToolController : public rclcpp::Node
   public:
   ToolController(std::shared_ptr<SerialPort> serial)
     : Node("tool_control_node"), serial_(serial),
-      motor_controller_(serial_, this->get_logger(), Motor{7, 150, 1, 30, 50, 100, 25.0f / 15.0f, 18, 4}), // Custom motor config
+      motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 50, 100, 25.0f / 15.0f, 20, 4}), // Custom motor config
       instrument_controller_(motor_controller_, this->get_logger())
     {
       // The publisher and subscriber topics are relative, so they are mapped to left or right with the node namespace

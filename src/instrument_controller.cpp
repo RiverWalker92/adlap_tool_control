@@ -31,6 +31,7 @@ void InstrumentController::manual_adjustment(){
       return;
     }
     double angle_rad = 5.0 * M_PI / 180.0;
+    int step_size = motor_controller_.get_pulses_per_degree(false) * 5; // Step size of 5 degrees in pulses
     switch (c)
     {
       case KEYCODE_C:
@@ -40,11 +41,17 @@ void InstrumentController::manual_adjustment(){
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
         motor_controller_.update_starting_positions(); 
-        update_history_and_get_mean(roll_history_, 0.0, 1, -M_PI, M_PI); 
-        update_history_and_get_mean(pitch_history_, 0.0, 1, -M_PI, M_PI);  
-        update_history_and_get_mean(yaw_history_, 0.0, 1, -M_PI, M_PI);  
-        update_history_and_get_mean(gripper_history_, 0.0, 1, -M_PI, M_PI); 
-        absolute_omega_ = 0.0; // Reset absolute omega when updating starting positions         
+        smoothed_roll_ = update_history_and_get_mean(roll_history_, 0.0, 1, -M_PI, M_PI); 
+        smoothed_pitch_ = update_history_and_get_mean(pitch_history_, 0.0, 1, -M_PI, M_PI);  
+        smoothed_yaw_ = update_history_and_get_mean(yaw_history_, 0.0, 1, -M_PI, M_PI);  
+        smoothed_gripper_ = update_history_and_get_mean(gripper_history_, 0.0, 1, -M_PI, M_PI); 
+        RCLCPP_DEBUG(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', gripper: '%f'", smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
+        absolute_omega_ = 0.0; // Reset absolute omega when updating starting positions
+        bend_play_compensation_ = 0; // Reset bend play compensation when updating starting positions         
+        break;
+      case KEYCODE_I:
+        RCLCPP_INFO(logger_, "I -> Initialize lower motors");
+        motor_controller_.setup_lower_motors();
         break;
       case KEYCODE_R:
         RCLCPP_INFO(logger_, "R -> Reset to starting positions");
@@ -77,6 +84,10 @@ void InstrumentController::manual_adjustment(){
         RCLCPP_INFO(logger_, "4 -> Yaw left");
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_ - angle_rad, smoothed_gripper_);
         break;
+      case KEYCODE_5:
+        RCLCPP_INFO(logger_, "5 -> Full rotation");
+        motor_controller_.send_relative_motor_positions(0,motor_controller_.get_pulses_per_rotation(false),motor_controller_.get_pulses_per_rotation(false),0);
+        break;
       case KEYCODE_6:
         RCLCPP_INFO(logger_, "6 -> Yaw right");
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_ + angle_rad, smoothed_gripper_);
@@ -95,42 +106,42 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_RIGHT:
         RCLCPP_INFO(logger_, "RIGHT");
-        motor_controller_.send_relative_motor_positions(0,10,0,0);
+        motor_controller_.send_relative_motor_positions(0,step_size,0,0);
         break;
       case KEYCODE_LEFT:
         RCLCPP_INFO(logger_, "LEFT");
-        motor_controller_.send_relative_motor_positions(0,-10,0,0);
+        motor_controller_.send_relative_motor_positions(0,-step_size,0,0);
         break;
       case KEYCODE_UP:
         RCLCPP_INFO(logger_, "UP");
-        motor_controller_.send_relative_motor_positions(0,0,10,0);
+        motor_controller_.send_relative_motor_positions(0,0,step_size,0);
         break;
       case KEYCODE_DOWN:
         RCLCPP_INFO(logger_, "DOWN");
-        motor_controller_.send_relative_motor_positions(0,0,-10,0);
+        motor_controller_.send_relative_motor_positions(0,0,-step_size,0);
         break;
       case KEYCODE_W:
         RCLCPP_INFO(logger_, "W");
-        motor_controller_.send_relative_motor_positions(10,0,0,0);
+        motor_controller_.send_relative_motor_positions(step_size,0,0,0);
         break;
       case KEYCODE_S:
         RCLCPP_INFO(logger_, "S");
-        motor_controller_.send_relative_motor_positions(-10,0,0,0);
+        motor_controller_.send_relative_motor_positions(-step_size,0,0,0);
         break;
       case KEYCODE_D:
         RCLCPP_INFO(logger_, "D");
-        motor_controller_.send_relative_motor_positions(10,0,0,10);
+        motor_controller_.send_relative_motor_positions(step_size,0,0,step_size);
         break;
       case KEYCODE_A:
         RCLCPP_INFO(logger_, "A");
-        motor_controller_.send_relative_motor_positions(-10,0,0,-10);
+        motor_controller_.send_relative_motor_positions(-step_size,0,0,-step_size);
         break;
       case KEYCODE_E:
-        motor_controller_.send_relative_motor_positions(0,10,10,0);
+        motor_controller_.send_relative_motor_positions(0,step_size,step_size,0);
         RCLCPP_INFO(logger_, "E");
         break;
       case KEYCODE_Q:
-        motor_controller_.send_relative_motor_positions(0,-10,-10,0);
+        motor_controller_.send_relative_motor_positions(0,-step_size,-step_size,0);
         RCLCPP_INFO(logger_, "Q");
         break;
       case KEYCODE_ENTER:
@@ -169,8 +180,13 @@ std::array<double, 4> InstrumentController::angles_from_motors(const std::array<
 
 int InstrumentController::get_motor2_value_for_angle(double radians){
   double degrees = radians * 180.0 / M_PI;
-
-  int starting_difference = motor_controller_.get_starting_positions()[2] - motor_controller_.get_starting_positions()[1];
+  if (degrees > MAX_BEND_ANGLE_DEGREES) {
+    degrees = MAX_BEND_ANGLE_DEGREES;
+  } else if (degrees < -MAX_BEND_ANGLE_DEGREES) {
+    degrees = -MAX_BEND_ANGLE_DEGREES;
+  }
+  RCLCPP_DEBUG(logger_, "bend_play_compensation: %d", bend_play_compensation_);
+  int starting_difference = motor_controller_.get_starting_positions()[2] - motor_controller_.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
   int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
   int wanted_difference = static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
   int relative_difference = wanted_difference - current_difference + bend_play_compensation_;
@@ -187,13 +203,13 @@ int InstrumentController::get_motor2_value_for_angle(double radians){
 
   int play_compensation = 0;
   if (relative_difference > 0){
-    play_compensation = motor_controller_.get_lower_motors_play() * motor_controller_.get_pulses_per_degree(false);
+    play_compensation = motor_controller_.get_pulses_lower_motors_play();
   }
   else{
-    play_compensation = -motor_controller_.get_lower_motors_play() * motor_controller_.get_pulses_per_degree(false);
+    play_compensation = -motor_controller_.get_pulses_lower_motors_play();
   }
   bend_play_compensation_ = play_compensation; // Store the current compensation for use in the next calculation
-
+  RCLCPP_DEBUG(logger_, "bend_play_compensation: %d", bend_play_compensation_);
   return wanted_difference + play_compensation;
 }
 
@@ -225,10 +241,10 @@ double InstrumentController::update_history_and_get_mean(std::deque<double>& his
 
 std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
 {
-  int tip_rotation = static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_motor_pulses_per_rotation(true) / (2 * M_PI)));
-  int gripper_offset = static_cast<int>(std::round(0.6f * motor_controller_.get_motor_pulses_per_rotation(true)));
+  int tip_rotation = static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
+  int gripper_offset = static_cast<int>(std::round(0.6f * motor_controller_.get_pulses_per_rotation(true)));
   int gripper_factor = 16;
-  int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper_ * motor_controller_.get_motor_pulses_per_rotation(true) / (2 * M_PI)));
+  int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
 
   // Drive the lower motors with the pitch and yaw. 
   // Motor 1 angles the shaft.
@@ -254,7 +270,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   absolute_omega_ += diff; // Update absolute_omega with the shortest rotation
 
   int m2_bend = get_motor2_value_for_angle(theta);
-  int shaft_rot = absolute_omega_ * motor_controller_.get_motor_pulses_per_rotation(false) / (2 * M_PI);
+  int shaft_rot = absolute_omega_ * motor_controller_.get_pulses_per_rotation(false) / (2 * M_PI);
 
   RCLCPP_INFO(logger_, "### Calculated motor positions ### \n shaft_rot: '%d', m2_bend: '%d', ", shaft_rot, m2_bend);
   RCLCPP_INFO(logger_, "theta: '%f' omega: '%f'", theta, absolute_omega_);

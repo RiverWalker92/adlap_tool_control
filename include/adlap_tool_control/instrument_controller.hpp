@@ -42,18 +42,19 @@ private:
     std::deque<double> gripper_history_; // History for smoothing
 
     int smoothing_factor_ = 1; // Number of samples to average for smoothing
+    int bend_play_compensation_ = 0; // Current compensation for the bend play, updated after each motor command
     
     // Instrument state
     double smoothed_roll_ = 0.0;
     double smoothed_pitch_ = 0.01;
     double smoothed_yaw_ = 0.0;
     double smoothed_gripper_ = 0.0;
-    int bend_play_compensation_ = 0; // Current compensation used
     double absolute_omega_ = 0.0; // Absolute omega value for shortest rotation calculation
 
     // Constants
     const double TWO_PI = 2.0 * M_PI;   
 
     /* The lower motors bend the shaft. This factor relates the motor position to the bend angle.*/
-    const double BEND_FACTOR = 2.0;
+    const double BEND_FACTOR = 1.5;
+    const int MAX_BEND_ANGLE_DEGREES = 45; // Maximum bend angle in degrees, used for clamping the input
 };

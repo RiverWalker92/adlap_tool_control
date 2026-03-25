@@ -32,6 +32,7 @@ void InstrumentController::manual_adjustment(){
     }
     double angle_rad = 5.0 * M_PI / 180.0;
     int step_size = motor_controller_.get_pulses_per_degree(false) * 5; // Step size of 5 degrees in pulses
+    std::array<int, 4> current_positions = motor_controller_.get_positions();
     switch (c)
     {
       case KEYCODE_C:
@@ -40,6 +41,10 @@ void InstrumentController::manual_adjustment(){
         break;          
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
+        // ofset gripper
+        current_positions[3] -= 50 * motor_controller_.get_pulses_per_degree(true); // Add some extra to compensate for backlash
+        motor_controller_.send_motor_positions(current_positions);
+        rclcpp::sleep_for(std::chrono::milliseconds(200));
         motor_controller_.update_starting_positions(); 
         smoothed_roll_ = update_history_and_get_mean(roll_history_, 0.0, 1, -M_PI, M_PI); 
         smoothed_pitch_ = update_history_and_get_mean(pitch_history_, 0.0, 1, -M_PI, M_PI);  
@@ -51,7 +56,7 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_I:
         RCLCPP_INFO(logger_, "I -> Initialize lower motors");
-        motor_controller_.setup_lower_motors();
+        motor_controller_.setup_motors();
         break;
       case KEYCODE_R:
         RCLCPP_INFO(logger_, "R -> Reset to starting positions");
@@ -241,7 +246,7 @@ double InstrumentController::update_history_and_get_mean(std::deque<double>& his
 
 std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
 {
-  int tip_rotation = static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
+  int tip_rotation = - static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
   int gripper_offset = static_cast<int>(std::round(0.6f * motor_controller_.get_pulses_per_rotation(true)));
   int gripper_factor = 16;
   int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
@@ -250,7 +255,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   // Motor 1 angles the shaft.
   // Motor 1 and 2 together change the direction of the bend.
 
-  double h = -std::tan(smoothed_pitch_);
+  double h = std::tan(smoothed_pitch_);
   double w = -std::tan(smoothed_yaw_);
   double omega = std::atan2(w, h) + M_PI; // direction of the bend
   double l1 = std::sqrt(h*h + w*w);

@@ -86,7 +86,7 @@ public:
     void send_duty_cycle(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void send_encoder_mode(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void couple_sequence();
-    void setup_lower_motors();
+    void setup_motors();
     void update_target_positions();
     void update_starting_positions();
 
@@ -111,6 +111,7 @@ public:
     void stop_stream_reader();
 
     int lower_motor_start_offset = 0; // Compensation used
+    int gripper_start_offset = 0; // Compensation used for the gripper motor
 
     // Thread-safe snapshots for your main thread
     std::array<int, 10> get_response_values() const;
@@ -118,6 +119,7 @@ public:
     std::array<bool, 4> get_maxed() const;
     bool any_maxed() const;
     std::array<int, 4> get_positions() const;
+    std::array<int, 4> get_currents() const;
     uint64_t get_rx_seq() const;
 
     // Optional: wait for fresh data (e.g., after sending a command)
@@ -137,7 +139,7 @@ private:
     std::atomic<uint64_t> rx_seq_{0};
     std::string rx_buffer_;
     std::chrono::steady_clock::time_point last_message_time_;
-    static constexpr int MESSAGE_TIMEOUT_MS = 1000;  // Timeout for no messages received
+    static constexpr int MESSAGE_TIMEOUT_MS = 5000;  // Timeout for no messages received
 
     void find_hall_sensor_positions();
 

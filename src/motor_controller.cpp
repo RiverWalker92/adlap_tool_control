@@ -163,9 +163,9 @@ bool MotorController::set_response_values_from_stream(const std::string &line, b
       response_values_[i] = values[i];
     }
 
-    for (int i = 4; i < 8; ++i)
+    for (int i = 0; i < 4; ++i)
     {
-      if (response_values_[i] > motor_.blocking_current)
+      if (response_values_[i+4] > motor_.blocking_current)
       {
         blocked_[i] = true;
       }
@@ -174,7 +174,7 @@ bool MotorController::set_response_values_from_stream(const std::string &line, b
         blocked_[i] = false;
       }
 
-      if (response_values_[i] > motor_.max_current)
+      if (response_values_[i+4] > motor_.max_current)
       {
         maxed_[i] = true;
         response_ok = false;
@@ -216,18 +216,33 @@ void MotorController::update_target_positions()
 std::array<bool, 4> MotorController::get_blocked() const
 {
   std::array<bool, 4> blocked_copy;
-  std::lock_guard<std::mutex> lock(state_mtx_);
-  for (size_t i = 0; i < 4; ++i)
+  bool any_blocked = false;
   {
-    blocked_copy[i] = blocked_[i];
+    std::lock_guard<std::mutex> lock(state_mtx_);
+    for (size_t i = 0; i < 4; ++i)
+    {
+      blocked_copy[i] = blocked_[i];
+    }
+  }
+  for (size_t i = 0; i < 4; ++i){
     if (!blocked_copy[i])
     {
       if (target_positions_[i] > response_values_[i] + get_pulses_per_degree(is_upper_motor(i)) * 10 || target_positions_[i] < response_values_[i] - get_pulses_per_degree(is_upper_motor(i)) * 10)
       {
         blocked_copy[i] = true; // Treat as blocked if position is way off
         RCLCPP_DEBUG(logger_, "Motor %zu position off by more than 10 degrees, treating as blocked (target: %d, actual: %d)", i, target_positions_[i], response_values_[i]);
+        any_blocked = true;
       }
     }
+    else
+    {
+      any_blocked = true;
+    }
+  }
+  if (any_blocked)
+  {
+    std::array<int, 4> current_values = get_currents();
+    RCLCPP_DEBUG(logger_, "Blocked with current values: %d, %d, %d, %d", current_values[0], current_values[1], current_values[2], current_values[3]);
   }
   return blocked_copy;
 }
@@ -261,6 +276,17 @@ std::array<int, 4> MotorController::get_positions() const
     positions_copy[i] = response_values_[i];
   }
   return positions_copy;
+}
+
+std::array<int, 4> MotorController::get_currents() const
+{
+  std::array<int, 4> currents_copy;
+  std::lock_guard<std::mutex> lock(state_mtx_);
+  for (size_t i = 0; i < 4; ++i)
+  {
+    currents_copy[i] = response_values_[i+4];
+  }
+  return currents_copy;
 }
 
 uint64_t MotorController::get_rx_seq() const
@@ -317,8 +343,8 @@ void MotorController::send_motor_positions(const std::array<int, 4> &new_positio
   rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
   if (verbose)
   {
-    std::array<int, 10> current_response_values = get_response_values();
-    RCLCPP_INFO(logger_, "Current values: %d, %d, %d, %d", current_response_values[4], current_response_values[5], current_response_values[6], current_response_values[7]);
+    std::array<int, 4> current_values = get_currents();
+    RCLCPP_INFO(logger_, "Current values: %d, %d, %d, %d", current_values[0], current_values[1], current_values[2], current_values[3]);
   }
   if (any_maxed()) // Check if any motor is maxed after the movement
   {
@@ -327,6 +353,7 @@ void MotorController::send_motor_positions(const std::array<int, 4> &new_positio
     rclcpp::sleep_for(std::chrono::milliseconds(200));
     if (any_maxed())
     {
+      // TODO: Read actual positions and reverse to those instead of just the target positions, which might be off if the motor was blocked for a while
       std::array<int, 10> current_response_values = get_response_values();
       RCLCPP_DEBUG(logger_, "Current values: %d, %d, %d, %d", current_response_values[4], current_response_values[5], current_response_values[6], current_response_values[7]);
       RCLCPP_DEBUG(logger_, "Positions after reversal: %d, %d, %d, %d", target_positions_[0], target_positions_[1], target_positions_[2], target_positions_[3]);
@@ -372,7 +399,7 @@ void MotorController::couple_sequence()
   // Making some rotations to get the pins do drop into the holes of the gearbox
   for (int i : {0, 1, 2, 3})
   {
-    int step_size = get_pulses_per_degree(is_upper_motor(i)) * 5; // Step size of 5 degrees in pulses
+    int step_size = get_pulses_per_degree(is_upper_motor(i)) * 20; // Step size of 20 degrees in pulses
     for (int j : {step_size, -step_size})
     {
       // Move the motor till it is blocked (coupled and reached its end position)
@@ -383,29 +410,30 @@ void MotorController::couple_sequence()
       do
       {
         send_relative_motor_positions(driving_values);
-        rclcpp::sleep_for(std::chrono::milliseconds(10));
+        rclcpp::sleep_for(std::chrono::milliseconds(100));
         send_relative_motor_positions(step_back);
-        rclcpp::sleep_for(std::chrono::milliseconds(10));
+        rclcpp::sleep_for(std::chrono::milliseconds(200));
       } while (!get_blocked()[i]);
       RCLCPP_DEBUG(logger_, "Motor %d blocked at position %d", i, get_positions()[i]);
       // Unblock the motor
-      driving_values[i] = -10 * j;
-      send_relative_motor_positions(driving_values);
+      std::array<int, 4> unblock_values = get_positions();
+      unblock_values[i] -= 10 * j;
+      send_motor_positions(unblock_values);
+      rclcpp::sleep_for(std::chrono::milliseconds(500));
     }
   }
   RCLCPP_DEBUG(logger_, "Coupling sequence completed");
 }
 
 /// @brief Set up the lower motors in the correct position for instrument operation to start.
-void MotorController::setup_lower_motors()
+void MotorController::setup_motors()
 {
-  // TODO: position motor 2 with hall magnet down
-
   // Move motor 1 to both extremes and position it in the middle of that.
-  int step_size = get_pulses_per_degree(is_upper_motor(1)); // Step size of a degree in pulses
+
+  int motor_nr = 1;
+  int step_size = get_pulses_per_degree(); // Step size of a degree in pulses
   int max_position = 0;
   int min_position = 0;
-  int motor_nr = 1;
   for (int j : {-step_size, step_size})
   {
     // Move the motor till it is blocked
@@ -413,7 +441,7 @@ void MotorController::setup_lower_motors()
     do
     {
       send_relative_motor_positions(driving_values);
-      rclcpp::sleep_for(std::chrono::milliseconds(10));
+      rclcpp::sleep_for(std::chrono::milliseconds(20));
     } while (!get_blocked()[motor_nr]);
     if (j > 0)
     {
@@ -436,7 +464,25 @@ void MotorController::setup_lower_motors()
   setup_values[motor_nr] += 2 * get_pulses_lower_motors_play();
   send_motor_positions(setup_values);
   rclcpp::sleep_for(std::chrono::milliseconds(500));
-  RCLCPP_DEBUG(logger_, "Lower motor setup sequence completed with lower_motor_start_offset %d", lower_motor_start_offset);
+
+  // TODO: Move motor 1 and 2 together so motor 2 has the hall magnet down
+
+  // Move motor 3 to the starting position so the collet can be tightened around the instrument shaft
+  motor_nr = 3;
+  std::array<int, 4> driving_values = {0, 0, 0, -get_pulses_per_degree(true) * 5};
+  do
+  {
+    send_relative_motor_positions(driving_values);
+    rclcpp::sleep_for(std::chrono::milliseconds(50));
+  } while (!get_blocked()[motor_nr]);
+  // Move back a bit to remove tension and put it in the neutral starting position for the instrument operation
+  setup_values = get_positions();
+  gripper_start_offset = 200 * get_pulses_per_degree(true);
+  setup_values[motor_nr] += gripper_start_offset; // Add some extra to compensate for backlash
+  send_motor_positions(setup_values);
+  rclcpp::sleep_for(std::chrono::milliseconds(500));
+
+  RCLCPP_DEBUG(logger_, "Motor setup sequence completed with lower_motor_start_offset %d and gripper_start_offset %d", lower_motor_start_offset, gripper_start_offset);
 }
 
 void MotorController::find_hall_sensor_positions()

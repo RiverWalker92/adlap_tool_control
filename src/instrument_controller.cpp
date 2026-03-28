@@ -111,42 +111,42 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_RIGHT:
         RCLCPP_INFO(logger_, "RIGHT");
-        motor_controller_.send_relative_motor_positions(0,step_size,0,0);
+        motor_controller_.send_relative_motor_positions(0,step_size,0,0, true);
         break;
       case KEYCODE_LEFT:
         RCLCPP_INFO(logger_, "LEFT");
-        motor_controller_.send_relative_motor_positions(0,-step_size,0,0);
+        motor_controller_.send_relative_motor_positions(0,-step_size,0,0, true);
         break;
       case KEYCODE_UP:
         RCLCPP_INFO(logger_, "UP");
-        motor_controller_.send_relative_motor_positions(0,0,step_size,0);
+        motor_controller_.send_relative_motor_positions(0,0,step_size,0, true);
         break;
       case KEYCODE_DOWN:
         RCLCPP_INFO(logger_, "DOWN");
-        motor_controller_.send_relative_motor_positions(0,0,-step_size,0);
+        motor_controller_.send_relative_motor_positions(0,0,-step_size,0, true);
         break;
       case KEYCODE_W:
         RCLCPP_INFO(logger_, "W");
-        motor_controller_.send_relative_motor_positions(step_size,0,0,0);
+        motor_controller_.send_relative_motor_positions(step_size,0,0,0, true);
         break;
       case KEYCODE_S:
         RCLCPP_INFO(logger_, "S");
-        motor_controller_.send_relative_motor_positions(-step_size,0,0,0);
+        motor_controller_.send_relative_motor_positions(-step_size,0,0,0, true);
         break;
       case KEYCODE_D:
         RCLCPP_INFO(logger_, "D");
-        motor_controller_.send_relative_motor_positions(step_size,0,0,step_size);
+        motor_controller_.send_relative_motor_positions(step_size,0,0,step_size, true);
         break;
       case KEYCODE_A:
         RCLCPP_INFO(logger_, "A");
-        motor_controller_.send_relative_motor_positions(-step_size,0,0,-step_size);
+        motor_controller_.send_relative_motor_positions(-step_size,0,0,-step_size, true);
         break;
       case KEYCODE_E:
-        motor_controller_.send_relative_motor_positions(0,step_size,step_size,0);
+        motor_controller_.send_relative_motor_positions(0,step_size,step_size,0, true);
         RCLCPP_INFO(logger_, "E");
         break;
       case KEYCODE_Q:
-        motor_controller_.send_relative_motor_positions(0,-step_size,-step_size,0);
+        motor_controller_.send_relative_motor_positions(0,-step_size,-step_size,0, true);
         RCLCPP_INFO(logger_, "Q");
         break;
       case KEYCODE_ENTER:
@@ -161,6 +161,27 @@ void InstrumentController::manual_adjustment(){
   }
 }
 
+double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
+  double sample,
+  std::size_t max_size,
+  double min_value,
+  double max_value)
+{
+    // Clamp sample to provided range
+    if (sample < min_value) sample = min_value;
+    else if (sample > max_value) sample = max_value;
+    history.push_front(sample);
+    while (history.size() > max_size) {
+        history.pop_back();
+    }
+
+    double sum = 0.0;
+    for (const double& v : history) {
+        sum += v;
+    }
+    return history.empty() ? 0.0 : (sum / static_cast<double>(history.size()));
+}
+
 void InstrumentController::set_angles(double roll, double pitch, double yaw, double gripper)
 {
     // Add to history + compute smoothed values (same helper called 4 times)
@@ -169,17 +190,8 @@ void InstrumentController::set_angles(double roll, double pitch, double yaw, dou
     smoothed_yaw_ = update_history_and_get_mean(yaw_history_, yaw, smoothing_factor_, -M_PI/4, M_PI/4);
     smoothed_gripper_ = update_history_and_get_mean(gripper_history_, gripper, smoothing_factor_, 0, M_PI/6);
     RCLCPP_DEBUG(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', gripper: '%f'", smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
-    drive_motors(calculate_motor_positions_from_angles());
+    motor_controller_.send_motor_positions(calculate_motor_positions_from_angles(), true);
 
-}
-std::array<double, 4> InstrumentController::angles_from_motors(const std::array<int, 4>& m_array)
-{
-  std::array<double, 4> angles;
-  angles[0] = 0.0; // TODO: calculate roll from motor positions
-  angles[1] = 0.0; // TODO: calculate pitch from motor positions
-  angles[2] = 0.0; // TODO: calculate yaw from motor positions
-  angles[3] = 0.0; // TODO: calculate gripper angle from motor positions
-  return angles;
 }
 
 
@@ -218,41 +230,16 @@ int InstrumentController::get_motor2_value_for_angle(double radians){
   return wanted_difference + play_compensation;
 }
 
-
-double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
-  double sample,
-  std::size_t max_size,
-  double min_value,
-  double max_value)
-{
-    // Clamp sample to provided range
-    if (sample < min_value) sample = min_value;
-    else if (sample > max_value) sample = max_value;
-    history.push_front(sample);
-    while (history.size() > max_size) {
-        history.pop_back();
-    }
-
-    double sum = 0.0;
-    for (const double& v : history) {
-        sum += v;
-    }
-    return history.empty() ? 0.0 : (sum / static_cast<double>(history.size()));
-}
-
-    
-
-  
-
 std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
 {
   int tip_rotation = - static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
   int gripper_offset = static_cast<int>(std::round(0.6f * motor_controller_.get_pulses_per_rotation(true)));
+  // TODO: gripper factor should be determined from instrument characteristics, for now hardcoded
   int gripper_factor = 16;
   int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
 
   // Drive the lower motors with the pitch and yaw. 
-  // Motor 1 angles the shaft.
+  // Motor 2 angles the shaft.
   // Motor 1 and 2 together change the direction of the bend.
 
   double h = std::tan(smoothed_pitch_);
@@ -281,12 +268,6 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   RCLCPP_INFO(logger_, "theta: '%f' omega: '%f'", theta, absolute_omega_);
   RCLCPP_INFO(logger_, "roll, gripper_offset, gripper_position: '%d' '%d' '%d'", tip_rotation, gripper_offset, gripper_position);
 
-  /*TODO
-  - Gripper distance is currently hardcoded as 0.6 times a full rotation, this is incorrect
-  - setup motor controller by setting the type of motor -> pulses per rotation, pwm duty cycle, max current and possibly play compensation are motor dependent
-  - limit angles correctly. ROll is to small and gripper too see first point.
-  */ 
-
   std::array<int, 4>  start_positions = motor_controller_.get_starting_positions();
   std::array<int, 4>  new_positions = {
     static_cast<int>(std::round(start_positions[0] + tip_rotation)),
@@ -297,20 +278,13 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   return new_positions;
 }
 
-
-void InstrumentController::drive_motors(std::array<int, 4> m_array) {
-  // Check differences to prevent too large movements
-
-  // for (size_t i = 0; i < 4; ++i){
-  //   int diff = m_array[i] - motor_controller_.get_target_positions()[i];
-  //   if (std::abs(diff) > 30){
-  //     if (diff > 0){
-  //       m_array[i] = motor_controller_.get_target_positions()[i] + 30;
-  //     }else{
-  //       m_array[i] = motor_controller_.get_target_positions()[i] - 30;
-  //     }
-  //   }
-  // }
-
-  motor_controller_.send_motor_positions(m_array, true);
+std::array<double, 4> InstrumentController::angles_from_motors(const std::array<int, 4>& m_array)
+{
+  std::array<double, 4> angles;
+  angles[0] = 0.0; // TODO: calculate roll from motor positions
+  angles[1] = 0.0; // TODO: calculate pitch from motor positions
+  angles[2] = 0.0; // TODO: calculate yaw from motor positions
+  angles[3] = 0.0; // TODO: calculate gripper angle from motor positions
+  return angles;
 }
+

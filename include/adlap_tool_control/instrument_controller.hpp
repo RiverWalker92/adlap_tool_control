@@ -26,12 +26,11 @@ private:
     // Calculation methods
     int get_motor2_value_for_angle(double radians);
     std::array<int, 4> calculate_motor_positions_from_angles();
-    void drive_motors(std::array<int, 4> m_array);
 
     /// Push a new sample, cap history to smoothing_factor_, and return the mean.
-        static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size,
-            double min_value = -std::numeric_limits<double>::infinity(),
-            double max_value = std::numeric_limits<double>::infinity());
+    static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size,
+        double min_value = -std::numeric_limits<double>::infinity(),
+        double max_value = std::numeric_limits<double>::infinity());
     
     // Member variables
     MotorController& motor_controller_;

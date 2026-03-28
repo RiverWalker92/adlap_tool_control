@@ -32,6 +32,7 @@ add_executable(controller
   src/serial_port.cpp
   src/keyboard_reader.cpp
   src/motor_controller.cpp
+  src/motor_thread.cpp
 )
   
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)

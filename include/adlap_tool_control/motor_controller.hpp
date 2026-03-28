@@ -69,9 +69,9 @@ public:
         };
     }
     
-    /// @brief Create default motor configuration (150:1 gear ratio, 12 pulse encoder, mode=1)
+    /// @brief Create default motor configuration
     static Motor create_default() {
-        return create(3, 150.0f, 2);  // 3 magnets * 150:1 gearbox * 4 mode = 1800 pulses
+        return create(3, 150.58f, 2);  // 3 magnets * 150:1 gearbox * 2 mode = 900 pulses
     }
 };
 
@@ -163,6 +163,6 @@ private:
     std::array<bool, 2> hall_{false, false};
     
     // Calibration constants (hardware-specific offsets)
-    const int HALL1_OFFSET = -120; // in pulses, to align the hall sensor with the physical 0 degree position
-    const int HALL2_OFFSET = -90; // in pulses, to align the hall sensor with the physical 0 degree position
+    const int HALL1_OFFSET = 4; // in degrees from 6 o'clock position
+    const int HALL2_OFFSET = 10; // in degrees from 6 o'clock position
 };

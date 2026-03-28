@@ -37,17 +37,38 @@ MotorController::~MotorController()
   stop_stream_reader();
 }
 
+
+// ------------------------------------------------------------
+// Commands for motor control and configuration
+// ------------------------------------------------------------
+
+/**
+ * @brief Format motor position command message for the given motor positions
+ * @param m_array Array of 4 integers representing the target motor positions
+ * @return Formatted command string to send to the motor controller
+ */
 std::string MotorController::motor_message(const std::array<int, 4> &m_array)
 {
   std::string response = "targets " + std::to_string(m_array[0]) + ", " + std::to_string(m_array[1]) + ", " + std::to_string(m_array[2]) + ", " + std::to_string(m_array[3]) + "\n";
   return response;
 }
 
+/**
+ * @brief Send new motor positions relative to current target positions
+ * @param m_array Array of relative positions for motors 0-3
+ */
 void MotorController::send_relative_motor_positions(const std::array<int, 4> &m_array, bool verbose)
 {
   send_relative_motor_positions(m_array[0], m_array[1], m_array[2], m_array[3], verbose);
 }
 
+/**
+ * @brief Send new motor positions relative to current target positions
+ * @param m0 Relative position for motor 0
+ * @param m1 Relative position for motor 1
+ * @param m2 Relative position for motor 2
+ * @param m3 Relative position for motor 3
+ */
 void MotorController::send_relative_motor_positions(int m0, int m1, int m2, int m3, bool verbose)
 {
   std::array<int, 4> new_positions = {0, 0, 0, 0};
@@ -59,9 +80,10 @@ void MotorController::send_relative_motor_positions(int m0, int m1, int m2, int 
   send_motor_positions(new_positions, verbose);
 }
 
-/// @brief Send new absolute motor positions to the motor controller
-/// @param new_positions Array of 4 integers representing the new motor positions
-/// @throws std::runtime_error if the motor response is not ok after reversing movement
+/**
+ * @brief Send new absolute motor positions to the motor controller
+ * @param new_positions Array of 4 integers representing the new motor positions
+ */
 void MotorController::send_motor_positions(const std::array<int, 4> &new_positions, bool verbose)
 {
   std::string message = motor_message(new_positions);
@@ -133,7 +155,19 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
   rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
 }
 
-/// @brief Couple the motors to the gearbox
+
+// ------------------------------------------------------------
+// Control sequences for specific operations like coupling and setup
+// ------------------------------------------------------------
+
+
+/**
+ * @brief Couple the motors to the gearbox.
+ * 
+ * Rotate each motor back and forth until it is blocked. 
+ * It's movement is purposefully jittery to make sure the pins fall in.  
+ * 
+ */
 void MotorController::couple_sequence()
 {
   // Making some rotations to get the pins do drop into the holes of the gearbox
@@ -173,21 +207,29 @@ void MotorController::couple_sequence()
   RCLCPP_DEBUG(logger_, "Coupling sequence completed");
 }
 
-/// @brief Set up the lower motors in the correct position for instrument operation to start.
+/**
+ * @brief Set up the motors in the correct position for instrument operation to start.
+ * 
+ * Move motor 1 to both extremes to find the bending limits and put it in the center.
+ * Then move motor 1 and 2 together to find the hall sensor position and align the bending direction with that.
+ * Finally, move motor 3 to the starting position for the gripper collet wheel to be thightened.
+ * 
+ *  */
 void MotorController::setup_motors()
 {
   // Move motor 1 to both extremes and position it in the middle of that.
-
   int motor_nr = 1;
   int step_size = get_pulses_per_degree(); // Step size of a degree in pulses
   int max_position = 0;
   int min_position = 0;
+  std::array<int, 4> driving_values;
+  std::array<int, 4> setup_values;
   for (int j : {-step_size, step_size})
   {
     
     update_target_positions();  // reset target positions to current
     // Move the motor till it is blocked
-    std::array<int, 4> driving_values = {0, j, 0, 0};
+    driving_values = {0, j, 0, 0};
     do
     {
       send_relative_motor_positions(driving_values);
@@ -206,7 +248,7 @@ void MotorController::setup_motors()
     }
   }
   // Place the motor in the middle between the two blocked positions
-  std::array<int, 4> setup_values = get_positions();
+  setup_values = get_positions();
   lower_motor_start_offset = 20 * get_pulses_per_degree();
   setup_values[motor_nr] = (max_position + min_position) / 2 - lower_motor_start_offset; // Add some extra to compensate for backlash
   send_motor_positions(setup_values);
@@ -216,11 +258,48 @@ void MotorController::setup_motors()
   send_motor_positions(setup_values);
   rclcpp::sleep_for(std::chrono::milliseconds(500));
 
-  // TODO: Move motor 1 and 2 together so motor 2 has the hall magnet down
+  //Move motor 1 and 2 together so motor 2 has the hall magnet down
+  driving_values = {0, step_size, step_size, 0};
+  int hall_up1 = NULL;
+  int hall_up2 = NULL;
+  int hall_down1 = NULL;
+  int hall_down2 = NULL;
+  bool prev_hall = get_hall_sensors()[1];
+  do
+  {
+    send_relative_motor_positions(driving_values);
+    rclcpp::sleep_for(std::chrono::milliseconds(20));
+    std::array<bool, 2> hall_values = get_hall_sensors();
+    if (hall_values[1] != prev_hall)
+    {
+      if (hall_values[1])
+      {
+        hall_up1 = get_positions()[1];
+        hall_up2 = get_positions()[2];
+        RCLCPP_DEBUG(logger_, "Hall sensor 2 up at position %d", hall_up2);
+      }
+      else
+      {
+        hall_down1 = get_positions()[1];
+        hall_down2 = get_positions()[2];
+        RCLCPP_DEBUG(logger_, "Hall sensor 2 down at position %d", hall_down2);
+      }
+    }
+    prev_hall = hall_values[1];
+    if (!rclcpp::ok()) throw std::runtime_error("Shutdown requested (rclcpp::ok() == false)");
+  } while (hall_up1 == NULL || hall_down1 == NULL);
+  // Place both motor in the middle between the hall edges
+  setup_values = get_positions();
+  if (hall_up1 > hall_down1) hall_down1 += get_pulses_per_rotation(false);
+  setup_values[1] = (hall_up1 + hall_down1) / 2 + HALL2_OFFSET; // The pin is not exactly in the middle
+  if (hall_up2 > hall_down2) hall_down2 += get_pulses_per_rotation(false);
+  setup_values[2] = (hall_up2 + hall_down2) / 2 + HALL2_OFFSET; // The pin is not exactly in the middle
+  send_motor_positions(setup_values);
+  rclcpp::sleep_for(std::chrono::milliseconds(500));
 
   // Move motor 3 to the starting position so the collet can be tightened around the instrument shaft
   motor_nr = 3;
-  std::array<int, 4> driving_values = {0, 0, 0, -get_pulses_per_degree(true) * 5};
+  driving_values = {0, 0, 0, (int)(-get_pulses_per_degree(true) * 5)};
   do
   {
     send_relative_motor_positions(driving_values);
@@ -235,62 +314,4 @@ void MotorController::setup_motors()
   rclcpp::sleep_for(std::chrono::milliseconds(500));
 
   RCLCPP_DEBUG(logger_, "Motor setup sequence completed with lower_motor_start_offset %d and gripper_start_offset %d", lower_motor_start_offset, gripper_start_offset);
-}
-
-void MotorController::find_hall_sensor_positions()
-{
-  // Couple the lower motors
-  // These motors also control the front gears, which have to be aligned for the tool to be able to be inserted
-  // The hall sensors can be used to find the correct position
-
-  int hall1_value = response_values_[4];
-  int hall1_up = 0;
-  int hall1_down = 0;
-  int hall2_value = response_values_[5];
-  int hall2_up = 0;
-  int hall2_down = 0;
-  int step_size = 10;
-  for (int i = 0; i < 3 * motor_.get_pulses_per_rotation() / step_size; i++)
-  {
-    send_relative_motor_positions(0, step_size, step_size, 0, false);
-    std::array<bool, 2> hall_values = get_hall_sensors();
-    if (hall_values[0] == 1 and hall1_value == 0)
-    {
-      hall1_up = target_positions_[1] % motor_.get_pulses_per_rotation();
-      RCLCPP_INFO(logger_, "Hall1 up: '%d'", hall1_up);
-    }
-    if (hall_values[0] == 0 and hall1_value == 1)
-    {
-      hall1_down = target_positions_[1] % motor_.get_pulses_per_rotation();
-      RCLCPP_INFO(logger_, "Hall1 down: '%d'", hall1_down);
-    }
-    if (hall_values[1] == 1 and hall2_value == 0)
-    {
-      hall2_up = target_positions_[2] % motor_.get_pulses_per_rotation();
-      RCLCPP_INFO(logger_, "Hall2 up: '%d'", hall2_up);
-    }
-    if (hall_values[1] == 0 and hall2_value == 1)
-    {
-      hall2_down = target_positions_[2] % motor_.get_pulses_per_rotation();
-      RCLCPP_INFO(logger_, "Hall2 down: '%d'", hall2_down);
-    }
-    hall1_value = hall_values[0];
-    hall2_value = hall_values[1];
-  }
-  // Move back to the position where the hall sensor triggers (assumed to be the correct position for instrument insertion)
-  if (hall1_up > hall1_down)
-  {
-    hall1_down += motor_.get_pulses_per_rotation();
-  }
-  if (hall2_up > hall2_down)
-  {
-    hall2_down += motor_.get_pulses_per_rotation();
-  }
-  int hall1_position = (hall1_up + hall1_down) / 2 + HALL1_OFFSET;
-  int hall1_correction = hall1_position - target_positions_[1] % motor_.get_pulses_per_rotation();
-  RCLCPP_INFO(logger_, "Setting hall1 position: '%d'", hall1_correction);
-  int hall2_position = (hall2_up + hall2_down) / 2 + HALL2_OFFSET;
-  int hall2_correction = hall2_position - target_positions_[2] % motor_.get_pulses_per_rotation();
-  RCLCPP_INFO(logger_, "Setting hall2 position: '%d'", hall2_correction);
-  send_relative_motor_positions(0, hall1_correction, hall2_correction, 0);
 }

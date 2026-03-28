@@ -242,7 +242,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles()
   // Motor 2 angles the shaft.
   // Motor 1 and 2 together change the direction of the bend.
 
-  double h = std::tan(smoothed_pitch_);
+  double h = -std::tan(smoothed_pitch_);
   double w = -std::tan(smoothed_yaw_);
   double omega = std::atan2(w, h) + M_PI; // direction of the bend
   double l1 = std::sqrt(h*h + w*w);

@@ -5,9 +5,57 @@
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
-#include <sstream>
 #include <stdexcept>
 #include <thread>
+
+namespace
+{
+constexpr uint8_t SYNC0 = 0xAA;
+constexpr uint8_t SYNC1 = 0x55;
+constexpr uint8_t MSG_TYPE_TELEMETRY = 1;
+constexpr uint8_t MSG_TYPE_LOG = 2;
+constexpr size_t TELEMETRY_PAYLOAD_LEN = 26;
+constexpr size_t FRAME_HEADER_LEN = 5; // sync0, sync1, msg_type, seq, len
+constexpr size_t FRAME_MIN_LEN = FRAME_HEADER_LEN + 1; // + crc
+
+uint8_t crc8_atm(const uint8_t *data, size_t len)
+{
+  uint8_t crc = 0x00;
+  for (size_t i = 0; i < len; ++i)
+  {
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; ++bit)
+    {
+      if (crc & 0x80)
+      {
+        crc = static_cast<uint8_t>((crc << 1) ^ 0x07);
+      }
+      else
+      {
+        crc = static_cast<uint8_t>(crc << 1);
+      }
+    }
+  }
+  return crc;
+}
+
+int32_t read_i32_le(const uint8_t *data)
+{
+  const uint32_t value =
+      static_cast<uint32_t>(data[0]) |
+      (static_cast<uint32_t>(data[1]) << 8) |
+      (static_cast<uint32_t>(data[2]) << 16) |
+      (static_cast<uint32_t>(data[3]) << 24);
+  return static_cast<int32_t>(value);
+}
+
+uint16_t read_u16_le(const uint8_t *data)
+{
+  return static_cast<uint16_t>(
+      static_cast<uint16_t>(data[0]) |
+      (static_cast<uint16_t>(data[1]) << 8));
+}
+} // namespace
 
 void MotorController::start_stream_reader()
 {
@@ -34,6 +82,10 @@ void MotorController::stop_stream_reader()
 void MotorController::reader_loop()
 {
   last_message_time_ = std::chrono::steady_clock::now();
+  auto last_backlog_log_time = std::chrono::steady_clock::now();
+  auto last_backlog_summary_time = std::chrono::steady_clock::now();
+  size_t peak_pending_bytes = 0;
+  size_t peak_parser_buffer_bytes = 0;
 
   while (rclcpp::ok() && reader_running_.load())
   {
@@ -48,102 +100,225 @@ void MotorController::reader_loop()
         std::string error_msg = "Motor communication timeout: No messages received for " + std::to_string(elapsed) + " ms";
         RCLCPP_ERROR(logger_, "%s", error_msg.c_str());
         reader_running_.store(false);
-        throw std::runtime_error(error_msg);
+        state_cv_.notify_all();
+        rclcpp::shutdown();
+        break;
       }
     }
 
     rx_buffer_ += chunk;
 
-    // Process all complete lines currently in the buffer
-    size_t nl = std::string::npos;
-    while ((nl = rx_buffer_.find('\n')) != std::string::npos)
+    // Log backlog status periodically if we have a growing backlog
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last_backlog_log_time >= std::chrono::seconds(1))
     {
-      std::string line = rx_buffer_.substr(0, nl);
-      rx_buffer_.erase(0, nl + 1);
+      const size_t pending_bytes = serial_->pending_input_bytes();
+      peak_pending_bytes = std::max(peak_pending_bytes, pending_bytes);
+      peak_parser_buffer_bytes = std::max(peak_parser_buffer_bytes, rx_buffer_.size());
 
-      // Drop CR if sender uses "\r\n"
-      if (!line.empty() && line.back() == '\r')
+      if (now - last_backlog_summary_time >= std::chrono::seconds(10))
       {
-        line.pop_back();
+        RCLCPP_DEBUG(logger_,
+                     "Serial backlog summary (10s): current=%zuB, peak=%zuB, parser_buffer_peak=%zuB",
+                     pending_bytes, peak_pending_bytes, peak_parser_buffer_bytes);
+        last_backlog_summary_time = now;
+        peak_pending_bytes = pending_bytes;
+        peak_parser_buffer_bytes = rx_buffer_.size();
       }
-      if (line.empty())
+      last_backlog_log_time = now;
+    }
+
+    while (true)
+    {
+      if (rx_buffer_.size() < FRAME_MIN_LEN)
       {
-        continue;
+        break;
       }
 
-      const bool ok = set_response_values_from_stream(line, /*verbose=*/false);
+      size_t sync_pos = std::string::npos;
+      for (size_t i = 0; i + 1 < rx_buffer_.size(); ++i)
+      {
+        if (static_cast<uint8_t>(rx_buffer_[i]) == SYNC0 &&
+            static_cast<uint8_t>(rx_buffer_[i + 1]) == SYNC1)
+        {
+          sync_pos = i;
+          break;
+        }
+      }
+
+      if (sync_pos == std::string::npos)
+      {
+        if (!rx_buffer_.empty() && static_cast<uint8_t>(rx_buffer_.back()) == SYNC0)
+        {
+          rx_buffer_.erase(0, rx_buffer_.size() - 1);
+        }
+        else
+        {
+          rx_buffer_.clear();
+        }
+        break;
+      }
+
+      if (sync_pos > 0)
+      {
+        rx_buffer_.erase(0, sync_pos);
+      }
+
+      if (rx_buffer_.size() < FRAME_HEADER_LEN)
+      {
+        break;
+      }
+
+      const uint8_t len = static_cast<uint8_t>(rx_buffer_[4]);
+      const size_t frame_len = FRAME_HEADER_LEN + static_cast<size_t>(len) + 1;
+      if (rx_buffer_.size() < frame_len)
+      {
+        break;
+      }
+
+      const std::string frame = rx_buffer_.substr(0, frame_len);
+      const bool ok = parse_frame(frame, /*verbose=*/false);
       if (ok)
       {
-        last_message_time_ = std::chrono::steady_clock::now(); // Update last message time
+        rx_buffer_.erase(0, frame_len);
+        last_message_time_ = std::chrono::steady_clock::now();
         rx_seq_.fetch_add(1, std::memory_order_relaxed);
         state_cv_.notify_all();
+      }
+      else
+      {
+        rx_buffer_.erase(0, 1);
       }
     }
   }
 }
 
-bool MotorController::set_response_values_from_stream(const std::string &line, bool verbose)
+bool MotorController::parse_frame(const std::string &frame, bool verbose)
 {
+  if (frame.size() < FRAME_MIN_LEN)
+  {
+    return false;
+  }
+
+  const uint8_t *bytes = reinterpret_cast<const uint8_t *>(frame.data());
+  if (bytes[0] != SYNC0 || bytes[1] != SYNC1)
+  {
+    return false;
+  }
+
+  const uint8_t msg_type = bytes[2];
+  const uint8_t seq = bytes[3];
+  const uint8_t len = bytes[4];
+  const size_t expected_len = FRAME_HEADER_LEN + static_cast<size_t>(len) + 1;
+  if (frame.size() != expected_len)
+  {
+    return false;
+  }
+
+  const uint8_t expected_crc = crc8_atm(&bytes[2], 3 + static_cast<size_t>(len));
+  const uint8_t actual_crc = bytes[expected_len - 1];
+  if (expected_crc != actual_crc)
+  {
+    RCLCPP_WARN(logger_, "Dropping frame with CRC mismatch (type=%u, seq=%u, len=%u, expected=0x%02X, got=0x%02X)",
+                msg_type, seq, len, expected_crc, actual_crc);
+    return false;
+  }
+
   if (verbose)
   {
-    RCLCPP_INFO(logger_, "Raw response: '%s'", line.c_str());
+    RCLCPP_INFO(logger_, "Received frame type=%u seq=%u len=%u", msg_type, seq, len);
   }
 
-  if (line.rfind("INFO:", 0) == 0)
-  { // starts with "INFO:"
-    RCLCPP_INFO(logger_, "Motor controller info: %s", line.c_str());
+  const uint8_t *payload = &bytes[5];
+
+  if (msg_type == MSG_TYPE_LOG)
+  {
+    return parse_log_message(payload, len);
+  }
+  else if (msg_type == MSG_TYPE_TELEMETRY)
+  {
+    return parse_telemetry_message(payload, len);
+  }
+  else
+  {
+    RCLCPP_WARN(logger_, "Unknown message type %u (seq=%u, len=%u)", msg_type, seq, len);
     return true;
   }
+}
 
-  if (line.rfind("ERROR:", 0) == 0)
-  { // starts with "ERROR:"
-    RCLCPP_ERROR(logger_, "Motor controller: %s", line.c_str());
-    return false;
-  }
-
-  std::vector<int> values;
-  values.reserve(10);
-
-  try
+bool MotorController::parse_telemetry_message(const uint8_t *payload, uint8_t len)
+{
+  if (len != TELEMETRY_PAYLOAD_LEN)
   {
-    std::stringstream ss(line);
-    std::string item;
-
-    while (std::getline(ss, item, ','))
-    {
-      if (item.empty())
-        continue;
-      values.push_back(std::stoi(item));
-    }
-  }
-  catch (const std::exception &e)
-  {
-    // Streaming: don't crash on one bad/partial frame
-    RCLCPP_WARN(logger_, "Failed to parse motor stream frame: %s", e.what());
-    return false;
-  }
-
-  if (values.size() < 10)
-  {
-    RCLCPP_WARN(logger_, "Motor stream frame too short (%zu values): '%s'",
-                values.size(), line.c_str());
+    RCLCPP_WARN(logger_, "Telemetry frame has invalid payload length %u (expected %zu)",
+                len, TELEMETRY_PAYLOAD_LEN);
     return false;
   }
 
   {
     std::lock_guard<std::mutex> lock(state_mtx_);
-    const uint8_t flags = static_cast<uint8_t>(values[8] & 0xFF);
-    const uint8_t hall  = static_cast<uint8_t>(values[9] & 0xFF);
 
     for (int i = 0; i < 4; ++i)
     {
-      response_positions_[i] = values[i];
-      response_currents_[i] = values[i + 4];
-      stalled_[i] = (flags >> (i)) & 0x01; // Stall flags are in bits 0-3
-      overcurrent_[i] = (flags >> (i + 4)) & 0x01; // Overcurrent flags are in bits 4-7
+      response_positions_[i] = read_i32_le(payload + (i * 4));
+      response_currents_[i] = static_cast<int>(read_u16_le(payload + 16 + (i * 2)));
     }
-    hall_[0] = hall & 0x01; // Hall sensor 1 in bit 0
-    hall_[1] = (hall >> 1) & 0x01; // Hall sensor 2 in bit 1
+    const uint8_t flags = payload[24];
+    const uint8_t hall = payload[25];
+
+    for (int i = 0; i < 4; ++i)
+    {
+      stalled_[i] = (flags >> i) & 0x01;
+      overcurrent_[i] = (flags >> (i + 4)) & 0x01;
+    }
+    hall_[0] = hall & 0x01;
+    hall_[1] = (hall >> 1) & 0x01;
+  }
+
+  return true;
+}
+
+bool MotorController::parse_log_message(const uint8_t *payload, uint8_t len)
+{    
+  if (len < 1)
+  {
+    RCLCPP_WARN(logger_, "Log frame has invalid payload length: %u", len);
+    return false;
+  }
+
+  const uint8_t log_level = payload[0];
+  std::string text(reinterpret_cast<const char *>(payload + 1), static_cast<size_t>(len - 1));
+  for (char &ch : text)
+  {
+    if (ch == '\0')
+    {
+      ch = ' ';
+    }
+  }
+  const rclcpp::Logger logger = rclcpp::get_logger("motor_unit");
+  if (log_level == 1)
+  {
+    RCLCPP_DEBUG(logger, "%s", text.c_str());
+  }
+  else if (log_level == 2)
+  {
+    RCLCPP_INFO(logger, "%s", text.c_str());
+  }
+  else if (log_level == 3)
+  {
+    RCLCPP_WARN(logger, "%s", text.c_str());
+  }
+  else if (log_level == 4)
+  {
+    RCLCPP_ERROR(logger, "%s", text.c_str());
+  }
+  else if (log_level == 5)
+  {
+    RCLCPP_FATAL(logger, "%s", text.c_str());
+  }
+  else
+  {
+    RCLCPP_WARN(logger, "Unknown level %u: %s", log_level, text.c_str());
   }
 
   return true;

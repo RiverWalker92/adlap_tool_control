@@ -1,11 +1,13 @@
 #include "adlap_tool_control/serial_port.hpp"
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include "rclcpp/rclcpp.hpp"
 
 SerialPort::SerialPort(const std::string& device, int baudrate)
     : device_(device), baudrate_(baudrate), fd_(-1) {}
@@ -27,6 +29,7 @@ bool SerialPort::open_port() {
         return false;
     }
 
+    // Set baud rate, ignored on Rasberry Pi Pico usb cdc (current), but do matter on UART
     speed_t speed;
     switch (baudrate_) {
         case 9600: speed = B9600; break;
@@ -34,8 +37,17 @@ bool SerialPort::open_port() {
         case 38400: speed = B38400; break;
         case 57600: speed = B57600; break;
         case 115200: speed = B115200; break;
+    #ifdef B230400
+        case 230400: speed = B230400; break;
+    #endif
+    #ifdef B460800
+        case 460800: speed = B460800; break;
+    #endif
+    #ifdef B921600
+        case 921600: speed = B921600; break;
+    #endif
         default:
-            std::cerr << "Unsupported baudrate\n";
+            std::cerr << "Unsupported baudrate: " << baudrate_ << "\n";
             return false;
     }
 
@@ -56,6 +68,16 @@ bool SerialPort::open_port() {
     if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
         std::cerr << "Error setting terminal attributes\n";
         return false;
+    }
+
+    if (device_.rfind("/dev/ttyACM", 0) == 0) {
+        RCLCPP_DEBUG(rclcpp::get_logger("serial_port"),
+                    "Opened %s (USB CDC). Configured baud %d is advisory and usually ignored by Pico USB transport.",
+                    device_.c_str(), baudrate_);
+    } else {
+        RCLCPP_DEBUG(rclcpp::get_logger("serial_port"),
+                    "Opened %s (UART-style TTY). Using baud %d.",
+                    device_.c_str(), baudrate_);
     }
 
     return true;
@@ -85,6 +107,19 @@ std::string SerialPort::read_data(size_t max_bytes) {
     } else {
         return "";
     }
+}
+
+size_t SerialPort::pending_input_bytes() const {
+    if (fd_ == -1) {
+        return 0;
+    }
+
+    int bytes_available = 0;
+    if (ioctl(fd_, FIONREAD, &bytes_available) == -1 || bytes_available < 0) {
+        return 0;
+    }
+
+    return static_cast<size_t>(bytes_available);
 }
 
 std::string SerialPort::find_device_by_manufacturer_product(const std::string& manufacturer, const std::string& product) {

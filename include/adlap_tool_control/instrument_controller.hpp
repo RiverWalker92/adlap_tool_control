@@ -20,12 +20,12 @@ public:
 
     // Instrument control methods
     void manual_adjustment();
-    void set_angles(double roll, double pitch, double yaw, double gripper);
+    void set_angles(double roll, double pitch, double yaw, double gripper, bool verbose = false);
     std::array<double, 4> angles_from_motors(const std::array<int, 4>& m_array);
 private:
     // Calculation methods
-    int get_motor2_value_for_angle(double radians);
-    std::array<int, 4> calculate_motor_positions_from_angles();
+    int get_motor2_value_for_angle(double radians, bool verbose = false);
+    std::array<int, 4> calculate_motor_positions_from_angles(bool verbose = false);
 
     /// Push a new sample, cap history to smoothing_factor_, and return the mean.
     static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size,

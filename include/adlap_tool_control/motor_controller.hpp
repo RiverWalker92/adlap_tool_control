@@ -135,7 +135,9 @@ private:
     void reader_loop();
 
     // Streaming-friendly: parse a line you already read (no serial read inside)
-    bool set_response_values_from_stream(const std::string& response, bool verbose);
+    bool parse_frame(const std::string& response, bool verbose);
+    bool parse_telemetry_message(const uint8_t *payload, uint8_t len);
+    bool parse_log_message(const uint8_t *payload, uint8_t len);
 
     mutable std::mutex state_mtx_;
     mutable std::condition_variable state_cv_;

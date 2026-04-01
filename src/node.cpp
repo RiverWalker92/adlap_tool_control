@@ -74,11 +74,8 @@ int main(int argc, char * argv[])
     if (device_path.empty()) {
       throw std::runtime_error("Could not find Raspberry Pi Pico device. Please check if the device is connected.");
     }
-    
-    std::cout << "Using device: " << device_path << std::endl;
-    
-    auto serial = std::make_shared<SerialPort>(device_path, 115200);
-
+    RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Using device: %s", device_path.c_str());
+    auto serial = std::make_shared<SerialPort>(device_path);
     if (!serial->open_port()) {
       throw std::runtime_error("Failed to open serial port: " + device_path);
     }

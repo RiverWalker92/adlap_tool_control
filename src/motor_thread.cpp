@@ -110,16 +110,16 @@ void MotorController::reader_loop()
 
     // Log backlog status periodically if we have a growing backlog
     const auto now = std::chrono::steady_clock::now();
-    if (now - last_backlog_log_time >= std::chrono::seconds(1))
+    if (now - last_backlog_log_time >= std::chrono::microseconds(200))
     {
       const size_t pending_bytes = serial_->pending_input_bytes();
       peak_pending_bytes = std::max(peak_pending_bytes, pending_bytes);
       peak_parser_buffer_bytes = std::max(peak_parser_buffer_bytes, rx_buffer_.size());
 
-      if (now - last_backlog_summary_time >= std::chrono::seconds(10))
+      if (now - last_backlog_summary_time >= std::chrono::seconds(2))
       {
         RCLCPP_DEBUG(logger_,
-                     "Serial backlog summary (10s): current=%zuB, peak=%zuB, parser_buffer_peak=%zuB",
+                     "Serial backlog summary (2s): current=%zuB, peak=%zuB, parser_buffer_peak=%zuB",
                      pending_bytes, peak_pending_bytes, peak_parser_buffer_bytes);
         last_backlog_summary_time = now;
         peak_pending_bytes = pending_bytes;

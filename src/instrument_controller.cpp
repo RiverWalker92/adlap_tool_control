@@ -18,6 +18,8 @@ void InstrumentController::manual_adjustment(){
   KeyboardReader input;
   std::array<int, 4> duty_cycle_array = {7, 7, 7, 7};
   char c;
+  bool initialized = false;
+  bool ready_for_angles = false;
   for (;;)
   {
     // get the next event from the keyboard
@@ -41,6 +43,10 @@ void InstrumentController::manual_adjustment(){
         break;          
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
+        if (!initialized) {
+          RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting positions");
+          break;
+        }
         // ofset gripper
         current_positions[3] -= 50 * motor_controller_.get_pulses_per_degree(true); // Add some extra to compensate for backlash
         motor_controller_.send_motor_positions(current_positions);
@@ -52,11 +58,13 @@ void InstrumentController::manual_adjustment(){
         smoothed_gripper_ = update_history_and_get_mean(gripper_history_, 0.0, 1, -M_PI, M_PI); 
         RCLCPP_INFO(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', gripper: '%f'", smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
         absolute_omega_ = 0.0; // Reset absolute omega when updating starting positions
-        bend_play_compensation_ = 0; // Reset bend play compensation when updating starting positions         
+        bend_play_compensation_ = 0; // Reset bend play compensation when updating starting positions  
+        ready_for_angles = true;       
         break;
       case KEYCODE_I:
         RCLCPP_INFO(logger_, "I -> Initialize lower motors");
         motor_controller_.setup_motors();
+        initialized = true;
         break;
       case KEYCODE_R:
         RCLCPP_INFO(logger_, "R -> Reset to starting positions");
@@ -71,42 +79,78 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_0:
         RCLCPP_INFO(logger_, "0 -> Send all 0 angles");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(0, 0, 0, 0);
         break;
       case KEYCODE_1:
         RCLCPP_INFO(logger_, "1 -> Roll left (bend angle 10 degrees)");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_ - angle_rad, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
         break;
       case KEYCODE_2:
-        RCLCPP_INFO(logger_, "2 -> Pitch down");
+        RCLCPP_INFO(logger_, "2 -> Pitch down");        
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_ - angle_rad, smoothed_yaw_, smoothed_gripper_);
         break;
       case KEYCODE_3:
         RCLCPP_INFO(logger_, "3 -> Roll right (bend angle -10 degrees)");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_ + angle_rad, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
         break;
       case KEYCODE_4:
         RCLCPP_INFO(logger_, "4 -> Yaw left");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_ - angle_rad, smoothed_gripper_);
         break;
       case KEYCODE_5:
-        RCLCPP_INFO(logger_, "5 -> Full rotation");
+        RCLCPP_INFO(logger_, "5 -> Full rotation");        
         motor_controller_.send_relative_motor_positions(0,motor_controller_.get_pulses_per_rotation(false),motor_controller_.get_pulses_per_rotation(false),0);
         break;
       case KEYCODE_6:
         RCLCPP_INFO(logger_, "6 -> Yaw right");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_ + angle_rad, smoothed_gripper_);
         break;
       case KEYCODE_7:
         RCLCPP_INFO(logger_, "7 -> open gripper");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_ + angle_rad);
         break;
       case KEYCODE_8:
         RCLCPP_INFO(logger_, "8 -> Pitch up");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_ + angle_rad, smoothed_yaw_, smoothed_gripper_);
         break;
       case KEYCODE_9:
         RCLCPP_INFO(logger_, "9 -> close gripper");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_ - angle_rad);
         break;
       case KEYCODE_RIGHT:
@@ -151,6 +195,10 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_ENTER:
         RCLCPP_INFO(logger_, "ENTER");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
         input.shutdown();
         motor_controller_.update_starting_positions();
         return;

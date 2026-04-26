@@ -42,6 +42,9 @@ private:
 
     int smoothing_factor_ = 1; // Number of samples to average for smoothing
     int bend_play_compensation_ = 0; // Current compensation for the bend play, updated after each motor command
+    float play_comp_position_m1_ = 0; 
+    float play_comp_position_m2_ = 0; 
+    float m1_m2_offset_ = 0;
     
     // Instrument state
     double smoothed_roll_ = 0.0;
@@ -53,7 +56,9 @@ private:
     // Constants
     const double TWO_PI = 2.0 * M_PI;   
 
-    /* The lower motors bend the shaft. This factor relates the motor position to the bend angle.*/
-    const double BEND_FACTOR = 1.5;
+    // Instrument-specific constants
+    // TODO: these factors should be retrieved from an instrument config
+    const double BEND_FACTOR = 1.5; // This factor relates the motor angle to the bend angle.
+    const double GRIPPER_FACTOR = 16.0; // This factor relates the motor angle to the actual gripper opening.
     const int MAX_BEND_ANGLE_DEGREES = 45; // Maximum bend angle in degrees, used for clamping the input
 };

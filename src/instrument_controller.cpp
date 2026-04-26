@@ -59,6 +59,8 @@ void InstrumentController::manual_adjustment(){
         RCLCPP_INFO(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', gripper: '%f'", smoothed_roll_, smoothed_pitch_, smoothed_yaw_, smoothed_gripper_);
         absolute_omega_ = 0.0; // Reset absolute omega when updating starting positions
         bend_play_compensation_ = 0; // Reset bend play compensation when updating starting positions  
+        play_comp_position_m1_ = current_positions[1]; // Reset play compensation position for motor 1
+        play_comp_position_m2_ = current_positions[2]; // Reset play compensation position for motor 2
         ready_for_angles = true;       
         break;
       case KEYCODE_I:
@@ -275,11 +277,8 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
 
 std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles(bool verbose)
 {
-  int tip_rotation = - static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
-  int gripper_offset = static_cast<int>(std::round(0.6f * motor_controller_.get_pulses_per_rotation(true)));
-  // TODO: gripper factor should be determined from instrument characteristics, for now hardcoded
-  int gripper_factor = 16;
-  int gripper_position = static_cast<int>(std::round(gripper_factor * smoothed_gripper_ * motor_controller_.get_pulses_per_rotation(true) / (2 * M_PI)));
+  int tip_rotation = - static_cast<int>(std::round(smoothed_roll_ * motor_controller_.get_pulses_per_rotation(true) / (TWO_PI)));
+  int gripper_position = static_cast<int>(std::round(GRIPPER_FACTOR * smoothed_gripper_ * motor_controller_.get_pulses_per_rotation(true) / (TWO_PI)));
 
   // Drive the lower motors with the pitch and yaw. 
   // Motor 2 angles the shaft.
@@ -305,7 +304,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles(b
   absolute_omega_ += diff; // Update absolute_omega with the shortest rotation
 
   int m2_bend = get_motor2_value_for_angle(theta, verbose);
-  int shaft_rot = absolute_omega_ * motor_controller_.get_pulses_per_rotation(false) / (2 * M_PI);
+  int shaft_rot = absolute_omega_ * motor_controller_.get_pulses_per_rotation(false) / (TWO_PI);
 
   if (verbose) {
     RCLCPP_DEBUG(
@@ -313,27 +312,67 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_angles(b
       "### Calculated motor positions ###\n"
       "  shaft_rot: '%d', m2_bend: '%d'\n"
       "  theta: '%f', omega: '%f'\n"
-      "  roll: '%d', gripper_offset: '%d', gripper_position: '%d'",
-      shaft_rot, m2_bend, theta, absolute_omega_, tip_rotation, gripper_offset, gripper_position);
+      "  roll: '%d', gripper_position: '%d'",
+      shaft_rot, m2_bend, theta, absolute_omega_, tip_rotation, gripper_position);
   }
 
-  std::array<int, 4>  start_positions = motor_controller_.get_starting_positions();
+  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
   std::array<int, 4>  new_positions = {
-    static_cast<int>(std::round(start_positions[0] + tip_rotation)),
-    static_cast<int>(std::round(start_positions[1] + shaft_rot - bend_play_compensation_)),
-    static_cast<int>(std::round(start_positions[2] + shaft_rot + m2_bend)), 
-    static_cast<int>(std::round(start_positions[3] + tip_rotation + gripper_position))    
+    static_cast<int>(std::round(starting_positions[0] + tip_rotation)),
+    static_cast<int>(std::round(starting_positions[1] + shaft_rot - bend_play_compensation_)),
+    static_cast<int>(std::round(starting_positions[2] + shaft_rot + m2_bend)), 
+    static_cast<int>(std::round(starting_positions[3] + tip_rotation + gripper_position))    
   };
   return new_positions;
 }
 
 std::array<double, 4> InstrumentController::angles_from_motors(const std::array<int, 4>& m_array)
 {
+  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
+  std::array<int, 4> current_positions = motor_controller_.get_positions();
+
+  double roll_angle = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)); // Invert the roll calculation
+  double gripper_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)) / GRIPPER_FACTOR; // Invert the gripper calculation
+
+  int play =  motor_controller_.get_pulses_lower_motors_play();
+  int starting_diff = starting_positions[2] - starting_positions[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
+
+  int diff = current_positions[2] - current_positions[1] - starting_diff; // Current difference between motor 2 and motor 1, not yet compensated for play
+  if (diff > 0) {
+    if (diff > m1_m2_offset_+ 2*play){
+      m1_m2_offset_ = diff - 2*play; 
+    }
+    else if (diff < m1_m2_offset_ - 2*play) {
+      m1_m2_offset_ = diff + 2*play; 
+    }
+  }
+  else{
+    if (diff < m1_m2_offset_ - 2*play){
+      m1_m2_offset_ = diff + 2*play;
+    }
+    else if (diff > m1_m2_offset_ + 2*play) {
+      m1_m2_offset_ = diff - 2*play; 
+    }
+  }
+
+  int real_play = (diff - m1_m2_offset_)/2; // Calculate the real play based on the current offset
+  double shaft_rot = (static_cast<double>(current_positions[1] - starting_positions[1] + real_play)); 
+  double m2_bend = (static_cast<double>(current_positions[2] - starting_positions[2] - shaft_rot - real_play));
+
+  double theta_degrees = m1_m2_offset_ / (motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR);
+  double theta = theta_degrees * M_PI / 180.0;
+  double l1 = std::tan(theta);
+  double omega = shaft_rot * TWO_PI / motor_controller_.get_pulses_per_rotation(false);
+  double h = -l1 * std::cos(omega);
+  double w = -l1 * std::sin(omega);
+  double pitch_angle = -std::atan(h);
+  double yaw_angle = -std::atan(w);
+  
   std::array<double, 4> angles;
-  angles[0] = 0.0; // TODO: calculate roll from motor positions
-  angles[1] = 0.0; // TODO: calculate pitch from motor positions
-  angles[2] = 0.0; // TODO: calculate yaw from motor positions
-  angles[3] = 0.0; // TODO: calculate gripper angle from motor positions
+  angles[0] = roll_angle;
+  angles[1] = pitch_angle;
+  angles[2] = yaw_angle;
+  angles[3] = gripper_angle;
   return angles;
 }
 

@@ -15,6 +15,7 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
@@ -24,6 +25,20 @@ if(BUILD_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  ament_add_gtest(test_angle_conversion
+    test/test_angle_conversion.cpp
+    test/motor_controller_stub.cpp
+    src/instrument_controller.cpp
+    src/keyboard_reader.cpp
+  )
+
+  if(TARGET test_angle_conversion)
+    target_include_directories(test_angle_conversion PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    ament_target_dependencies(test_angle_conversion rclcpp std_msgs geometry_msgs)
+  endif()
 endif()
 
 add_executable(controller 

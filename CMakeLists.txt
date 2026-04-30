@@ -49,8 +49,22 @@ add_executable(controller
   src/motor_controller.cpp
   src/motor_thread.cpp
 )
+
+add_executable(sinusoidal_controller src/sinusoidal_controller.cpp)
+add_executable(circular_trajectory_node src/circular_trajectory_node.cpp)
   
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
+ament_target_dependencies(sinusoidal_controller
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
+
+ament_target_dependencies(circular_trajectory_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
 
 
 # Include directories
@@ -66,12 +80,12 @@ install(
 )
 
 install(TARGETS
-  controller
+  controller sinusoidal_controller circular_trajectory_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
-  DIRECTORY launch
+  DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 

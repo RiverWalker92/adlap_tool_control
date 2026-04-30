@@ -1,0 +1,36 @@
+sinusoidal_controller:
+  ros__parameters:
+    topic: "/robot_cmd"
+    publish_rate: 100.0
+
+    # mode can be: constant, triangle, sinusoid
+    # value is ignored when mode is sinusoid/triangle
+    # min, max, frequency are ingnored when mode is constant
+
+    roll:
+      mode: "constant"
+      min: -3.14
+      max: 3.14
+      frequency: 0.5
+      value: 0.0   
+
+    pitch:
+      mode: "constant"
+      value: 0.0
+      min: 0.0     
+      max: 0.0     
+      frequency: 0.1  
+
+    yaw:
+      mode: "sinusoid"
+      min: 0.2
+      max: 0.4
+      frequency: 0.1
+      value: 0.0
+
+    aperture:
+      mode: "constant"
+      value: 0.0
+      min: 0.0 
+      max: 0.25
+      frequency: 0.1

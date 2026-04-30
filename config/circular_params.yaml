@@ -1,0 +1,6 @@
+circular_trajectory_node:
+  ros__parameters:
+    topic: "/robot_cmd"
+    publish_rate: 100.0
+    radius: 0.2
+    frequency: 0.5

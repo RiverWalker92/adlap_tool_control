@@ -49,14 +49,19 @@ protected:
 
 	void run_round_trip_case(const TestAngles& in)
 	{
-		controller_.smoothed_roll_ = in.roll;
+		controller_.smoothed_tip_rotation_ = in.roll;
 		controller_.smoothed_pitch_ = in.pitch;
 		controller_.smoothed_yaw_ = in.yaw;
-		controller_.smoothed_gripper_ = in.gripper;
+		controller_.smoothed_articulation_ = in.gripper;
 
-		const std::array<int, 4> motor_positions = controller_.calculate_motor_positions_from_angles(false);
-		motor_.send_motor_positions(motor_positions);
-		const std::array<double, 4> out = controller_.angles_from_motors(motor_positions);
+		const std::array<int, 4> motor_positions = controller_.calculate_motor_positions_from_euler_angles(
+			controller_.smoothed_tip_rotation_,
+			controller_.smoothed_pitch_,
+			controller_.smoothed_yaw_,
+			controller_.smoothed_articulation_,
+			false
+		);
+		const std::array<double, 4> out = controller_.euler_angles_from_motors(motor_positions);
 
 		constexpr double tol = 0.01;
 		EXPECT_NEAR(out[0], in.roll, tol);
@@ -96,7 +101,7 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 				Motor::create(1, 360.0f, 1, 40, 30, 60, 1.0f, 12, 0, false));
 	InstrumentController backlash_controller(backlash_motor, logger_);
 
-	const std::array<double, 4> baseline = backlash_controller.angles_from_motors(backlash_motor.get_positions());
+	const std::array<double, 4> baseline = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());
 	const int max_play = backlash_motor.get_pulses_lower_motors_play();
 	ASSERT_GT(max_play, 0);
 
@@ -107,7 +112,7 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 			const int m2 = -direction * step;
 
 			backlash_motor.send_motor_positions({0, m1, m2, 0});
-			const std::array<double, 4> out = backlash_controller.angles_from_motors(backlash_motor.get_positions());
+			const std::array<double, 4> out = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());
 
 			SCOPED_TRACE(::testing::Message() << "step=" << step << ", direction=" << direction);
 			EXPECT_NEAR(out[0], baseline[0], tol);

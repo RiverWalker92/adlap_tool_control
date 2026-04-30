@@ -46,11 +46,11 @@ public:
     // data values are: roll, pitch, yaw, gripper angle
     RCLCPP_INFO(this->get_logger(), "I heard array: '%f' '%f' '%f' '%f'",
                 angles[0], angles[1], angles[2], angles[3]);
-    instrument_controller_.set_angles(angles[0], angles[1], angles[2],
+    instrument_controller_.set_euler_angles(angles[0], angles[1], angles[2],
                                       angles[3]);
     // Publish the response values for now, later publish the actual status of
     // the tool
-    auto current_angles = instrument_controller_.angles_from_motors(
+    auto current_angles = instrument_controller_.euler_angles_from_motors(
         motor_controller_.get_target_positions());
 
     auto status_msg = std_msgs::msg::String();

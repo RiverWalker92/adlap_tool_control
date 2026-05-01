@@ -26,8 +26,11 @@ class ToolController : public rclcpp::Node
   ToolController(std::shared_ptr<SerialPort> serial)
     : Node("tool_control_node"), serial_(serial),
       //motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 50, 90, 25.0f / 15.0f, 20, 4, false}), // AE motor config
-      
-      motor_controller_(serial_, this->get_logger()), // Default motor config
+      motor_config_publisher_(this->create_publisher<std_msgs::msg::String>(
+          "~/motor_config",
+          rclcpp::QoS(10).transient_local()
+      )),
+      motor_controller_(serial_, this->get_logger(), motor_config_publisher_), // Default motor config
       task_publisher_(this->create_publisher<std_msgs::msg::String>("~" + TASK_TOPIC, 10)),
       instrument_controller_(motor_controller_, this->get_logger(), task_publisher_)
     {
@@ -56,6 +59,7 @@ class ToolController : public rclcpp::Node
       motor_positions_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
         "~" + MOTOR_POSITIONS_TOPIC, 10);
 
+
       motor_positions_timer_ = this->create_wall_timer(
         100ms,
         std::bind(&ToolController::publish_motor_positions, this));
@@ -78,9 +82,9 @@ class ToolController : public rclcpp::Node
       RCLCPP_INFO(this->get_logger(), "I heard array: '%f' '%f' '%f' '%f'", angles[0], angles[1], angles[2], angles[3]);
       instrument_controller_.set_angles(angles[0], angles[1], angles[2], angles[3]);
       
-      auto task_msg = std_msgs::msg::String();
-      task_msg.data = "ros_command";
-      task_publisher_->publish(task_msg);
+      // auto task_msg = std_msgs::msg::String();
+      // task_msg.data = "ros_command";
+      // task_publisher_->publish(task_msg);
 
       auto command_msg = std_msgs::msg::Float64MultiArray();
       command_msg.data = {
@@ -122,9 +126,6 @@ class ToolController : public rclcpp::Node
         true
       );
 
-      auto task_msg = std_msgs::msg::String();
-      task_msg.data = "motor_command";
-      task_publisher_->publish(task_msg);
     }
 
 
@@ -174,6 +175,8 @@ class ToolController : public rclcpp::Node
   
     
     std::shared_ptr<SerialPort> serial_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_config_publisher_;
 
     MotorController motor_controller_;
 

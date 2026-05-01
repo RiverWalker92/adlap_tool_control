@@ -58,6 +58,11 @@ class SetupTestRunner(Node):
             "/right/tool_control_node/task_label",
             10
         )
+        self.control_pub = self.create_publisher(
+            String,
+            "/right/tool_control_node/control",
+            10
+        )
 
         # For later use in logging setup and instrument
         self.setup_type = "motors_only"
@@ -87,14 +92,14 @@ class SetupTestRunner(Node):
         time.sleep(duration)
 
     # Main function to run a single test trial with a given name, trial number, and sequence of commands
-    def run_trial(self, test_name, trial_number, sequence):
+    def run_trial(self, test_type, motor_name, trial_number, sequence):  
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         task_label = (
-            f"{self.setup_number}|"
-            f"{self.setup_type}|"
-            f"{test_name}|"
-            f"{self.instrument_id}|"
+            f"{self.setup_number}_{self.setup_type}|"
+            f"{test_type}|"
+            f"{motor_name}|"
+        #   f"{self.instrument_id}|"
             f"trial_{trial_number:02d}|"
             f"{timestamp}"
         )
@@ -127,40 +132,50 @@ class SetupTestRunner(Node):
         idle_baseline = [
             {"steps": [0, 0, 0, 0], "duration": 5.0},
         ]
-        tests.append(("idle_baseline", idle_baseline))
+        tests.append(("idle_baseline", "all_motors", idle_baseline))
 
         for motor_index in range(4):
             motor_name = f"m{motor_index + 1}"
 
             tests.append((
-                f"{motor_name}_single_step_small",
+                "single_step_small",
+                motor_name,
                 make_single_step_test(motor_index, 100)
             ))
 
             tests.append((
-                f"{motor_name}_single_step_medium",
+                "single_step_medium",
+                motor_name,
                 make_single_step_test(motor_index, 300)
             ))
 
             tests.append((
-                f"{motor_name}_backlash_small",
+                "backlash_small",
+                motor_name,
                 make_backlash_test(motor_index, 100)
             ))
 
             tests.append((
-                f"{motor_name}_reversal_medium",
+                "reversal_medium",
+                motor_name,
                 make_reversal_test(motor_index, 300)
             ))
 
             tests.append((
-                f"{motor_name}_cyclic_medium",
+                "cyclic_medium",
+                motor_name,
                 make_cyclic_test(motor_index, 300, cycles=15)
             ))
 
-        for test_name, sequence in tests:
-            for trial_number in range(1, 4):
-                self.run_trial(test_name, trial_number, sequence)
+        for test_type, motor_name, sequence in tests:
+            for trial_number in range(1, 4): # meot 4 zijn
+                self.run_trial(test_type, motor_name, trial_number, sequence)
                 time.sleep(1.0)
+       
+        stop_msg = String()
+        stop_msg.data = "stop_logging"
+        self.control_pub.publish(stop_msg)
+        time.sleep(1.0)        
 
         self.publish_task_label("tests_finished")
         time.sleep(1.0)

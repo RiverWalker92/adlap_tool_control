@@ -6,13 +6,24 @@ from datetime import datetime
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray, String
+from std_msgs.msg import Float64MultiArray, Int32MultiArray, String
+
+
+
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!
+# ADD LOGGER DAT VOOR NU INSTRUMENT NIET GEKOPPELD MOET ZIJN! 
+# !!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 
 class ToolReader(Node):
 
     def __init__(self):
         super().__init__('tool_reader_node')
+
+        self.get_logger().error("FOR MOTOR-ONLY TESTS: instrument should NOT be coupled.")
 
         self.last_task = "unlabeled"
         self.log_files = {}
@@ -27,7 +38,17 @@ class ToolReader(Node):
 
         self.last_currents = []
         self.last_positions = []
-        self.last_commands = []
+        self.last_instrument_angles = []
+        self.last_motor_commands = []
+        # self.last_duty_cycle = []
+        self.last_motor_config = []
+
+        self.control_sub = self.create_subscription(
+            String,
+            '/right/tool_control_node/control',
+            self.control_callback,
+            10
+        )
 
         self.current_sub = self.create_subscription(
             Float64MultiArray,
@@ -43,12 +64,40 @@ class ToolReader(Node):
             10
         )
 
-        self.command_sub = self.create_subscription(
+        self.instrument_command_sub = self.create_subscription(
             Float64MultiArray,
             '/right/tool_control_node/commanded_instrument_angles',
-            self.command_callback,
+            self.instrument_command_callback,
             10
         )
+
+        self.motor_command_sub = self.create_subscription(
+            Int32MultiArray,
+            '/right/tool_control_node/commanded_motor_positions',
+            self.motor_command_callback,
+            10
+        )
+
+        # self.duty_cycle_sub = self.create_subscription(
+        #     Int32MultiArray,
+        #     '/right/tool_control_node/commanded_duty_cycle',
+        #     self.duty_cycle_callback,
+        #     10
+        # )
+
+        self.motor_config_sub = self.create_subscription(
+            String,
+            '/right/tool_control_node/motor_config',
+            self.motor_config_callback,
+            10
+        )
+
+    def control_callback(self, msg):
+        if msg.data == "stop_logging":
+            self.get_logger().info("Stopping ToolReader")
+            self.destroy_node()
+            rclpy.shutdown()
+
     def task_callback(self, msg):
         self.last_task = msg.data
         self.get_log_file(self.last_task)   
@@ -60,23 +109,36 @@ class ToolReader(Node):
     def position_callback(self, msg):
         self.last_positions = list(msg.data)
         self.print_and_log_state()
+        
+    def instrument_command_callback(self, msg):
+        self.last_instrument_angles = list(msg.data)
+        self.print_and_log_state()
 
-    def command_callback(self, msg):
-        self.last_commands = list(msg.data)
+    def motor_command_callback(self, msg):
+        self.last_motor_commands = list(msg.data)
+        self.print_and_log_state()
+
+    # def duty_cycle_callback(self, msg):
+    #     self.last_duty_cycle = list(msg.data)
+    #     self.print_and_log_state()
+
+    def motor_config_callback(self, msg):
+        self.last_motor_config.append(msg.data)
+        self.get_logger().warn(f"Received motor config: {msg.data}")
         self.print_and_log_state()
 
     def get_log_file(self, task):
         parts = task.split("|")
 
-        if len(parts) == 6:
+        if len(parts) == 5:
             setup_number = parts[0]
             setup_type = parts[1]
-            instrument_id = parts[2]
-            test_name = parts[3]
-            trial_name = parts[4]
-            timestamp = parts[5]
+            # instrument_id = parts[2]
+            test_name = parts[2]
+            trial_name = parts[3]
+            timestamp = parts[4]
 
-            task_dir = self.base_log_dir / setup_number / setup_type / instrument_id / test_name
+            task_dir = self.base_log_dir / setup_number / setup_type / test_name
             task_dir.mkdir(parents=True, exist_ok=True)
 
             log_path = task_dir / f"{trial_name}_{timestamp}.jsonl"
@@ -101,9 +163,12 @@ class ToolReader(Node):
 
             sample = {
                 "timestamp": timestamp,
-                "commanded_instrument_angles": self.last_commands if len(self.last_commands) == 4 else None,
+                "commanded_instrument_angles": self.last_instrument_angles if len(self.last_instrument_angles) == 4 else None,
+                "commanded_motor_positions": self.last_motor_commands if len(self.last_motor_commands) == 4 else None,
+                # "commanded_duty_cycle": self.last_duty_cycle if len(self.last_duty_cycle) == 4 else None,
                 "measured_motor_positions": self.last_positions,
                 "measured_currents": self.last_currents,
+                "motor_config": self.last_motor_config if self.last_motor_config else None
             }
 
             sample["task"] = self.last_task
@@ -112,9 +177,13 @@ class ToolReader(Node):
 
             self.get_logger().info(
                 f"{timestamp:.3f} | "
-                f"Command: {self.last_commands} | "
+                f"Instrument Angles: {self.last_instrument_angles} | "
+                f"Motor Commands: {self.last_motor_commands} | "
+                # f"Duty Cycle: {self.last_duty_cycle}"
                 f"Currents: {self.last_currents} | "
-                f"Positions: {self.last_positions}"
+                f"Positions: {self.last_positions} | "
+                f"Positions: {self.last_positions} | "
+                f"Motor Config: {self.last_motor_config} | "
             )
 
     def destroy_node(self):

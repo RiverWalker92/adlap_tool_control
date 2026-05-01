@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include "std_msgs/msg/string.hpp"
 
 /// @brief Configuration parameters for different motor types
 class Motor
@@ -15,8 +16,8 @@ public:
     int encoder_mode;            // Read rise and fall of both channels for higher resolution (1, 2, or 4)
  
     int duty_cycle_percentage;   // Duty cycle percentage for motor control (0-100)
-    int max_current;             // Current threshold to detect motor is blocked (mA)
-    int emergency_current;       // Maximum safe current threshold (mA)
+    int max_current;             // Current threshold to detect motor is blocked (mA) > no mA
+    int emergency_current;       // Maximum safe current threshold (mA) > NO mA? Pico units?
     
     float upper_motor_factor;    // Gear ratio factor for upper motors (if different)
     int lower_motors_play;       // Backlash compensation in degrees
@@ -50,9 +51,10 @@ public:
         return static_cast<int>(std::lround(magnets * gear_ratio * encoder_mode));
     }
     
+    // Emergency current and max current scaled with 16
     /// @brief Create motor configuration from gear ratio, encoder resolution, and mode
     static Motor create(int magnets, float gear_ratio, int encoder_mode,
-                             int duty_cycle = 40, int max_current = 30, int emergency_current = 60,
+                             int duty_cycle = 40, int max_current = 480, int emergency_current = 960,
                              float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15,
                              int min_wait_time_ms = 4, bool reverse_direction = true) {
         return {
@@ -78,7 +80,12 @@ public:
 class MotorController
 {
 public:
-    MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const Motor& config = Motor::create_default());
+    MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger,
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_config_publisher,
+        const Motor& config = Motor::create_default());
+        
+    MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger,
+    const Motor& config);
     ~MotorController();
     
     // Motor position control
@@ -152,6 +159,7 @@ private:
 
     std::shared_ptr<SerialPort> serial_;
     rclcpp::Logger logger_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_config_publisher_;
     Motor motor_;  // Motor configuration parameters
     
     // Motor state

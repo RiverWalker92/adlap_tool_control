@@ -214,6 +214,16 @@ void InstrumentController::manual_adjustment(){
         motor_controller_.send_relative_motor_positions(0,-step_size,-step_size,0, true);
         RCLCPP_INFO(logger_, "Q");
         break;
+      case KEYCODE_M:
+        RCLCPP_INFO(logger_, "M -> Motor-only mode without initialization");
+        publish_task("motor_only_mode");
+
+        motor_controller_.update_starting_positions();
+
+        ready_for_angles = false;
+
+        RCLCPP_INFO(logger_, "Motor-only mode ready without setup_motors");
+        break;
       case KEYCODE_ENTER:
         RCLCPP_INFO(logger_, "ENTER");
         if (!ready_for_angles) {

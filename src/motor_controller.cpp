@@ -10,8 +10,13 @@
 #include <mutex>
 #include <thread>
 
-MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const Motor &config)
-    : serial_(serial), logger_(logger), motor_(config)
+MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger,
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_config_publisher,
+    const Motor &config)
+    : serial_(serial),
+      logger_(logger),
+      motor_config_publisher_(motor_config_publisher),
+      motor_(config)
 {
   // Streaming mode: don't expect request/response anymore.
   start_stream_reader();
@@ -38,6 +43,14 @@ MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Log
     stop_stream_reader();
     throw;
   }
+}
+
+MotorController::MotorController(
+    std::shared_ptr<SerialPort> serial,
+    rclcpp::Logger logger,
+    const Motor &config)
+    : MotorController(serial, logger, nullptr, config)
+{
 }
 
 MotorController::~MotorController()
@@ -95,11 +108,17 @@ void MotorController::send_relative_motor_positions(int m0, int m1, int m2, int 
 void MotorController::send_motor_positions(const std::array<int, 4> &new_positions, bool verbose)
 {
   std::string message = motor_message(new_positions);
-  if (verbose)
-  {
-    std::string log_message = message.substr(0, message.size() - 1);
-    RCLCPP_DEBUG(logger_, "Writing: '%s'", log_message.c_str());
+  std::string log_message = message;
+  if (!log_message.empty() && log_message.back() == '\n') {
+    log_message.pop_back();
   }
+
+  RCLCPP_INFO(logger_, "TX motor positions to Pico: '%s'", log_message.c_str());
+  // if (verbose)
+  // {
+  //   std::string log_message = message.substr(0, message.size() - 1);
+  //   RCLCPP_DEBUG(logger_, "Writing: '%s'", log_message.c_str());
+  // }
   serial_->write_data(message);
   rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
   target_positions_ = new_positions;
@@ -150,11 +169,23 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
                         std::to_string(motor_.magnets) + ", " +
                         std::to_string(motor_.encoder_mode) + ", " +
                         std::to_string(reverse_int) + "\n";
-  if (verbose)
-  {
-    std::string log_message = message.substr(0, message.size() - 1);
-    RCLCPP_DEBUG(logger_, "Writing motor configuration: '%s'", log_message.c_str());
+  // if (verbose)
+  // {
+  //   std::string log_message = message.substr(0, message.size() - 1);
+  //   RCLCPP_DEBUG(logger_, "Writing motor configuration: '%s'", log_message.c_str());
+  // }
+  std::string log_message = message;
+  if (!log_message.empty() && log_message.back() == '\n') {
+    log_message.pop_back();
   }
+
+  RCLCPP_INFO(logger_, "TX motor config to Pico: '%s'", log_message.c_str());
+  if (motor_config_publisher_) {
+    auto msg = std_msgs::msg::String();
+    msg.data = log_message;
+    motor_config_publisher_->publish(msg);
+  }
+
   serial_->write_data(message);
   rclcpp::sleep_for(std::chrono::milliseconds(motor_.min_wait_time_ms));
 }

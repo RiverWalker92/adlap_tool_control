@@ -16,14 +16,16 @@
 class InstrumentController
 {
 public:
-    InstrumentController(MotorController& motor_controller, rclcpp::Logger logger);
+    InstrumentController(MotorController& motor_controller, rclcpp::Logger logger, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher  = nullptr);
 
     // Instrument control methods
     void manual_adjustment();
     void set_angles(double roll, double pitch, double yaw, double gripper, bool verbose = false);
     std::array<double, 4> angles_from_motors(const std::array<int, 4>& m_array);
 private:
-    // Calculation methods
+
+    void publish_task(const std::string& task);
+    
     int get_motor2_value_for_angle(double radians, bool verbose = false);
     std::array<int, 4> calculate_motor_positions_from_angles(bool verbose = false);
 
@@ -35,6 +37,7 @@ private:
     // Member variables
     MotorController& motor_controller_;
     rclcpp::Logger logger_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher_;
     std::deque<double> roll_history_; // History for smoothing
     std::deque<double> pitch_history_; // History for smoothing
     std::deque<double> yaw_history_; // History for smoothing

@@ -49,7 +49,6 @@ add_executable(controller
   src/motor_controller.cpp
   src/motor_thread.cpp
 )
-  
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
 
 
@@ -57,6 +56,12 @@ ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
 target_include_directories(controller PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+)
+# Python script install
+install(PROGRAMS
+  scripts/tool_reader_node.py
+  scripts/setup_test_runner_node.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install headers

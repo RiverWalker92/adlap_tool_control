@@ -7,6 +7,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <thread>
+#include <cstdio>
 
 namespace
 {
@@ -258,10 +259,21 @@ bool MotorController::parse_telemetry_message(const uint8_t *payload, uint8_t le
   {
     std::lock_guard<std::mutex> lock(state_mtx_);
 
+    std::string hex;
+    char buf[4];
+
+    for (int j = 0; j < len; ++j)
+    {
+      snprintf(buf, sizeof(buf), "%02X ", payload[j]);
+      hex += buf;
+    }
+
+
     for (int i = 0; i < 4; ++i)
     {
       response_positions_[i] = read_i32_le(payload + (i * 4));
       response_currents_[i] = static_cast<int>(read_u16_le(payload + 16 + (i * 2)));
+      
     }
     const uint8_t flags = payload[24];
     const uint8_t hall = payload[25];

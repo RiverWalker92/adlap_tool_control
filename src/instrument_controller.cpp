@@ -6,11 +6,26 @@
 
 
 
-InstrumentController::InstrumentController(MotorController& motor_controller, rclcpp::Logger logger) 
-    : motor_controller_(motor_controller), logger_(logger)
+InstrumentController::InstrumentController(
+    MotorController& motor_controller,
+    rclcpp::Logger logger,
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher) 
+    : motor_controller_(motor_controller),
+      logger_(logger),
+      task_publisher_(task_publisher)
 {
 }
 
+void InstrumentController::publish_task(const std::string& task)
+{
+  if (!task_publisher_) {
+    return;
+  }
+
+  auto task_msg = std_msgs::msg::String();
+  task_msg.data = task;
+  task_publisher_->publish(task_msg);
+}
 
 /// @brief Allow manual adjustment of the lower motors using keyboard input
 void InstrumentController::manual_adjustment(){
@@ -39,10 +54,13 @@ void InstrumentController::manual_adjustment(){
     {
       case KEYCODE_C:
         RCLCPP_INFO(logger_, "C -> Couple sequence");
+        publish_task("coupling_sequence");
+        
         motor_controller_.couple_sequence();
         break;          
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
+        publish_task("update_starting_positions");
         if (!initialized) {
           RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting positions");
           break;
@@ -65,6 +83,7 @@ void InstrumentController::manual_adjustment(){
         break;
       case KEYCODE_I:
         RCLCPP_INFO(logger_, "I -> Initialize lower motors");
+        publish_task("initialization_sequence");
         motor_controller_.setup_motors();
         initialized = true;
         break;
@@ -132,7 +151,7 @@ void InstrumentController::manual_adjustment(){
         set_angles(smoothed_roll_, smoothed_pitch_, smoothed_yaw_ + angle_rad, smoothed_gripper_);
         break;
       case KEYCODE_7:
-        RCLCPP_INFO(logger_, "7 -> open gripper");
+        RCLCPP_INFO(logger_, "7 -> Open gripper");
         if (!ready_for_angles) {
           RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
           break;
@@ -148,7 +167,7 @@ void InstrumentController::manual_adjustment(){
         set_angles(smoothed_roll_, smoothed_pitch_ + angle_rad, smoothed_yaw_, smoothed_gripper_);
         break;
       case KEYCODE_9:
-        RCLCPP_INFO(logger_, "9 -> close gripper");
+        RCLCPP_INFO(logger_, "9 -> Close gripper");
         if (!ready_for_angles) {
           RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
           break;

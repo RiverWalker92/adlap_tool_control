@@ -1,4 +1,4 @@
-sinusoidal_controller:
+tool_controller_node:
   ros__parameters:
     topic: "/robot_cmd"
     publish_rate: 100.0
@@ -7,28 +7,30 @@ sinusoidal_controller:
     # value is ignored when mode is sinusoid/triangle
     # min, max, frequency are ingnored when mode is constant
 
-    roll:
+    # dof: depends on control mode. roll/pitch/yaw/aperture or roll_shaft, benf, rool_tip, aperture
+
+    dof1:
       mode: "constant"
       min: -3.14
       max: 3.14
       frequency: 0.5
       value: 0.0   
 
-    pitch:
+    dof2:
       mode: "constant"
       value: 0.0
       min: 0.0     
       max: 0.0     
       frequency: 0.1  
 
-    yaw:
+    dof3:
       mode: "constant"
       min: 0.2
       max: 0.4
       frequency: 0.1
       value: 0.0
 
-    aperture:
+    dof4:
       mode: "sinusoid"
       value: 0.0
       min: 0.0 

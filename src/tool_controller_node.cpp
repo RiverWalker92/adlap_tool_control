@@ -17,10 +17,10 @@ public:
     this->declare_parameter<std::string>("topic", "/tool_cmd");
     this->declare_parameter<double>("publish_rate", 100.0);
 
-    declare_dof("roll");
-    declare_dof("pitch");
-    declare_dof("yaw");
-    declare_dof("aperture");
+    declare_dof("dof1");
+    declare_dof("dof2");
+    declare_dof("dof3");
+    declare_dof("dof4");
 
     topic_ = this->get_parameter("topic").as_string();
     double rate = this->get_parameter("publish_rate").as_double();
@@ -98,13 +98,13 @@ private:
   {
     double t = (this->now() - start_time_).seconds();
 
-    double roll = compute(get_dof("roll"), t);
-    double pitch = compute(get_dof("pitch"), t);
-    double yaw = compute(get_dof("yaw"), t);
-    double aperture = compute(get_dof("aperture"), t);
+    double dof1 = compute(get_dof("dof1"), t);
+    double dof2 = compute(get_dof("dof2"), t);
+    double dof3 = compute(get_dof("dof3"), t);
+    double dof4 = compute(get_dof("dof4"), t);
 
     std_msgs::msg::Float64MultiArray msg;
-    msg.data = { roll, pitch, yaw, aperture };
+    msg.data = { dof1, dof2, dof3, dof4 };
 
     publisher_->publish(msg);
   }

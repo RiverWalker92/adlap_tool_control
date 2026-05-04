@@ -13,7 +13,7 @@ def generate_launch_description():
     default_params_file = os.path.join(
         get_package_share_directory(pkg_name),
         'config',
-        'sinusoidal_params.yaml'
+        'tool_params.yaml'
     )
 
     params_file_arg = DeclareLaunchArgument(
@@ -30,8 +30,8 @@ def generate_launch_description():
 
     node = Node(
         package=pkg_name,
-        executable='sinusoidal_controller',
-        name='sinusoidal_controller',
+        executable='tool_controller_node',
+        name='tool_controller_node',
         output='screen',
         parameters=[
             LaunchConfiguration('params_file'),

@@ -8,9 +8,11 @@
 
 using namespace std::chrono_literals;
 
-class ToolController : public rclcpp::Node {
+class ToolControllerNode : public rclcpp::Node
+{
 public:
-  ToolController() : Node("tool_controller") {
+  ToolControllerNode() : Node("tool_controller_node")
+  {
     // Global params
     this->declare_parameter<std::string>("topic", "/tool_cmd");
     this->declare_parameter<double>("publish_rate", 100.0);
@@ -23,25 +25,26 @@ public:
     topic_ = this->get_parameter("topic").as_string();
     double rate = this->get_parameter("publish_rate").as_double();
 
-    publisher_ =
-        this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_, 10);
+    publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_, 10);
 
     timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / rate),
-                                     std::bind(&ToolController::update, this));
+                                     std::bind(&ToolControllerNode::update, this));
 
     start_time_ = this->now();
   }
 
 private:
-  struct DOF {
-    std::string mode; // "sinusoid" or "constant"
+  struct DOF
+  {
+    std::string mode;  // "sinusoid" or "constant"
     double min;
     double max;
     double frequency;
     double value;
   };
 
-  void declare_dof(const std::string &name) {
+  void declare_dof(const std::string& name)
+  {
     this->declare_parameter<std::string>(name + ".mode", "constant");
     this->declare_parameter<double>(name + ".min", 0.0);
     this->declare_parameter<double>(name + ".max", 0.0);
@@ -49,7 +52,8 @@ private:
     this->declare_parameter<double>(name + ".value", 0.0);
   }
 
-  DOF get_dof(const std::string &name) {
+  DOF get_dof(const std::string& name)
+  {
     DOF d;
     d.mode = this->get_parameter(name + ".mode").as_string();
     d.min = this->get_parameter(name + ".min").as_double();
@@ -59,15 +63,20 @@ private:
     return d;
   }
 
-  double compute(const DOF &d, double t) {
-    if (d.mode == "constant") {
+  double compute(const DOF& d, double t)
+  {
+    if (d.mode == "constant")
+    {
       return d.value;
-    } else if (d.mode == "sinusoid") {
+    }
+    else if (d.mode == "sinusoid")
+    {
       double center = (d.max + d.min) / 2.0;
       double amplitude = (d.max - d.min) / 2.0;
       return center + amplitude * std::sin(2.0 * M_PI * d.frequency * t);
-    } else if (d.mode == "triangle") {
-
+    }
+    else if (d.mode == "triangle")
+    {
       double center = (d.max + d.min) / 2.0;
       double amplitude = (d.max - d.min) / 2.0;
 
@@ -77,14 +86,16 @@ private:
       double tri = 2.0 * std::abs(2.0 * frac) - 1.0;
 
       return center + amplitude * tri;
-    } else {
-      RCLCPP_WARN(this->get_logger(), "Unknown mode '%s', returning 0",
-                  d.mode.c_str());
+    }
+    else
+    {
+      RCLCPP_WARN(this->get_logger(), "Unknown mode '%s', returning 0", d.mode.c_str());
       return 0.0;
     }
   }
 
-  void update() {
+  void update()
+  {
     double t = (this->now() - start_time_).seconds();
 
     double roll = compute(get_dof("roll"), t);
@@ -93,7 +104,7 @@ private:
     double aperture = compute(get_dof("aperture"), t);
 
     std_msgs::msg::Float64MultiArray msg;
-    msg.data = {roll, pitch, yaw, aperture};
+    msg.data = { roll, pitch, yaw, aperture };
 
     publisher_->publish(msg);
   }
@@ -104,9 +115,10 @@ private:
   std::string topic_;
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ToolController>());
+  rclcpp::spin(std::make_shared<ToolControllerNode>());
   rclcpp::shutdown();
   return 0;
 }

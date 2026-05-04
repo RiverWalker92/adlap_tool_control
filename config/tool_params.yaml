@@ -22,14 +22,14 @@ sinusoidal_controller:
       frequency: 0.1  
 
     yaw:
-      mode: "sinusoid"
+      mode: "constant"
       min: 0.2
       max: 0.4
       frequency: 0.1
       value: 0.0
 
     aperture:
-      mode: "constant"
+      mode: "sinusoid"
       value: 0.0
       min: 0.0 
       max: 0.25

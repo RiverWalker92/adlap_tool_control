@@ -15,10 +15,10 @@ constexpr uint8_t SYNC1 = 0x55;
 constexpr uint8_t MSG_TYPE_TELEMETRY = 1;
 constexpr uint8_t MSG_TYPE_LOG = 2;
 constexpr size_t TELEMETRY_PAYLOAD_LEN = 26;
-constexpr size_t FRAME_HEADER_LEN = 5; // sync0, sync1, msg_type, seq, len
-constexpr size_t FRAME_MIN_LEN = FRAME_HEADER_LEN + 1; // + crc
+constexpr size_t FRAME_HEADER_LEN = 5;                  // sync0, sync1, msg_type, seq, len
+constexpr size_t FRAME_MIN_LEN = FRAME_HEADER_LEN + 1;  // + crc
 
-uint8_t crc8_atm(const uint8_t *data, size_t len)
+uint8_t crc8_atm(const uint8_t* data, size_t len)
 {
   uint8_t crc = 0x00;
   for (size_t i = 0; i < len; ++i)
@@ -39,39 +39,33 @@ uint8_t crc8_atm(const uint8_t *data, size_t len)
   return crc;
 }
 
-int32_t read_i32_le(const uint8_t *data)
+int32_t read_i32_le(const uint8_t* data)
 {
-  const uint32_t value =
-      static_cast<uint32_t>(data[0]) |
-      (static_cast<uint32_t>(data[1]) << 8) |
-      (static_cast<uint32_t>(data[2]) << 16) |
-      (static_cast<uint32_t>(data[3]) << 24);
+  const uint32_t value = static_cast<uint32_t>(data[0]) | (static_cast<uint32_t>(data[1]) << 8) |
+                         (static_cast<uint32_t>(data[2]) << 16) | (static_cast<uint32_t>(data[3]) << 24);
   return static_cast<int32_t>(value);
 }
 
-uint16_t read_u16_le(const uint8_t *data)
+uint16_t read_u16_le(const uint8_t* data)
 {
-  return static_cast<uint16_t>(
-      static_cast<uint16_t>(data[0]) |
-      (static_cast<uint16_t>(data[1]) << 8));
+  return static_cast<uint16_t>(static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8));
 }
-} // namespace
+}  // namespace
 
 void MotorController::start_stream_reader()
 {
   if (reader_running_.exchange(true))
   {
-    return; // already running
+    return;  // already running
   }
-  reader_thread_ = std::thread([this]()
-                               { reader_loop(); });
+  reader_thread_ = std::thread([this]() { reader_loop(); });
 }
 
 void MotorController::stop_stream_reader()
 {
   if (!reader_running_.exchange(false))
   {
-    return; // already stopped
+    return;  // already stopped
   }
   if (reader_thread_.joinable())
   {
@@ -97,7 +91,8 @@ void MotorController::reader_loop()
       auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_message_time_).count();
       if (elapsed > MESSAGE_TIMEOUT_MS)
       {
-        std::string error_msg = "Motor communication timeout: No messages received for " + std::to_string(elapsed) + " ms";
+        std::string error_msg =
+            "Motor communication timeout: No messages received for " + std::to_string(elapsed) + " ms";
         RCLCPP_ERROR(logger_, "%s", error_msg.c_str());
         reader_running_.store(false);
         state_cv_.notify_all();
@@ -118,8 +113,7 @@ void MotorController::reader_loop()
 
       if (now - last_backlog_summary_time >= std::chrono::seconds(2))
       {
-        RCLCPP_DEBUG(logger_,
-                     "Serial backlog summary (2s): current=%zuB, peak=%zuB, parser_buffer_peak=%zuB",
+        RCLCPP_DEBUG(logger_, "Serial backlog summary (2s): current=%zuB, peak=%zuB, parser_buffer_peak=%zuB",
                      pending_bytes, peak_pending_bytes, peak_parser_buffer_bytes);
         last_backlog_summary_time = now;
         peak_pending_bytes = pending_bytes;
@@ -138,8 +132,7 @@ void MotorController::reader_loop()
       size_t sync_pos = std::string::npos;
       for (size_t i = 0; i + 1 < rx_buffer_.size(); ++i)
       {
-        if (static_cast<uint8_t>(rx_buffer_[i]) == SYNC0 &&
-            static_cast<uint8_t>(rx_buffer_[i + 1]) == SYNC1)
+        if (static_cast<uint8_t>(rx_buffer_[i]) == SYNC0 && static_cast<uint8_t>(rx_buffer_[i + 1]) == SYNC1)
         {
           sync_pos = i;
           break;
@@ -193,14 +186,14 @@ void MotorController::reader_loop()
   }
 }
 
-bool MotorController::parse_frame(const std::string &frame, bool verbose)
+bool MotorController::parse_frame(const std::string& frame, bool verbose)
 {
   if (frame.size() < FRAME_MIN_LEN)
   {
     return false;
   }
 
-  const uint8_t *bytes = reinterpret_cast<const uint8_t *>(frame.data());
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(frame.data());
   if (bytes[0] != SYNC0 || bytes[1] != SYNC1)
   {
     return false;
@@ -229,7 +222,7 @@ bool MotorController::parse_frame(const std::string &frame, bool verbose)
     RCLCPP_INFO(logger_, "Received frame type=%u seq=%u len=%u", msg_type, seq, len);
   }
 
-  const uint8_t *payload = &bytes[5];
+  const uint8_t* payload = &bytes[5];
 
   if (msg_type == MSG_TYPE_LOG)
   {
@@ -246,12 +239,11 @@ bool MotorController::parse_frame(const std::string &frame, bool verbose)
   }
 }
 
-bool MotorController::parse_telemetry_message(const uint8_t *payload, uint8_t len)
+bool MotorController::parse_telemetry_message(const uint8_t* payload, uint8_t len)
 {
   if (len != TELEMETRY_PAYLOAD_LEN)
   {
-    RCLCPP_WARN(logger_, "Telemetry frame has invalid payload length %u (expected %zu)",
-                len, TELEMETRY_PAYLOAD_LEN);
+    RCLCPP_WARN(logger_, "Telemetry frame has invalid payload length %u (expected %zu)", len, TELEMETRY_PAYLOAD_LEN);
     return false;
   }
 
@@ -278,8 +270,8 @@ bool MotorController::parse_telemetry_message(const uint8_t *payload, uint8_t le
   return true;
 }
 
-bool MotorController::parse_log_message(const uint8_t *payload, uint8_t len)
-{    
+bool MotorController::parse_log_message(const uint8_t* payload, uint8_t len)
+{
   if (len < 1)
   {
     RCLCPP_WARN(logger_, "Log frame has invalid payload length: %u", len);
@@ -287,8 +279,8 @@ bool MotorController::parse_log_message(const uint8_t *payload, uint8_t len)
   }
 
   const uint8_t log_level = payload[0];
-  std::string text(reinterpret_cast<const char *>(payload + 1), static_cast<size_t>(len - 1));
-  for (char &ch : text)
+  std::string text(reinterpret_cast<const char*>(payload + 1), static_cast<size_t>(len - 1));
+  for (char& ch : text)
   {
     if (ch == '\0')
     {
@@ -391,7 +383,7 @@ std::array<bool, 4> MotorController::get_blocked() const
       response_currents_copy[i] = response_currents_[i];
       stalled_copy[i] = stalled_[i];
       overcurrent_copy[i] = overcurrent_[i];
-      blocked[i] = stalled_copy[i] || overcurrent_copy[i]; // Consider blocked if stalled or overcurrent
+      blocked[i] = stalled_copy[i] || overcurrent_copy[i];  // Consider blocked if stalled or overcurrent
     }
   }
 
@@ -403,9 +395,10 @@ std::array<bool, 4> MotorController::get_blocked() const
       if (target_positions_copy[i] > response_positions_copy[i] + margin ||
           target_positions_copy[i] < response_positions_copy[i] - margin)
       {
-        blocked[i] = true; // Treat as blocked if position is way off
-        RCLCPP_DEBUG(logger_, "Motor %zu position off by more than 30 degrees, treating as blocked (target: %d, actual: %d)",
-                     i, target_positions_copy[i], response_positions_copy[i]);
+        blocked[i] = true;  // Treat as blocked if position is way off
+        RCLCPP_DEBUG(logger_,
+                     "Motor %zu position off by more than 30 degrees, treating as blocked (target: %d, actual: %d)", i,
+                     target_positions_copy[i], response_positions_copy[i]);
         any_blocked = true;
       }
     }
@@ -417,11 +410,11 @@ std::array<bool, 4> MotorController::get_blocked() const
 
   if (any_blocked)
   {
-    RCLCPP_DEBUG(logger_, "Blocked with current values: %d, %d, %d, %d",
-                 response_currents_copy[0], response_currents_copy[1], response_currents_copy[2], response_currents_copy[3]);
-    RCLCPP_DEBUG(logger_, "Flag values stalled: %d, %d, %d, %d - overcurrent: %d, %d, %d, %d",
-                 stalled_copy[0], stalled_copy[1], stalled_copy[2], stalled_copy[3],
-                 overcurrent_copy[0], overcurrent_copy[1], overcurrent_copy[2], overcurrent_copy[3]);
+    RCLCPP_DEBUG(logger_, "Blocked with current values: %d, %d, %d, %d", response_currents_copy[0],
+                 response_currents_copy[1], response_currents_copy[2], response_currents_copy[3]);
+    RCLCPP_DEBUG(logger_, "Flag values stalled: %d, %d, %d, %d - overcurrent: %d, %d, %d, %d", stalled_copy[0],
+                 stalled_copy[1], stalled_copy[2], stalled_copy[3], overcurrent_copy[0], overcurrent_copy[1],
+                 overcurrent_copy[2], overcurrent_copy[3]);
   }
 
   return blocked;
@@ -435,6 +428,5 @@ uint64_t MotorController::get_rx_seq() const
 bool MotorController::wait_for_next_frame(uint64_t last_seq, std::chrono::milliseconds timeout)
 {
   std::unique_lock<std::mutex> lock(state_mtx_);
-  return state_cv_.wait_for(lock, timeout, [&]()
-                            { return rx_seq_.load(std::memory_order_relaxed) > last_seq; });
+  return state_cv_.wait_for(lock, timeout, [&]() { return rx_seq_.load(std::memory_order_relaxed) > last_seq; });
 }

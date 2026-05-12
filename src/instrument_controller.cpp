@@ -43,8 +43,9 @@ void InstrumentController::manual_adjustment()
         RCLCPP_INFO(logger_, "U -> Update starting positions");
         if (!initialized)
         {
-          RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting "
-                               "positions");
+          RCLCPP_WARN(logger_,
+                      "Motors not initialized yet, press 'I' to initialize before updating starting "
+                      "positions");
           break;
         }
         // ofset articulation
@@ -329,8 +330,8 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
       static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
   int relative_difference = wanted_difference - current_difference + bend_play_compensation_;
 
-  if (abs(relative_difference) <= motor_controller_.get_pulses_per_degree(false) * 5)
-  {  // If the current difference is within 5 degrees of the target, don't adjust to prevent jitter
+  if (abs(relative_difference) <= motor_controller_.get_pulses_per_degree(false))
+  {  // If the current difference is within 1 degree of the target, don't adjust to prevent jitter
     if (verbose)
       RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
     return current_difference;  // Return the current difference without adjustment

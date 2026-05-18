@@ -265,10 +265,14 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   }
 
   int starting_difference = motor_controller_.get_starting_positions()[2] - motor_controller_.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
-  int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
-  int wanted_difference = static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
-  int relative_difference = wanted_difference - current_difference + bend_play_compensation_;
+  //int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
+  
+  // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
+  int real_play = calculate_real_play(motor_controller_.get_positions()); // Calculate the real play based on the current motor positions and the current offset
+  int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
 
+  int wanted_difference = static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
+  int relative_difference = wanted_difference - current_difference;
 
   if (abs(relative_difference) <= motor_controller_.get_pulses_per_degree(false)) { // If the current difference is within 1 degree of the target, don't adjust to prevent jitter
     if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
@@ -283,7 +287,7 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
     play_compensation = -motor_controller_.get_pulses_lower_motors_play();
   }
   bend_play_compensation_ = play_compensation; // Store the current compensation for use in the next calculation
-  return wanted_difference + play_compensation;
+  return wanted_difference;
 }
 
 std::array<int, 4> InstrumentController::calculate_motor_positions_from_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose)
@@ -337,20 +341,16 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
   std::array<int, 4>  new_positions = {
     static_cast<int>(std::round(starting_positions[0] + tip_rotation_pulses)),
     static_cast<int>(std::round(starting_positions[1] + shaft_rotation_pulses - bend_play_compensation_)),
-    static_cast<int>(std::round(starting_positions[2] + shaft_rotation_pulses + m2_bend_pulses)), 
+    static_cast<int>(std::round(starting_positions[2] + shaft_rotation_pulses + m2_bend_pulses + bend_play_compensation_)), 
     static_cast<int>(std::round(starting_positions[3] + tip_rotation_pulses + articulation_pulses))    
   };
   return new_positions;
 }
 
-std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::array<int, 4>& m_array)
-{
+// TODO: make this trigger on each recieved message in motor thread, otherwise we cannot reliably use m1_m2_offset_ variable.
+// Now kinda fixed by calling this each time we recieve a new command in the node during motor position calculation.
+int InstrumentController::calculate_real_play(const std::array<int, 4>& current_positions){
   std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
-  std::array<int, 4> current_positions = m_array;
-
-  double tip_rotation = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)); // Invert the roll calculation
-  double articulation_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)) / ARTICULATION_FACTOR; // Invert the articulation calculation
-
   int play =  motor_controller_.get_pulses_lower_motors_play();
   int starting_diff = starting_positions[2] - starting_positions[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
 
@@ -373,6 +373,17 @@ std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::
   }
 
   int real_play = (diff - m1_m2_offset_)/2; // Calculate the real play based on the current offset
+  return real_play;
+}
+
+std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::array<int, 4>& current_positions)
+{
+  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
+
+  double tip_rotation = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)); // Invert the roll calculation
+  double articulation_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)) / ARTICULATION_FACTOR; // Invert the articulation calculation
+
+  int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
   double shaft_rot = (static_cast<double>(current_positions[1] - starting_positions[1] + real_play)); 
   double m2_bend = (static_cast<double>(current_positions[2] - starting_positions[2] - shaft_rot - real_play));
 

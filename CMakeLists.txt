@@ -39,6 +39,32 @@ if(BUILD_TESTING)
     )
     ament_target_dependencies(test_angle_conversion rclcpp std_msgs geometry_msgs)
   endif()
+
+  add_executable(angle_conversion_export
+    test/angle_conversion_export.cpp
+    test/motor_controller_stub.cpp
+    src/instrument_controller.cpp
+    src/keyboard_reader.cpp
+  )
+
+  target_include_directories(angle_conversion_export PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+
+  ament_target_dependencies(angle_conversion_export rclcpp std_msgs geometry_msgs)
+  
+  add_executable(joint_angle_conversion_export
+    test/joint_angle_conversion_export.cpp
+    test/motor_controller_stub.cpp
+    src/instrument_controller.cpp
+    src/keyboard_reader.cpp
+  )
+
+  target_include_directories(joint_angle_conversion_export PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+
+  ament_target_dependencies(joint_angle_conversion_export rclcpp std_msgs geometry_msgs)
 endif()
 
 add_executable(controller 
@@ -83,6 +109,20 @@ install(TARGETS
   controller tool_controller_node circular_trajectory_node
   DESTINATION lib/${PROJECT_NAME}
 )
+
+if(TARGET angle_conversion_export)
+  install(TARGETS
+    angle_conversion_export
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
+
+if(TARGET joint_angle_conversion_export)
+  install(TARGETS
+    joint_angle_conversion_export
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
 
 install(
   DIRECTORY launch config

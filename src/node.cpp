@@ -22,7 +22,7 @@ public:
     , serial_(serial)
     ,
     // motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2,
-    // 30, 50, 90, 25.0f / 15.0f, 20, 4, false}), // AE motor config
+    // 30, 800, 1500, 25.0f / 15.0f, 20, 4, false}), // AE motor config
     motor_controller_(serial_, this->get_logger())
     ,  // Default motor config
     instrument_controller_(motor_controller_, this->get_logger())

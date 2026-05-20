@@ -52,7 +52,7 @@ public:
     
     /// @brief Create motor configuration from gear ratio, encoder resolution, and mode
     static Motor create(int magnets, float gear_ratio, int encoder_mode,
-                             int duty_cycle = 40, int max_current = 30, int emergency_current = 60,
+                             int duty_cycle = 40, int max_current = 500, int emergency_current = 1000,
                              float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15,
                              int min_wait_time_ms = 4, bool reverse_direction = true) {
         return {

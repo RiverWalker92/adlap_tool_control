@@ -1,6 +1,6 @@
 #pragma once
 
-#include "adlap_tool_control/motor_controller.hpp"
+#include "adlap_tool_control/adlap_gearbox.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
@@ -16,7 +16,7 @@
 class InstrumentController
 {
 public:
-    InstrumentController(MotorController& motor_controller, rclcpp::Logger logger);
+    InstrumentController(Gearbox& gearbox, rclcpp::Logger logger);
 
     // Instrument control methods
     void manual_adjustment();
@@ -37,7 +37,7 @@ private:
         double max_value = std::numeric_limits<double>::infinity());
     
     // Member variables
-    MotorController& motor_controller_;
+    Gearbox& gearbox;
     rclcpp::Logger logger_;
     std::deque<double> shaft_roll_history_; // History for smoothing
     std::deque<double> pitch_history_; // History for smoothing

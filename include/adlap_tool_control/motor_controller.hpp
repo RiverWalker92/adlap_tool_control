@@ -20,33 +20,26 @@ public:
     
     float upper_motor_factor;    // Gear ratio factor for upper motors (if different)
     int lower_motors_play;       // Backlash compensation in degrees
-    int min_wait_time_ms;        // Minimum wait time after commands (ms)
     bool reverse_direction = true; // Whether to reverse the direction of the motor clockwise or counterclockwise
     bool inverse_driven = false; // Whether the motor is driven inversely + signal makes encoder count down instead of up
 
-        Motor(int magnets,
-                    float gear_ratio,
-                    int encoder_mode,
-                    int duty_cycle_percentage,
-                    int max_current,
-                    int emergency_current,
-                    float upper_motor_factor,
-                    int lower_motors_play,
-                    int min_wait_time_ms,
-                    bool reverse_direction,
-                    bool inverse_driven)
-                : magnets(magnets),
-                    gear_ratio(gear_ratio),
-                    encoder_mode(encoder_mode),
-                    duty_cycle_percentage(duty_cycle_percentage),
-                    max_current(max_current),
-                    emergency_current(emergency_current),
-                    upper_motor_factor(upper_motor_factor),
-                    lower_motors_play(lower_motors_play),
-                    min_wait_time_ms(min_wait_time_ms),
-                    reverse_direction(reverse_direction),
-                    inverse_driven(inverse_driven)
-        {}
+    Motor(int magnets,
+            float gear_ratio,
+            int encoder_mode,
+            int duty_cycle_percentage,
+            int max_current,
+            int emergency_current,
+            bool reverse_direction,
+            bool inverse_driven)
+        : magnets(magnets),
+            gear_ratio(gear_ratio),
+            encoder_mode(encoder_mode),
+            duty_cycle_percentage(duty_cycle_percentage),
+            max_current(max_current),
+            emergency_current(emergency_current),
+            reverse_direction(reverse_direction),
+            inverse_driven(inverse_driven)
+    {}
     
     /// @brief Calculate pulses per rotation from hardware parameters
     int get_pulses_per_rotation() const {
@@ -56,8 +49,7 @@ public:
     /// @brief Create motor configuration from gear ratio, encoder resolution, and mode
     static Motor create(int magnets, float gear_ratio, int encoder_mode,
                              int duty_cycle = 40, int max_current = 500, int emergency_current = 1000,
-                             float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15,
-                             int min_wait_time_ms = 4, bool reverse_direction = true, bool inverse_driven = false) {
+                             bool reverse_direction = true, bool inverse_driven = false) {
         return {
             magnets,
             gear_ratio,
@@ -65,9 +57,6 @@ public:
             duty_cycle,
             max_current,
             emergency_current,
-            upper_motor_factor,
-            lower_motors_play,
-            min_wait_time_ms,
             reverse_direction,
             inverse_driven
         };
@@ -82,8 +71,11 @@ public:
 class MotorController
 {
 public:
-    MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const Motor& config = Motor::create_default());
+    MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const std::array<Motor, 4>& motors);
     ~MotorController();
+
+    // Member variables
+    std::array<Motor, 4> motors;  // Motor configuration parameters
     
     // Motor position control
     void send_motor_positions(const std::array<int, 4>& new_positions, bool verbose = false);
@@ -92,8 +84,7 @@ public:
     void send_duty_cycle(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void send_encoder_mode(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void send_motor_configuration(int motor_index, bool verbose = false);
-    void couple_sequence();
-    void setup_motors();
+
     void update_target_positions();
     void update_starting_positions();
 
@@ -106,19 +97,12 @@ public:
     const std::array<int, 4>& get_target_positions() const { return target_positions_; }
     const std::array<bool, 4>& get_blocked_status() const { return stalled_; }
     const std::array<bool, 4>& get_maxed_status() const { return overcurrent_; }
-    int get_pulses_per_rotation(bool upper) const { return upper ? static_cast<int>(motor_.get_pulses_per_rotation() * motor_.upper_motor_factor) : motor_.get_pulses_per_rotation(); }
-    float get_pulses_per_degree(bool upper = false) const { 
-        int pulses = get_pulses_per_rotation(upper);
-        return static_cast<float>(pulses) / 360.0f;
-    }
-    int get_pulses_lower_motors_play() const { return static_cast<int>(std::lround(motor_.lower_motors_play * get_pulses_per_degree())); }
-    bool is_upper_motor(int motor_index) const { return motor_index == 0 || motor_index == 3; }
+
 
     void start_stream_reader();
     void stop_stream_reader();
 
-    int lower_motor_start_offset = 0; // Compensation used
-    int gripper_start_offset = 0; // Compensation used for the gripper motor
+
 
     // Thread-safe snapshots for your main thread
     std::array<bool, 4> get_blocked() const;
@@ -136,6 +120,10 @@ public:
 
 
 private:
+    // Private member variables
+    std::shared_ptr<SerialPort> serial_;
+    rclcpp::Logger logger_;
+
     void reader_loop();
 
     // Streaming-friendly: parse a line you already read (no serial read inside)
@@ -152,12 +140,10 @@ private:
     std::chrono::steady_clock::time_point last_message_time_;
     static constexpr int MESSAGE_TIMEOUT_MS = 5000;  // Timeout for no messages received
 
+    int min_wait_time_ms_ = 4;
+
     void find_hall_sensor_positions();
 
-    std::shared_ptr<SerialPort> serial_;
-    rclcpp::Logger logger_;
-    Motor motor_;  // Motor configuration parameters
-    
     // Motor state
     std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
     std::array<int, 4> target_positions_{0, 0, 0, 0};
@@ -167,8 +153,4 @@ private:
     std::array<bool, 4> stalled_{false, false, false, false};
     std::array<bool, 4> overcurrent_{false, false, false, false};
     std::array<bool, 2> hall_{false, false};
-    
-    // Calibration constants (hardware-specific offsets)
-    const int HALL1_OFFSET = 4; // in degrees from 6 o'clock position
-    const int HALL2_OFFSET = 10; // in degrees from 6 o'clock position
 };

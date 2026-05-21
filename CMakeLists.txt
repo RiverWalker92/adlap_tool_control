@@ -30,6 +30,7 @@ if(BUILD_TESTING)
     test/test_angle_conversion.cpp
     test/motor_controller_stub.cpp
     src/instrument_controller.cpp
+    src/adlap_gearbox.cpp
     src/keyboard_reader.cpp
   )
 
@@ -44,6 +45,8 @@ endif()
 add_executable(controller 
   src/node.cpp
   src/instrument_controller.cpp
+  src/manual_adjustment.cpp
+  src/adlap_gearbox.cpp
   src/serial_port.cpp
   src/keyboard_reader.cpp
   src/motor_controller.cpp

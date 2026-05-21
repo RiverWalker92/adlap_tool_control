@@ -399,7 +399,7 @@ std::array<bool, 4> MotorController::get_blocked() const
   {
     if (!blocked[i])
     {
-      const float margin = get_pulses_per_degree(is_upper_motor(i)) * 30;
+      const float margin = motors[i].get_pulses_per_rotation()/12.0f; // 30 degrees margin in pulses
       if (target_positions_copy[i] > response_positions_copy[i] + margin ||
           target_positions_copy[i] < response_positions_copy[i] - margin)
       {

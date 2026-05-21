@@ -103,8 +103,17 @@ int main(int argc, char* argv[])
   rclcpp::init(argc, argv);
 
   const rclcpp::Logger logger = rclcpp::get_logger("angle_conversion_export");
-  MotorController motor(std::shared_ptr<SerialPort>{}, logger, Motor::create_default());
-  InstrumentController controller(motor, logger);
+    MotorController motor(
+      std::shared_ptr<SerialPort>{},
+      logger,
+      std::array<Motor, 4>{
+        Motor::create_default(),
+        Motor::create_default(),
+        Motor::create_default(),
+        Motor::create_default()
+      });
+    Gearbox gearbox = Gearbox::version_1(motor, logger);
+    InstrumentController controller(gearbox, logger);
 
   std::ofstream out(options.output_path);
   if (!out)

@@ -37,13 +37,19 @@ protected:
 		}
 	}
 
-	AngleConversionTest()
-			: logger_(rclcpp::get_logger("angle_conversion_test")),
-				motor_(
-						std::shared_ptr<SerialPort>{},
-						logger_,
-						Motor::create_default()),
-				controller_(motor_, logger_)
+	    AngleConversionTest()
+		    : logger_(rclcpp::get_logger("angle_conversion_test")),
+			    motor_(
+				    std::shared_ptr<SerialPort>{},
+				    logger_,
+				    std::array<Motor,4>{
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default()
+				    }),
+			gearbox_(Gearbox::version_1(motor_, logger_)),
+			controller_(gearbox_, logger_)
 	{
 	}
 
@@ -72,6 +78,7 @@ protected:
 
 	rclcpp::Logger logger_;
 	MotorController motor_;
+	Gearbox gearbox_;
 	InstrumentController controller_;
 };
 
@@ -98,11 +105,17 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 	auto backlash_motor = MotorController(
 				std::shared_ptr<SerialPort>{},
 				logger_,
-				Motor::create_default());
-	InstrumentController backlash_controller(backlash_motor, logger_);
+				std::array<Motor,4>{
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default()
+				});
+	Gearbox backlash_gearbox = Gearbox::version_1(backlash_motor, logger_);
+	InstrumentController backlash_controller(backlash_gearbox, logger_);
 
 	const std::array<double, 4> baseline = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());
-	const int max_play = backlash_motor.get_pulses_lower_motors_play();
+	const int max_play = backlash_gearbox.get_pulses_lower_motors_play();
 	ASSERT_GT(max_play, 0);
 
 	constexpr double tol = 1e-9;

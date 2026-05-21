@@ -1,217 +1,13 @@
 #include "adlap_tool_control/instrument_controller.hpp"
-#include "adlap_tool_control/keyboard_reader.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
 
 
-InstrumentController::InstrumentController(MotorController& motor_controller, rclcpp::Logger logger) 
-    : motor_controller_(motor_controller), logger_(logger)
+InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logger) 
+    : gearbox(gearbox), logger_(logger)
 {
-}
-
-
-/// @brief Allow manual adjustment of the lower motors using keyboard input
-void InstrumentController::manual_adjustment(){
-  ///// Workaround  - manual adjustment of the lower motors to get the shaft straight and do some testing ////
-  KeyboardReader input;
-  std::array<int, 4> duty_cycle_array = {7, 7, 7, 7};
-  char c;
-  bool initialized = false;
-  bool ready_for_angles = false;
-  for (;;)
-  {
-    // get the next event from the keyboard
-    try
-    {
-      input.read_one(&c);
-    }
-    catch (const std::runtime_error&)
-    {
-      perror("read():");
-      return;
-    }
-    double angle_rad = 5.0 * M_PI / 180.0;
-    int step_size = motor_controller_.get_pulses_per_degree(false) * 5; // Step size of 5 degrees in pulses
-    std::array<int, 4> current_positions = motor_controller_.get_positions();
-    RCLCPP_INFO(logger_, "Current positions: [%d, %d, %d, %d]", current_positions[0], current_positions[1], current_positions[2], current_positions[3]);
-    switch (c)
-    {
-      case KEYCODE_C:
-        RCLCPP_INFO(logger_, "C -> Couple sequence");
-        motor_controller_.couple_sequence();
-        break;          
-      case KEYCODE_U:
-        RCLCPP_INFO(logger_, "U -> Update starting positions");
-        if (!initialized) {
-          RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting positions");
-          break;
-        }
-        // ofset articulation
-        current_positions[3] -= 50 * motor_controller_.get_pulses_per_degree(true); // Add some extra to compensate for backlash
-        motor_controller_.send_motor_positions(current_positions);
-        rclcpp::sleep_for(std::chrono::milliseconds(200));
-        motor_controller_.update_starting_positions(); 
-        smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, 0.0, 1, -M_PI, M_PI); 
-        smoothed_pitch_ = update_history_and_get_mean(pitch_history_, 0.0, 1, -M_PI, M_PI);  
-        smoothed_yaw_ = update_history_and_get_mean(yaw_history_, 0.0, 1, -M_PI, M_PI);  
-        smoothed_articulation_ = update_history_and_get_mean(articulation_history_, 0.0, 1, -M_PI, M_PI); 
-        smoothed_bend_ = update_history_and_get_mean(bend_history_, 0.0, 1, -M_PI, M_PI);
-        smoothed_shaft_roll_ = update_history_and_get_mean(shaft_roll_history_, 0.0, 1, -M_PI, M_PI);
-        RCLCPP_INFO(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', articulation: '%f'", smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
-        absolute_shaft_roll_ = 0.0; // Reset absolute omega when updating starting positions
-        bend_play_compensation_ = 0; // Reset bend play compensation when updating starting positions  
-        play_comp_position_m1_ = current_positions[1]; // Reset play compensation position for motor 1
-        play_comp_position_m2_ = current_positions[2]; // Reset play compensation position for motor 2
-        ready_for_angles = true;       
-        break;
-      case KEYCODE_I:
-        RCLCPP_INFO(logger_, "I -> Initialize lower motors");
-        motor_controller_.setup_motors();
-        initialized = true;
-        break;
-      case KEYCODE_R:
-        RCLCPP_INFO(logger_, "R -> Reset to starting positions");
-        motor_controller_.send_motor_positions(motor_controller_.get_starting_positions());
-        break;
-      case KEYCODE_PLUS:
-        RCLCPP_INFO(logger_, "Increase duty cycle");
-        for (int i = 0; i < 4; i++) {
-          duty_cycle_array[i] += 1;
-        }
-        motor_controller_.send_duty_cycle(duty_cycle_array);
-        break;
-      case KEYCODE_0:
-        RCLCPP_INFO(logger_, "0 -> Send all 0 angles");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(0, 0, 0, 0);
-        break;
-      case KEYCODE_1:
-        RCLCPP_INFO(logger_, "1 -> Roll left (bend angle 10 degrees)");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_ - angle_rad, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
-        break;
-      case KEYCODE_2:
-        RCLCPP_INFO(logger_, "2 -> Pitch down");        
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_ - angle_rad, smoothed_yaw_, smoothed_articulation_);
-        break;
-      case KEYCODE_3:
-        RCLCPP_INFO(logger_, "3 -> Roll right (bend angle -10 degrees)");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_ + angle_rad, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
-        break;
-      case KEYCODE_4:
-        RCLCPP_INFO(logger_, "4 -> Yaw left");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_ - angle_rad, smoothed_articulation_);
-        break;
-      case KEYCODE_5:
-        RCLCPP_INFO(logger_, "5 -> Full rotation");        
-        motor_controller_.send_relative_motor_positions(0,motor_controller_.get_pulses_per_rotation(false),motor_controller_.get_pulses_per_rotation(false),0);
-        break;
-      case KEYCODE_6:
-        RCLCPP_INFO(logger_, "6 -> Yaw right");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_ + angle_rad, smoothed_articulation_);
-        break;
-      case KEYCODE_7:
-        RCLCPP_INFO(logger_, "7 -> open articulation");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_ + angle_rad);
-        break;
-      case KEYCODE_8:
-        RCLCPP_INFO(logger_, "8 -> Pitch up");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_ + angle_rad, smoothed_yaw_, smoothed_articulation_);
-        break;
-      case KEYCODE_9:
-        RCLCPP_INFO(logger_, "9 -> close articulation");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        set_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_ - angle_rad);
-        break;
-      case KEYCODE_RIGHT:
-        RCLCPP_INFO(logger_, "RIGHT");
-        motor_controller_.send_relative_motor_positions(0,step_size,0,0, true);
-        break;
-      case KEYCODE_LEFT:
-        RCLCPP_INFO(logger_, "LEFT");
-        motor_controller_.send_relative_motor_positions(0,-step_size,0,0, true);
-        break;
-      case KEYCODE_UP:
-        RCLCPP_INFO(logger_, "UP");
-        motor_controller_.send_relative_motor_positions(0,0,step_size,0, true);
-        break;
-      case KEYCODE_DOWN:
-        RCLCPP_INFO(logger_, "DOWN");
-        motor_controller_.send_relative_motor_positions(0,0,-step_size,0, true);
-        break;
-      case KEYCODE_W:
-        RCLCPP_INFO(logger_, "W");
-        motor_controller_.send_relative_motor_positions(step_size,0,0,0, true);
-        break;
-      case KEYCODE_S:
-        RCLCPP_INFO(logger_, "S");
-        motor_controller_.send_relative_motor_positions(-step_size,0,0,0, true);
-        break;
-      case KEYCODE_D:
-        RCLCPP_INFO(logger_, "D");
-        motor_controller_.send_relative_motor_positions(step_size,0,0,step_size, true);
-        break;
-      case KEYCODE_A:
-        RCLCPP_INFO(logger_, "A");
-        motor_controller_.send_relative_motor_positions(-step_size,0,0,-step_size, true);
-        break;
-      case KEYCODE_E:
-        motor_controller_.send_relative_motor_positions(0,step_size,step_size,0, true);
-        RCLCPP_INFO(logger_, "E");
-        break;
-      case KEYCODE_Q:
-        motor_controller_.send_relative_motor_positions(0,-step_size,-step_size,0, true);
-        RCLCPP_INFO(logger_, "Q");
-        break;
-      case KEYCODE_ENTER:
-        RCLCPP_INFO(logger_, "ENTER");
-        if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
-        }
-        input.shutdown();
-        motor_controller_.update_starting_positions();
-        return;
-      default:
-        RCLCPP_WARN(logger_, "Unknown key pressed: 0x%02X", c);
-        continue;
-    }
-  }
 }
 
 double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
@@ -243,7 +39,7 @@ void InstrumentController::set_euler_angles(double roll, double pitch, double ya
     smoothed_yaw_ = update_history_and_get_mean(yaw_history_, yaw, smoothing_factor_, -M_PI/4, M_PI/4);
     smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
     if (verbose) RCLCPP_DEBUG(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', articulation: '%f'", smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
-    motor_controller_.send_motor_positions(calculate_motor_positions_from_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_, verbose), true);
+    gearbox.motor_controller.send_motor_positions(calculate_motor_positions_from_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_, verbose), true);
 }
 
 void InstrumentController::set_joint_angles(double shaft_roll, double bend, double tip_rotation, double articulation, bool verbose)
@@ -254,7 +50,7 @@ void InstrumentController::set_joint_angles(double shaft_roll, double bend, doub
     smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, tip_rotation, smoothing_factor_, -M_PI, M_PI);
     smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
     if (verbose) RCLCPP_DEBUG(logger_, "Smoothed angles - shaft_roll: '%f', bend: '%f', tip_rotation: '%f', articulation: '%f'", smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_);
-    motor_controller_.send_motor_positions(calculate_motor_positions_from_joint_angles(smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_, verbose), true);
+    gearbox.motor_controller.send_motor_positions(calculate_motor_positions_from_joint_angles(smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_, verbose), true);
 }
 
 int InstrumentController::get_motor2_value_for_angle(double radians, bool verbose){
@@ -265,27 +61,27 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
     degrees = -MAX_BEND_ANGLE_DEGREES;
   }
 
-  int starting_difference = motor_controller_.get_starting_positions()[2] - motor_controller_.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
-  //int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
+  int starting_difference = gearbox.motor_controller.get_starting_positions()[2] - gearbox.motor_controller.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
+  //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
   
   // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
-  int real_play = calculate_real_play(motor_controller_.get_positions()); // Calculate the real play based on the current motor positions and the current offset
-  int current_difference = motor_controller_.get_positions()[2] - motor_controller_.get_positions()[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
+  int real_play = calculate_real_play(gearbox.motor_controller.get_positions()); // Calculate the real play based on the current motor positions and the current offset
+  int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
 
-  int wanted_difference = static_cast<int>(std::round(degrees * motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR));
+  int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
   int relative_difference = wanted_difference - current_difference;
 
-  if (abs(relative_difference) <= motor_controller_.get_pulses_per_degree(false)) { // If the current difference is within 1 degree of the target, don't adjust to prevent jitter
+  if (abs(relative_difference) <= gearbox.get_pulses_per_degree(1)) { // If the current difference is within 1 degree of the target, don't adjust to prevent jitter
     if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
     return current_difference; // Return the current difference without adjustment
   }
 
   int play_compensation = 0;
   if (relative_difference > 0){
-    play_compensation = motor_controller_.get_pulses_lower_motors_play();
+    play_compensation = gearbox.get_pulses_lower_motors_play();
   }
   else{
-    play_compensation = -motor_controller_.get_pulses_lower_motors_play();
+    play_compensation = -gearbox.get_pulses_lower_motors_play();
   }
   bend_play_compensation_ = play_compensation; // Store the current compensation for use in the next calculation
   return wanted_difference;
@@ -322,10 +118,10 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
   }
   absolute_shaft_roll_ += diff; // Update absolute_shaft_roll_ with the shortest rotation
   
-  int shaft_rotation_pulses = absolute_shaft_roll_ * motor_controller_.get_pulses_per_rotation(false) / (TWO_PI);
+  int shaft_rotation_pulses = absolute_shaft_roll_ * gearbox.get_pulses_per_rotation(1) / (TWO_PI);
   int m2_bend_pulses = get_motor2_value_for_angle(bend, verbose);
-  int tip_rotation_pulses = - static_cast<int>(std::round(tip_rotation * motor_controller_.get_pulses_per_rotation(true) / (TWO_PI)));
-  int articulation_pulses = static_cast<int>(std::round(ARTICULATION_FACTOR * articulation * motor_controller_.get_pulses_per_rotation(true) / (TWO_PI)));
+  int tip_rotation_pulses = - static_cast<int>(std::round(tip_rotation * gearbox.get_pulses_per_rotation(0) / (TWO_PI)));
+  int articulation_pulses = static_cast<int>(std::round(ARTICULATION_FACTOR * articulation * gearbox.get_pulses_per_rotation(3) / (TWO_PI)));
 
   if (verbose) {
     RCLCPP_DEBUG(
@@ -338,7 +134,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
       shaft_rotation_pulses, m2_bend_pulses, tip_rotation_pulses, articulation_pulses);
   }
 
-  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
   std::array<int, 4>  new_positions = {
     static_cast<int>(std::round(starting_positions[0] + tip_rotation_pulses)),
     static_cast<int>(std::round(starting_positions[1] + shaft_rotation_pulses - bend_play_compensation_)),
@@ -351,8 +147,8 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
 // TODO: make this trigger on each recieved message in motor thread, otherwise we cannot reliably use m1_m2_offset_ variable.
 // Now kinda fixed by calling this each time we recieve a new command in the node during motor position calculation.
 int InstrumentController::calculate_real_play(const std::array<int, 4>& current_positions){
-  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
-  int play =  motor_controller_.get_pulses_lower_motors_play();
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
+  int play =  gearbox.get_pulses_lower_motors_play();
   int starting_diff = starting_positions[2] - starting_positions[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
 
   int diff = current_positions[2] - current_positions[1] - starting_diff; // Current difference between motor 2 and motor 1, not yet compensated for play
@@ -379,19 +175,19 @@ int InstrumentController::calculate_real_play(const std::array<int, 4>& current_
 
 std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::array<int, 4>& current_positions)
 {
-  std::array<int, 4>  starting_positions = motor_controller_.get_starting_positions();
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
 
-  double tip_rotation = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)); // Invert the roll calculation
-  double articulation_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / motor_controller_.get_pulses_per_rotation(true)) / ARTICULATION_FACTOR; // Invert the articulation calculation
+  double tip_rotation = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / gearbox.get_pulses_per_rotation(0)); // Invert the roll calculation
+  double articulation_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / gearbox.get_pulses_per_rotation(3)) / ARTICULATION_FACTOR; // Invert the articulation calculation
 
   int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
   double shaft_rot = (static_cast<double>(current_positions[1] - starting_positions[1] + real_play)); 
   double m2_bend = (static_cast<double>(current_positions[2] - starting_positions[2] - shaft_rot - real_play));
 
-  double bend_degrees = m1_m2_offset_ / (motor_controller_.get_pulses_per_degree(false) * BEND_FACTOR);
+  double bend_degrees = m1_m2_offset_ / (gearbox.get_pulses_per_degree(1) * BEND_FACTOR);
   double bend_rad = bend_degrees * M_PI / 180.0;
 
-  double shaft_roll = shaft_rot * TWO_PI / motor_controller_.get_pulses_per_rotation(false);
+  double shaft_roll = shaft_rot * TWO_PI / gearbox.get_pulses_per_rotation(1);
 
   return std::array<double, 4>{shaft_roll, bend_rad, tip_rotation, articulation_angle};
 }

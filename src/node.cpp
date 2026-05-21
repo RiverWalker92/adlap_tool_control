@@ -20,10 +20,16 @@ public:
   ToolController(std::shared_ptr<SerialPort> serial)
     : Node("tool_control_node"), 
     serial_(serial),
-    motor_controller_(serial_, this->get_logger(), Motor{7, 20.0f, 4, 20, 800, 1500, 25.0f / 15.0f, 20, 4, true, true}), // AE 050 motor config
-    //motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 800, 1500, 25.0f / 15.0f, 20, 4, false, false}), // AE N30 motor config
-    // motor_controller_(serial_, this->get_logger()),  // Default motor config
-    instrument_controller_(motor_controller_, this->get_logger())
+    motor_controller(serial_, this->get_logger(), std::array<Motor, 4>{
+      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
+      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
+      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
+      Motor{7, 20.0f, 4, 20, 800, 1500, true, true} // AE 050 motor config
+    }),
+    //motor_controller(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
+    // motor_controller(serial_, this->get_logger()),  // Default motor config
+    gearbox(Gearbox::version_1(motor_controller, this->get_logger())),
+    instrument_controller_(gearbox, this->get_logger())
   {
     // The publisher and subscriber topics are relative, so they are mapped to
     // left or right with the node namespace
@@ -54,7 +60,7 @@ public:
       instrument_controller_.set_euler_angles(angles[0], angles[1], angles[2], angles[3]);
       // Publish the response values for now, later publish the actual status of
       // the tool
-      auto current_angles = instrument_controller_.euler_angles_from_motors(motor_controller_.get_target_positions());
+      auto current_angles = instrument_controller_.euler_angles_from_motors(motor_controller.get_target_positions());
 
       auto status_msg = std_msgs::msg::String();
       // Create a status message with the current angles
@@ -81,7 +87,7 @@ public:
       instrument_controller_.set_joint_angles(angles[0], angles[1], angles[2], angles[3]);
       // Publish the response values for now, later publish the actual status of
       // the tool
-      auto current_angles = instrument_controller_.joint_angles_from_motors(motor_controller_.get_target_positions());
+      auto current_angles = instrument_controller_.joint_angles_from_motors(motor_controller.get_target_positions());
 
       auto status_msg = std_msgs::msg::String();
       // Create a status message with the current angles
@@ -109,7 +115,8 @@ public:
 
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
   std::shared_ptr<SerialPort> serial_;
-  MotorController motor_controller_;
+  MotorController motor_controller;
+  Gearbox gearbox;
   InstrumentController instrument_controller_;
 };
 

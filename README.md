@@ -6,6 +6,13 @@ Subscribes to message of the form of array in radians:
 - Euler angles: [roll, pitch, yaw, gipper_angle]
 - Joint angles: [shaft_roll, bend, tip_rotation, articulation]
 
+The right instrument is used for testing. To start the node run:
+
+
+```bash
+ros2 launch adlap_tool_control right.launch.py
+```
+
 
 **Test Usage**
 - **Build package (single line, run from workspace root):**

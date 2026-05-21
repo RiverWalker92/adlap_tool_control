@@ -19,6 +19,10 @@ public:
         Gearbox gearbox(motor_controller, logger);
         gearbox.upper_motor_factor = upper_motor_factor;
         gearbox.lower_motors_play = lower_motors_play;
+
+        gearbox.lower_motor_start_offset_ = 20 * gearbox.get_pulses_per_degree(1); // Add some extra to compensate for backlash
+        gearbox.gripper_start_offset_ = 200 * gearbox.get_pulses_per_degree(3); // Move it away from the hard stop
+
         RCLCPP_INFO(logger, "Initialized Gearbox with upper_motor_factor=%.2f and lower_motors_play=%d degrees", upper_motor_factor, lower_motors_play);
         return gearbox;
     }
@@ -44,8 +48,8 @@ private:
     rclcpp::Logger logger_;
 
     // Hardware-specific offsets       
-    int lower_motor_start_offset_ = 20 * get_pulses_per_degree(1); // Add some extra to compensate for backlash
-    int gripper_start_offset_ = 200 * get_pulses_per_degree(3); // Compensation used for the gripper motor
+    int lower_motor_start_offset_;
+    int gripper_start_offset_;
     const int HALL1_OFFSET = 4; // in degrees from 6 o'clock position
     const int HALL2_OFFSET = 10; // in degrees from 6 o'clock position
 };

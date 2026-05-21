@@ -18,13 +18,11 @@ class ToolController : public rclcpp::Node
 {
 public:
   ToolController(std::shared_ptr<SerialPort> serial)
-    : Node("tool_control_node")
-    , serial_(serial)
-    ,
-    // motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2,
-    // 30, 800, 1500, 25.0f / 15.0f, 20, 4, false}), // AE motor config
-    motor_controller_(serial_, this->get_logger())
-    ,  // Default motor config
+    : Node("tool_control_node"), 
+    serial_(serial),
+    motor_controller_(serial_, this->get_logger(), Motor{7, 20.0f, 4, 20, 800, 1500, 25.0f / 15.0f, 20, 4, true, true}), // AE 050 motor config
+    //motor_controller_(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 800, 1500, 25.0f / 15.0f, 20, 4, false, false}), // AE N30 motor config
+    // motor_controller_(serial_, this->get_logger()),  // Default motor config
     instrument_controller_(motor_controller_, this->get_logger())
   {
     // The publisher and subscriber topics are relative, so they are mapped to

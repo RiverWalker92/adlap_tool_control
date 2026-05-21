@@ -35,6 +35,7 @@ void InstrumentController::manual_adjustment(){
     double angle_rad = 5.0 * M_PI / 180.0;
     int step_size = motor_controller_.get_pulses_per_degree(false) * 5; // Step size of 5 degrees in pulses
     std::array<int, 4> current_positions = motor_controller_.get_positions();
+    RCLCPP_INFO(logger_, "Current positions: [%d, %d, %d, %d]", current_positions[0], current_positions[1], current_positions[2], current_positions[3]);
     switch (c)
     {
       case KEYCODE_C:

@@ -21,7 +21,8 @@ public:
     float upper_motor_factor;    // Gear ratio factor for upper motors (if different)
     int lower_motors_play;       // Backlash compensation in degrees
     int min_wait_time_ms;        // Minimum wait time after commands (ms)
-    bool reverse_direction = true; // Whether to reverse the direction of the motor
+    bool reverse_direction = true; // Whether to reverse the direction of the motor clockwise or counterclockwise
+    bool inverse_driven = false; // Whether the motor is driven inversely + signal makes encoder count down instead of up
 
         Motor(int magnets,
                     float gear_ratio,
@@ -32,7 +33,8 @@ public:
                     float upper_motor_factor,
                     int lower_motors_play,
                     int min_wait_time_ms,
-                    bool reverse_direction)
+                    bool reverse_direction,
+                    bool inverse_driven)
                 : magnets(magnets),
                     gear_ratio(gear_ratio),
                     encoder_mode(encoder_mode),
@@ -42,7 +44,8 @@ public:
                     upper_motor_factor(upper_motor_factor),
                     lower_motors_play(lower_motors_play),
                     min_wait_time_ms(min_wait_time_ms),
-                    reverse_direction(reverse_direction)
+                    reverse_direction(reverse_direction),
+                    inverse_driven(inverse_driven)
         {}
     
     /// @brief Calculate pulses per rotation from hardware parameters
@@ -54,7 +57,7 @@ public:
     static Motor create(int magnets, float gear_ratio, int encoder_mode,
                              int duty_cycle = 40, int max_current = 500, int emergency_current = 1000,
                              float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15,
-                             int min_wait_time_ms = 4, bool reverse_direction = true) {
+                             int min_wait_time_ms = 4, bool reverse_direction = true, bool inverse_driven = false) {
         return {
             magnets,
             gear_ratio,
@@ -65,7 +68,8 @@ public:
             upper_motor_factor,
             lower_motors_play,
             min_wait_time_ms,
-            reverse_direction
+            reverse_direction,
+            inverse_driven
         };
     }
     

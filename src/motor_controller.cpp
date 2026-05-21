@@ -141,6 +141,7 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
     return;
   }
   int reverse_int = static_cast<int>(motor_.reverse_direction);
+  int inverse_driven_int = static_cast<int>(motor_.inverse_driven);
   std::string message = "config " + std::to_string(motor_index) + ", " +
                         std::to_string(motor_.duty_cycle_percentage) + ", " + // Min duty cycle (same as duty cycle for now, but could be different)
                         std::to_string(motor_.duty_cycle_percentage) + ", " + // Max duty cycle (same as duty cycle for now, but could be different)
@@ -149,7 +150,8 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
                         std::to_string(static_cast<int>(motor_.gear_ratio)) + ", " +
                         std::to_string(motor_.magnets) + ", " +
                         std::to_string(motor_.encoder_mode) + ", " +
-                        std::to_string(reverse_int) + "\n";
+                        std::to_string(reverse_int) + ", " + 
+                        std::to_string(inverse_driven_int) + "\n";
   if (verbose)
   {
     std::string log_message = message.substr(0, message.size() - 1);

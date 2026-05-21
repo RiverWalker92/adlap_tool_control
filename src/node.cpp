@@ -21,13 +21,14 @@ public:
     : Node("tool_control_node"), 
     serial_(serial),
     motor_controller(serial_, this->get_logger(), std::array<Motor, 4>{
-      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
-      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
-      Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
-      Motor{7, 20.0f, 4, 20, 800, 1500, true, true} // AE 050 motor config
+      Motor::create_default(), // Default motor config
+      Motor::create_default(), // Default motor config
+      Motor::create_default(), // Default motor config
+      Motor::create_default()  // Default motor config
     }),
-    //motor_controller(serial_, this->get_logger(), Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
-    // motor_controller(serial_, this->get_logger()),  // Default motor config
+    // Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
+    // Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
+    // Motor::create_default(),  // Default motor config polulu
     gearbox(Gearbox::version_1(motor_controller, this->get_logger())),
     instrument_controller_(gearbox, this->get_logger())
   {

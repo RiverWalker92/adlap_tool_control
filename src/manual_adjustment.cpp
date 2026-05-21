@@ -24,7 +24,7 @@ void InstrumentController::manual_adjustment()
       return;
     }
     double angle_rad = 5.0 * M_PI / 180.0;
-    int step_size = gearbox.get_pulses_per_degree(false) * 5;
+    int step_size = gearbox.get_pulses_per_degree(1) * 5;
     std::array<int, 4> current_positions = gearbox.motor_controller.get_positions();
     RCLCPP_INFO(logger_, "Current positions: [%d, %d, %d, %d]", current_positions[0], current_positions[1], current_positions[2], current_positions[3]);
     switch (c)

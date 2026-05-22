@@ -2,6 +2,7 @@
 import json
 import matplotlib.pyplot as plt
 import os
+
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 
 sequence_tasks = [
@@ -13,9 +14,9 @@ sequence_tasks = [
 setup_folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
 time_filters = [
     # "20260504_135",
-    "20260504_145",
-    "20260504_150",
-    "20260504_151",
+    "20260511_102",
+    "20260511_103",
+
 ]
 
 PLOT_MODE = "sequence"  
@@ -120,32 +121,64 @@ def get_sequence_files(task_name):
     files.sort()
     return files
 
-def moving_average(values, window=5):
+def moving_average(values, window=11):
+    """
+    Symmetric moving average.
+    Beter dan alleen backwards averaging, omdat de curve minder verschuift in de tijd.
+    """
     result = []
+    n = len(values)
+    half = window // 2
 
-    for i in range(len(values)):
-        start = max(0, i - window + 1)
-        subset = values[start:i+1]
-        result.append(sum(subset) / len(subset))
+    for i in range(n):
+        start = max(0, i - half)
+        end = min(n, i + half + 1)
+        subset = [v for v in values[start:end] if v is not None]
+
+        if len(subset) == 0:
+            result.append(None)
+        else:
+            result.append(sum(subset) / len(subset))
 
     return result
 
-def compute_velocity(timestamps, positions):
+def compute_velocity(timestamps, positions, position_window=11, velocity_window=11):
     velocities = [[], [], [], []]
 
     for motor_index in range(4):
         pos = positions[motor_index]
         vel = [0.0]
 
-        for i in range(1, len(timestamps)):
-            dt = timestamps[i] - timestamps[i - 1]
+        # 1. Smooth eerst de positie
+        pos_smooth = moving_average(pos, window=position_window)
 
-            if dt <= 0 or pos[i] is None or pos[i - 1] is None:
+        # 2. Bereken velocity met central difference
+        vel = []
+
+        for i in range(len(timestamps)):
+            if i == 0 or i == len(timestamps) - 1:
+                vel.append(0.0)
+                continue
+
+            t_prev = timestamps[i - 1]
+            t_next = timestamps[i + 1]
+            p_prev = pos_smooth[i - 1]
+            p_next = pos_smooth[i + 1]
+
+            dt = t_next - t_prev
+
+            if dt <= 0 or p_prev is None or p_next is None:
                 vel.append(0.0)
             else:
-                vel.append((pos[i] - pos[i - 1]) / dt)
+                vel.append((p_next - p_prev) / dt)
 
-        velocities[motor_index] = moving_average(vel, window=5)
+        # 3. Smooth velocity nog een keer licht
+        vel_smooth = moving_average(vel, window=velocity_window)
+
+        velocities[motor_index] = [
+            v if v is not None else 0.0
+            for v in vel_smooth
+        ]
 
     return velocities
 
@@ -156,7 +189,8 @@ def plot_sequence(task_name, file_path):
         return
 
     timestamps, positions, currents, commands, duty, file_path = data
-    velocities = compute_velocity(timestamps, positions)
+    velocities = compute_velocity(timestamps, positions,  position_window=15,
+    velocity_window=15)
 
     fig, axes = plt.subplots(3, 4, figsize=(18, 9), sharex=True)
     fig.suptitle(task_name, fontsize=16, y=0.98)
@@ -187,6 +221,7 @@ def plot_sequence(task_name, file_path):
 
         ax_cur.plot(timestamps, currents[motor_index], color="orange", marker="o", markersize=2)
         ax_cur.set_ylabel("Current [ ]")
+        ax_cur.set_xlabel("Time [s]")
         ax_cur.grid(True)
 
         # ax_cmd.plot(timestamps, commands[motor_index], marker="o", markersize=2)
@@ -211,7 +246,7 @@ def plot_sequence(task_name, file_path):
 
     plt.close(fig)
 
-    def plot_duty_current():
+def plot_duty_current():
     fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
     axes = axes.flatten()
 

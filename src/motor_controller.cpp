@@ -1,4 +1,3 @@
-#pragma once
 #include "adlap_tool_control/motor_controller.hpp"
 #include <sstream>
 #include <stdexcept>

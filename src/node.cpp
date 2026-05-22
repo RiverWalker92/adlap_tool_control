@@ -49,25 +49,25 @@ class ToolController : public rclcpp::Node
       commanded_angles_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
         "~" + COMMANDED_ANGLES_TOPIC, 10);
 
-      // Publisher for motor currents
+      // Publisher for motor currents, was 100 ms
       motor_currents_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
         "~" + MOTOR_CURRENTS_TOPIC, 10);
-      motor_currents_timer_ = this->create_wall_timer(100ms,
+      motor_currents_timer_ = this->create_wall_timer(10ms,
       std::bind(&ToolController::publish_motor_currents, this));
 
       // Publisher for motor positions
       motor_positions_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
         "~" + MOTOR_POSITIONS_TOPIC, 10);
 
-
+      // was 100 ms
       motor_positions_timer_ = this->create_wall_timer(
-        100ms,
+        10ms,
         std::bind(&ToolController::publish_motor_positions, this));
 
       // Start manual control for testing in separate thread
-      manual_thread_ = std::thread([this]() {
-        instrument_controller_.manual_adjustment();
-      });
+      // manual_thread_ = std::thread([this]() {
+      //   instrument_controller_.manual_adjustment();
+      // });
     }
 
 
@@ -193,8 +193,9 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   try {
-    std::string device_path = SerialPort::find_device_by_manufacturer_product("Raspberry Pi", "Pico");
-    
+    // std::string device_path = SerialPort::find_device_by_manufacturer_product("Raspberry Pi", "Pico");
+    std::string device_path = "/dev/ttyACM0";
+
     if (device_path.empty()) {
       throw std::runtime_error("Could not find Raspberry Pi Pico device. Please check if the device is connected.");
     }

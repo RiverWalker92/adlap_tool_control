@@ -52,7 +52,7 @@ class SetupTestRunner(Node):
 
         self.control_pub = self.create_publisher(
             String,
-            "/right/tool_control_node/control",
+            "/right/tool_control_node/led_control",
             10
         )
 
@@ -82,9 +82,11 @@ class SetupTestRunner(Node):
         time.sleep(duration)
 
     def set_led(self, state):
-        msg = Int32MultiArray()
-        msg.data = [0, 0, 0, 0, int(state)]  # motors stil + LED
-        self.motor_pub.publish(msg)
+        msg = String()
+        msg.data = f"led {int(state)}"
+        self.control_pub.publish(msg)
+
+        self.get_logger().info(f"LED command sent: {msg.data}")
 
     def run_trial(self, test_type, motor_name, trial_number, sequence):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

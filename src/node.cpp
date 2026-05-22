@@ -18,6 +18,7 @@ const std::string MOTOR_POSITIONS_TOPIC = "/motor_positions"; //feedback from mo
 const std::string COMMANDED_MOTOR_POSITIONS_TOPIC = "/commanded_motor_positions";
 const std::string COMMANDED_ANGLES_TOPIC = "/commanded_instrument_angles";
 const std::string TASK_TOPIC = "/task_label";
+const std::string LED_TOPIC = "/led_control";
 
 
 class ToolController : public rclcpp::Node
@@ -64,10 +65,12 @@ class ToolController : public rclcpp::Node
         10ms,
         std::bind(&ToolController::publish_motor_positions, this));
 
-      // Start manual control for testing in separate thread
-      // manual_thread_ = std::thread([this]() {
-      //   instrument_controller_.manual_adjustment();
-      // });
+      // Subscriber for LED control
+      control_subscription_ = this->create_subscription<std_msgs::msg::String>(
+          "~" + LED_TOPIC,
+          10,
+          std::bind(&ToolController::control_callback, this, std::placeholders::_1)
+      );
     }
 
 
@@ -159,6 +162,14 @@ class ToolController : public rclcpp::Node
       motor_positions_publisher_->publish(position_msg);
     }
 
+    void control_callback(const std_msgs::msg::String::SharedPtr msg)
+    {
+        std::string command = msg->data + "\n";
+        serial_->write_data(command);
+
+        RCLCPP_INFO(this->get_logger(), "Sent to Pico: '%s'", command.c_str());
+    }
+
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
 
@@ -172,6 +183,7 @@ class ToolController : public rclcpp::Node
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_positions_publisher_;
     rclcpp::TimerBase::SharedPtr motor_positions_timer_;
 
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr control_subscription_;
   
     
     std::shared_ptr<SerialPort> serial_;

@@ -24,8 +24,8 @@ def generate_launch_description():
 
     topic_arg = DeclareLaunchArgument(
         'topic',
-        #default_value='/right/tool_control_node/instrument_angles',
-        default_value='/tool_controller/commands',
+        default_value='/right/tool_control_node/instrument_angles',
+        #default_value='/tool_controller/commands',
         description='Output topic'
     )
 

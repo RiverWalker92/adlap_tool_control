@@ -43,8 +43,9 @@ void InstrumentController::manual_adjustment()
         RCLCPP_INFO(logger_, "U -> Update starting positions");
         if (!initialized)
         {
-          RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting "
-                               "positions");
+          RCLCPP_WARN(logger_,
+                      "Motors not initialized yet, press 'I' to initialize before updating starting "
+                      "positions");
           break;
         }
         // ofset articulation

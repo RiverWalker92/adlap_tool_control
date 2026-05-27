@@ -65,25 +65,42 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
   
   // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
-  int real_play = calculate_real_play(gearbox.motor_controller.get_positions()); // Calculate the real play based on the current motor positions and the current offset
-  int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
+  std::array<int, 4> current_positions = gearbox.motor_controller.get_positions();
+  int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
+  int current_difference = current_positions[2] - current_positions[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
 
   int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
   int relative_difference = wanted_difference - current_difference;
 
-  if (abs(relative_difference) <= gearbox.get_pulses_per_degree(1)) { // If the current difference is within 1 degree of the target, don't adjust to prevent jitter
-    if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
-    return current_difference; // Return the current difference without adjustment
-  }
+  int deadband_threshold = static_cast<int>(std::round(gearbox.get_pulses_per_degree(1) * 2.5)); // deadband threshold in pulses
+  if (verbose) RCLCPP_DEBUG(logger_, "relative_difference: '%d', real_play: '%d', deadband_threshold: '%d', bend_play_compensation_: '%d', current_difference: '%d', wanted_difference: '%d'", relative_difference, real_play, deadband_threshold, bend_play_compensation_, current_difference, wanted_difference);
 
-  int play_compensation = 0;
-  if (relative_difference > 0){
-    play_compensation = gearbox.get_pulses_lower_motors_play();
+
+  if ( bend_play_compensation_ > 0) {
+    if (relative_difference < -deadband_threshold) {
+      // Moving in the opposite direction, so apply deadband compensation
+      bend_play_compensation_ = -gearbox.get_pulses_lower_motors_play();
+    }
+    else if (relative_difference <= 0) { 
+      // In the deadband region
+      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
+      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
+    }
   }
   else{
-    play_compensation = -gearbox.get_pulses_lower_motors_play();
+    if (relative_difference > deadband_threshold) {
+      // Moving in the opposite direction, so apply deadband compensation
+      bend_play_compensation_ = gearbox.get_pulses_lower_motors_play();
+    }
+    else if (relative_difference >= 0) { 
+      // In the deadband region
+      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
+      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
+    }
   }
-  bend_play_compensation_ = play_compensation; // Store the current compensation for use in the next calculation
+
+  if (verbose) RCLCPP_DEBUG(logger_, "play_compensation_: '%d'", bend_play_compensation_);
+
   return wanted_difference;
 }
 

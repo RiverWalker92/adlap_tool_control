@@ -142,8 +142,8 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
   int reverse_int = static_cast<int>(motors[motor_index].reverse_direction);
   int inverse_driven_int = static_cast<int>(motors[motor_index].inverse_driven);
   std::string message = "config " + std::to_string(motor_index) + ", " +
-                        std::to_string(motors[motor_index].duty_cycle_percentage) + ", " + // Min duty cycle (same as duty cycle for now, but could be different)
-                        std::to_string(motors[motor_index].duty_cycle_percentage) + ", " + // Max duty cycle (same as duty cycle for now, but could be different)
+                        std::to_string(0) + ", " + // Min duty cycle (fix with proper value)
+                        std::to_string(motors[motor_index].duty_cycle_percentage) + ", " + // Max duty cycle 
                         std::to_string(motors[motor_index].max_current) + ", " +
                         std::to_string(motors[motor_index].emergency_current) + ", " +
                         std::to_string(static_cast<int>(motors[motor_index].gear_ratio)) + ", " +
@@ -158,6 +158,16 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
   }
   serial_->write_data(message);
   rclcpp::sleep_for(std::chrono::milliseconds(min_wait_time_ms_));
+}
+
+std::array<int, 4>& MotorController::get_duty_cycles() const
+{
+  static std::array<int, 4> duty_cycle_array;
+  for (size_t i = 0; i < 4; ++i)
+  {
+    duty_cycle_array[i] = motors[i].duty_cycle_percentage;
+  }
+  return duty_cycle_array;
 }
 
 

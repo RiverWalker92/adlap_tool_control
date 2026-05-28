@@ -6,13 +6,25 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/int32_multi_array.hpp"
+#include <thread>
+
 
 using namespace std::chrono_literals;
+
+// MOTOR_CONTROLLER.GET_TARGET_POSITIONS() -> .GET_POSITIONS() WANT GEBRUIKT IN CURRENT ANGLES get current motor positions, convert to angles, publish on topic
+// 
 
 const std::string STATUS_TOPIC = "/tool_status";
 const std::string CURRENT_ANGLES_TOPIC = "/current_instrument_angles";
 const std::string TOOL_CONTROL_TOPIC = "/instrument_angles";
 const std::string CONTROL_MODE = "joints";  // euler, joints
+
+const std::string MOTOR_CURRENTS_TOPIC = "/motor_currents";
+const std::string MOTOR_POSITIONS_TOPIC = "/motor_positions";
+const std::string COMMANDED_MOTOR_POSITIONS_TOPIC = "/commanded_motor_positions";
+const std::string TASK_TOPIC = "/task_label";
+const std::string LED_CONTROL_TOPIC = "/led_control";
 
 class ToolController : public rclcpp::Node
 {
@@ -29,8 +41,10 @@ public:
     // Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
     // Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
     // Motor::create_default(),  // Default motor config polulu
-    gearbox(Gearbox::version_1(motor_controller, this->get_logger())),
-    instrument_controller_(gearbox, this->get_logger())
+    gearbox(motor_controller, GearboxParameters::from_yaml(
+        "/home/leanne/ros2_ws_roel_split/src/adlap_tool_control/config/gearbox_params.yaml"), this->get_logger()),
+    task_publisher_(this->create_publisher<std_msgs::msg::String>("~" + TASK_TOPIC, 10)),
+    instrument_controller_(gearbox, this->get_logger(), task_publisher_)
   {
     // The publisher and subscriber topics are relative, so they are mapped to
     // left or right with the node namespace
@@ -39,10 +53,44 @@ public:
     subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
         "~" + TOOL_CONTROL_TOPIC, 10, std::bind(&ToolController::topic_callback, this, std::placeholders::_1));
 
-    // Start manual control for testing
-    instrument_controller_.manual_adjustment();
-  }
+    // commanded_angles_publisher_ =
+    //     this->create_publisher<std_msgs::msg::Float64MultiArray>(
+    //         "~" + COMMANDED_ANGLES_TOPIC, 10);
 
+    motor_currents_publisher_ =
+        this->create_publisher<std_msgs::msg::Float64MultiArray>(
+            "~" + MOTOR_CURRENTS_TOPIC, 10);
+
+    motor_positions_publisher_ =
+        this->create_publisher<std_msgs::msg::Float64MultiArray>(
+            "~" + MOTOR_POSITIONS_TOPIC, 10);
+
+    motor_command_subscription_ =
+        this->create_subscription<std_msgs::msg::Int32MultiArray>(
+            "~" + COMMANDED_MOTOR_POSITIONS_TOPIC,
+            10,
+            std::bind(&ToolController::motor_command_callback, this, std::placeholders::_1));
+
+    motor_currents_timer_ =
+        this->create_wall_timer(
+            10ms,
+            std::bind(&ToolController::publish_motor_currents, this));
+
+    motor_positions_timer_ =
+        this->create_wall_timer(
+            10ms,
+            std::bind(&ToolController::publish_motor_positions, this));
+        // Start manual control for testing
+        instrument_controller_.manual_adjustment();
+
+    led_control_subscription_ =
+        this->create_subscription<std_msgs::msg::String>(
+            "~" + LED_CONTROL_TOPIC,
+            10,
+            std::bind(&ToolController::led_control_callback, this, std::placeholders::_1)
+        );
+      }
+  
   void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
   {
     if (msg->data.size() < 4)
@@ -51,6 +99,15 @@ public:
       return;
     }
     std::vector<double> angles = msg->data;
+    // auto command_msg = std_msgs::msg::Float64MultiArray();
+    // command_msg.data = {
+    //     angles[0],
+    //     angles[1],
+    //     angles[2],
+    //     angles[3]
+    // };
+
+    // commanded_angles_publisher_->publish(command_msg);
     // data values are: roll, pitch, yaw, gripper angle
     RCLCPP_INFO(this->get_logger(), "Control mode is: %s. I heard array: '%f' '%f' '%f' '%f'", CONTROL_MODE.c_str(),
                 angles[0], angles[1], angles[2], angles[3]);
@@ -111,13 +168,84 @@ public:
     }
   }
 
+  void motor_command_callback(const std_msgs::msg::Int32MultiArray::SharedPtr msg)
+  {
+      if (msg->data.size() < 4)
+      {
+          RCLCPP_WARN(this->get_logger(), "Received motor command with less than 4 values");
+          return;
+      }
+
+      motor_controller.send_relative_motor_positions(
+          msg->data[0],
+          msg->data[1],
+          msg->data[2],
+          msg->data[3],
+          true
+      );
+  }
+
+  void publish_motor_currents()
+  {
+      auto currents = motor_controller.get_currents();
+
+      auto current_msg = std_msgs::msg::Float64MultiArray();
+      current_msg.data = {
+          static_cast<double>(currents[0]),
+          static_cast<double>(currents[1]),
+          static_cast<double>(currents[2]),
+          static_cast<double>(currents[3])
+      };
+
+      motor_currents_publisher_->publish(current_msg);
+  }
+
+  void publish_motor_positions()
+  {
+      auto positions = motor_controller.get_positions();
+
+      auto position_msg = std_msgs::msg::Float64MultiArray();
+      position_msg.data = {
+          static_cast<double>(positions[0]),
+          static_cast<double>(positions[1]),
+          static_cast<double>(positions[2]),
+          static_cast<double>(positions[3])
+      };
+
+      motor_positions_publisher_->publish(position_msg);
+  }
+
+  void led_control_callback(const std_msgs::msg::String::SharedPtr msg)
+  {
+      std::string command = msg->data + "\n";
+      serial_->write_data(command);
+
+      RCLCPP_INFO(this->get_logger(), "Sent to Pico: '%s'", command.c_str());
+  }
+
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_angles_;
 
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
+
+  // rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr commanded_angles_publisher_;
+
+  rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr motor_command_subscription_;
+
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_currents_publisher_;
+  rclcpp::TimerBase::SharedPtr motor_currents_timer_;
+
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_positions_publisher_;
+  rclcpp::TimerBase::SharedPtr motor_positions_timer_;
+
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr led_control_subscription_;
+
   std::shared_ptr<SerialPort> serial_;
   MotorController motor_controller;
   Gearbox gearbox;
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher_;
+
   InstrumentController instrument_controller_;
 };
 

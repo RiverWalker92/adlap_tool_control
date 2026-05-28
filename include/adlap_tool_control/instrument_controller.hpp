@@ -8,6 +8,7 @@
 #include <deque>
 #include <memory>
 #include <limits>
+#include <string>
 
 
 
@@ -16,7 +17,7 @@
 class InstrumentController
 {
 public:
-    InstrumentController(Gearbox& gearbox, rclcpp::Logger logger);
+    InstrumentController(Gearbox& gearbox, rclcpp::Logger logger,rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher);
 
     // Instrument control methods
     void manual_adjustment();
@@ -39,6 +40,8 @@ private:
     // Member variables
     Gearbox& gearbox;
     rclcpp::Logger logger_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher_;
+    void publish_task(const std::string& task_name);
     std::deque<double> shaft_roll_history_; // History for smoothing
     std::deque<double> pitch_history_; // History for smoothing
     std::deque<double> yaw_history_; // History for smoothing

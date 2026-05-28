@@ -1,0 +1,33 @@
+gearbox:
+  version: 1
+
+  encoder:
+    pulses_per_motor_rotation: 903
+
+  ratios:
+    upper_motor_factor: 1.6666667 #25/15
+    lower_motor_factor: 1.0
+
+  motor_groups:
+    upper_motors: [0, 3]
+    lower_motors: [1, 2]
+
+  linear_conversion:
+    inner_shaft_lead_mm_per_rotation: null
+
+  backlash:
+    lower_motors_play_deg: 15
+
+  offsets:
+    lower_motor_start_offset_deg: 20
+    gripper_start_offset_deg: 200
+
+  hall_offsets:
+    hall1_offset_deg: 4
+    hall2_offset_deg: 10
+
+  gearbox_mapping:
+    gear_l1_motor: 3
+    gear_l2_motor: 0
+    gear_r1_motor: 1
+    gear_r2_motor: 2

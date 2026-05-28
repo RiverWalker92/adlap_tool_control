@@ -48,8 +48,12 @@ protected:
 					Motor::create_default(),
 					Motor::create_default()
 				    }),
-			gearbox_(Gearbox::version_1(motor_, logger_)),
-			controller_(gearbox_, logger_)
+			gearbox_(Gearbox(motor_, GearboxParameters::from_yaml(
+					"/home/leanne/ros2_ws_roel_split/src/adlap_tool_control/config/gearbox_params.yaml"
+				),
+				logger_
+			)),
+			controller_(gearbox_, logger_, nullptr)
 	{
 	}
 
@@ -111,8 +115,10 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 					Motor::create_default(),
 					Motor::create_default()
 				});
-	Gearbox backlash_gearbox = Gearbox::version_1(backlash_motor, logger_);
-	InstrumentController backlash_controller(backlash_gearbox, logger_);
+	Gearbox backlash_gearbox(backlash_motor, GearboxParameters::from_yaml(
+        "/home/leanne/ros2_ws_roel_split/src/adlap_tool_control/config/gearbox_params.yaml"
+    ), logger_);
+	InstrumentController backlash_controller(backlash_gearbox, logger_, nullptr);
 
 	const std::array<double, 4> baseline = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());
 	const int max_play = backlash_gearbox.get_pulses_lower_motors_play();

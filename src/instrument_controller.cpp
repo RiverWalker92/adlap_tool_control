@@ -5,8 +5,9 @@
 
 
 
-InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logger) 
-    : gearbox(gearbox), logger_(logger)
+
+InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logger, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher) 
+    : gearbox(gearbox), logger_(logger), task_publisher_(task_publisher)
 {
 }
 
@@ -29,6 +30,18 @@ double InstrumentController::update_history_and_get_mean(std::deque<double>& his
         sum += v;
     }
     return history.empty() ? 0.0 : (sum / static_cast<double>(history.size()));
+}
+void InstrumentController::publish_task(const std::string& task_name)
+{
+    if (!task_publisher_) {
+        return;
+    }
+
+    auto msg = std_msgs::msg::String();
+    msg.data = task_name;
+    task_publisher_->publish(msg);
+
+    RCLCPP_INFO(logger_, "Published task label: %s", task_name.c_str());
 }
 
 void InstrumentController::set_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose)

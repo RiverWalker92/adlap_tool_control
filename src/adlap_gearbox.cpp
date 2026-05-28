@@ -1,12 +1,46 @@
-#pragma once
 #include "adlap_tool_control/adlap_gearbox.hpp"
-
+#include <yaml-cpp/yaml.h>
 
 // ------------------------------------------------------------
 // Control sequences for specific operations like coupling and setup
 // ------------------------------------------------------------
 
+GearboxParameters GearboxParameters::from_yaml(const std::string& yaml_path)
+{
+    YAML::Node root = YAML::LoadFile(yaml_path);
+    YAML::Node gearbox = root["gearbox"];
 
+    GearboxParameters params;
+
+    params.upper_motor_factor =
+        gearbox["ratios"]["upper_motor_factor"].as<float>();
+
+    params.lower_motor_factor =
+        gearbox["ratios"]["lower_motor_factor"].as<float>();
+
+    params.upper_motors =
+        gearbox["motor_groups"]["upper_motors"].as<std::vector<int>>();
+
+    params.lower_motors =
+        gearbox["motor_groups"]["lower_motors"].as<std::vector<int>>();
+
+    params.lower_motors_play_deg =
+        gearbox["backlash"]["lower_motors_play_deg"].as<int>();
+
+    params.lower_motor_start_offset_deg =
+        gearbox["offsets"]["lower_motor_start_offset_deg"].as<int>();
+
+    params.gripper_start_offset_deg =
+        gearbox["offsets"]["gripper_start_offset_deg"].as<int>();
+
+    params.hall1_offset_deg =
+        gearbox["hall_offsets"]["hall1_offset_deg"].as<int>();
+
+    params.hall2_offset_deg =
+        gearbox["hall_offsets"]["hall2_offset_deg"].as<int>();
+
+    return params;
+}
 /**
  * @brief Couple the motors to the gearbox.
  * 
@@ -20,7 +54,7 @@ void Gearbox::couple_sequence()
   // Making some rotations to get the pins do drop into the holes of the gearbox
   for (int i : {0, 1, 2, 3})
   {
-    int step_size = get_pulses_per_degree(is_upper_motor(i)) * 20; // Step size of 20 degrees in pulses
+    int step_size = get_pulses_per_degree(i) * 20; // Step size of 20 degrees in pulses
     // Move the motor till it is blocked (coupled and reached its end position)
     std::array<int, 4> forward = {0, 0, 0, 0};
     forward[i] = step_size;
@@ -107,10 +141,10 @@ void Gearbox::setup_motors()
 
   //Move motor 1 and 2 together so motor 2 has the hall magnet down
   driving_values = {0, step_size, step_size, 0};
-  int hall_up1 = NULL;
-  int hall_up2 = NULL;
-  int hall_down1 = NULL;
-  int hall_down2 = NULL;
+  int hall_up1 =  -1; //NULL;
+  int hall_up2 = -1; // NULL;
+  int hall_down1 = -1; // NULL;
+  int hall_down2 = -1; // NULL;
   bool prev_hall = motor_controller.get_hall_sensors()[1];
   do
   {
@@ -134,13 +168,13 @@ void Gearbox::setup_motors()
     }
     prev_hall = hall_values[1];
     if (!rclcpp::ok()) throw std::runtime_error("Shutdown requested (rclcpp::ok() == false)");
-  } while (hall_up1 == NULL || hall_down1 == NULL);
+  } while (hall_up1 == -1 || hall_down1 == -1);
   // Place both motor in the middle between the hall edges
   setup_values = motor_controller.get_positions();
   if (hall_up1 > hall_down1) hall_down1 += get_pulses_per_rotation(1);
-  setup_values[1] = (hall_up1 + hall_down1) / 2 + HALL2_OFFSET; // The pin is not exactly in the middle
+  setup_values[1] = (hall_up1 + hall_down1) / 2 + params.hall1_offset_deg * get_pulses_per_degree(1);
   if (hall_up2 > hall_down2) hall_down2 += get_pulses_per_rotation(2);
-  setup_values[2] = (hall_up2 + hall_down2) / 2 + HALL2_OFFSET; // The pin is not exactly in the middle
+  setup_values[2] = (hall_up2 + hall_down2) / 2 + params.hall2_offset_deg * get_pulses_per_degree(2);
   motor_controller.send_motor_positions(setup_values, verbose);
   rclcpp::sleep_for(std::chrono::milliseconds(500));
 

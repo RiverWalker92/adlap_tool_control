@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -39,6 +40,7 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
     ament_target_dependencies(test_angle_conversion rclcpp std_msgs geometry_msgs)
+    target_link_libraries(test_angle_conversion yaml-cpp)
   endif()
 endif()
 
@@ -54,7 +56,7 @@ add_executable(controller
 )
   
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
-
+target_link_libraries(controller yaml-cpp)
 
 # Include directories
 target_include_directories(controller PUBLIC
@@ -76,6 +78,15 @@ install(TARGETS
 install(
   DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/tool_reader_node.py
+  scripts/setup_test_runner_node.py
+  scripts/plot_trial.py
+  scripts/gearbox_digital_twin.py
+  scripts/gearbox_state_node.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

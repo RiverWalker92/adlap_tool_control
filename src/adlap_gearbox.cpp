@@ -101,6 +101,14 @@ void Gearbox::setup_motors()
   bool verbose = true;
   // Move motor 1 to both extremes and position it in the middle of that.
   int motor_nr = 1;
+
+  // Temporarily set the duty cycle to a higher value to make sure the motor can move to the blocked position for calibration. 
+  std::array<int, 4> original_duty_cycle = motor_controller.get_duty_cycles();
+  // increace duty cycle for motor 1
+  std::array<int, 4> new_duty_cycle = original_duty_cycle;
+  new_duty_cycle[1] = new_duty_cycle[1] * 1.5; // Increase duty cycle by 50% for motor 1
+  motor_controller.send_duty_cycle(new_duty_cycle, verbose);
+
   int step_size = get_pulses_per_degree(motor_nr); // Step size of a degree in pulses
   int max_position = 0;
   int min_position = 0;
@@ -138,6 +146,9 @@ void Gearbox::setup_motors()
   setup_values[motor_nr] += 2 * get_pulses_lower_motors_play();
   motor_controller.send_motor_positions(setup_values, verbose);
   rclcpp::sleep_for(std::chrono::milliseconds(500));
+
+  // Restore the original duty cycle after calibration
+  motor_controller.send_duty_cycle(original_duty_cycle, verbose);
 
   //Move motor 1 and 2 together so motor 2 has the hall magnet down
   driving_values = {0, step_size, step_size, 0};

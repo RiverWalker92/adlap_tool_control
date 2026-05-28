@@ -85,6 +85,8 @@ public:
     void send_encoder_mode(const std::array<int, 4>& duty_cycle_array, bool verbose = false);
     void send_motor_configuration(int motor_index, bool verbose = false);
 
+    std::array<int, 4>& get_duty_cycles() const;
+
     void update_target_positions();
     void update_starting_positions();
 
@@ -98,11 +100,8 @@ public:
     const std::array<bool, 4>& get_blocked_status() const { return stalled_; }
     const std::array<bool, 4>& get_maxed_status() const { return overcurrent_; }
 
-
     void start_stream_reader();
     void stop_stream_reader();
-
-
 
     // Thread-safe snapshots for your main thread
     std::array<bool, 4> get_blocked() const;

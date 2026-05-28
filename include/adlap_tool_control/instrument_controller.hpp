@@ -51,9 +51,9 @@ private:
 
     int smoothing_factor_ = 1; // Number of samples to average for smoothing
     int bend_play_compensation_ = 0; // Current compensation for the bend play, updated after each motor command
-    float play_comp_position_m1_ = 0; 
-    float play_comp_position_m2_ = 0; 
-    float m1_m2_offset_ = 0;
+    int play_comp_position_m1_ = 0; 
+    int play_comp_position_m2_ = 0; 
+    int m1_m2_offset_ = 0;
     
     // Instrument state
     double smoothed_shaft_roll_ = 0.0;

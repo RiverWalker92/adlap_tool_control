@@ -40,6 +40,16 @@ void MotorController::send_encoder_mode(const std::array<int, 4>&, bool) {}
 
 void MotorController::send_motor_configuration(int, bool) {}
 
+std::array<int, 4>& MotorController::get_duty_cycles() const
+{
+  static std::array<int, 4> duty_cycle_array{0, 0, 0, 0};
+  for (size_t i = 0; i < 4; ++i)
+  {
+    duty_cycle_array[i] = motors[i].duty_cycle_percentage;
+  }
+  return duty_cycle_array;
+}
+
 void MotorController::update_target_positions()
 {
   target_positions_ = response_positions_;

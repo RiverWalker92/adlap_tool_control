@@ -14,14 +14,14 @@ sequence_tasks = [
 setup_folder = "/home/leanne/ros2_ws_roel_split/test_data/setup_01_motors_only"
 time_filters = [
     # "20260504_135",
-    "20260527_161",
+    "20260528_133",
     # "20260527_151",
     # "20260511_102",
     # "20260511_103",
 
 ]
 
-PLOT_MODE = "test_type"  
+PLOT_MODE = "sequence"  
 # opties: "idle", "duty_current", "test_type", "small_vs_medium", "sequence"
 
 

@@ -31,10 +31,20 @@ void InstrumentController::manual_adjustment()
     {
       case KEYCODE_C:
         RCLCPP_INFO(logger_, "C -> Couple sequence");
+        {
+        std_msgs::msg::String task_msg;
+        task_msg.data = "coupling_sequence";
+        task_publisher_->publish(task_msg);
+
         gearbox.couple_sequence();
         break;
+        }
       case KEYCODE_U:
         RCLCPP_INFO(logger_, "U -> Update starting positions");
+        {
+        std_msgs::msg::String task_msg;
+        task_msg.data = "updating_sequence";
+        task_publisher_->publish(task_msg);
         if (!initialized) {
           RCLCPP_WARN(logger_, "Motors not initialized yet, press 'I' to initialize before updating starting positions");
           break;
@@ -56,11 +66,17 @@ void InstrumentController::manual_adjustment()
         play_comp_position_m2_ = current_positions[2];
         ready_for_angles = true;
         break;
+      }
       case KEYCODE_I:
         RCLCPP_INFO(logger_, "I -> Initialize lower motors");
+        {
+        std_msgs::msg::String task_msg;
+        task_msg.data = "initializing_sequence";
+        task_publisher_->publish(task_msg);
         gearbox.setup_motors();
         initialized = true;
         break;
+        }
       case KEYCODE_R:
         RCLCPP_INFO(logger_, "R -> Reset to starting positions");
         gearbox.motor_controller.send_motor_positions(gearbox.motor_controller.get_starting_positions());

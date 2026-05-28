@@ -122,10 +122,12 @@ class ToolReader(Node):
 
     def current_callback(self, msg):
         self.last_currents = list(msg.data)
+        self.get_logger().info(f"Got currents: {self.last_currents}")
         self.print_and_log_state()
 
     def position_callback(self, msg):
         self.last_positions = list(msg.data)
+        self.get_logger().info(f"Got positions: {self.last_positions}")
         self.print_and_log_state()
         
     def instrument_command_callback(self, msg):
@@ -184,6 +186,9 @@ class ToolReader(Node):
         return self.log_files[task]
 
     def print_and_log_state(self):
+        self.get_logger().info(
+            f"Check lengths: currents={len(self.last_currents)}, positions={len(self.last_positions)}, task={self.last_task}"
+        )
         if len(self.last_currents) == 4 and len(self.last_positions) == 4: #and len(self.last_commands) == 4:
             timestamp = self.get_clock().now().nanoseconds / 1e9
 

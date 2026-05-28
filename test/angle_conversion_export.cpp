@@ -112,8 +112,15 @@ int main(int argc, char* argv[])
         Motor::create_default(),
         Motor::create_default()
       });
-    Gearbox gearbox = Gearbox::version_1(motor, logger);
-    InstrumentController controller(gearbox, logger);
+    Gearbox gearbox(
+        motor,
+        GearboxParameters::from_yaml(
+            "/home/leanne/ros2_ws_roel_split/src/adlap_tool_control/config/gearbox_params.yaml"
+        ),
+        logger
+    );
+
+    InstrumentController controller(gearbox, logger, nullptr);
 
   std::ofstream out(options.output_path);
   if (!out)

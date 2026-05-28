@@ -56,7 +56,8 @@ if(BUILD_TESTING)
   )
 
   ament_target_dependencies(angle_conversion_export rclcpp std_msgs geometry_msgs)
-  
+  target_link_libraries(angle_conversion_export yaml-cpp)
+
   add_executable(joint_angle_conversion_export
     test/joint_angle_conversion_export.cpp
     test/motor_controller_stub.cpp
@@ -70,6 +71,7 @@ if(BUILD_TESTING)
   )
 
   ament_target_dependencies(joint_angle_conversion_export rclcpp std_msgs geometry_msgs)
+  target_link_libraries(joint_angle_conversion_export yaml-cpp)
 endif()
 
 add_executable(controller 

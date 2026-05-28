@@ -81,7 +81,10 @@ public:
             10ms,
             std::bind(&ToolController::publish_motor_positions, this));
         // Start manual control for testing
-        instrument_controller_.manual_adjustment();
+        manual_thread_ = std::thread([this]() {
+            instrument_controller_.manual_adjustment();
+        });
+        // instrument_controller_.manual_adjustment();
 
     led_control_subscription_ =
         this->create_subscription<std_msgs::msg::String>(
@@ -89,6 +92,13 @@ public:
             10,
             std::bind(&ToolController::led_control_callback, this, std::placeholders::_1)
         );
+      }
+      ~ToolController()
+      {
+        if (manual_thread_.joinable())
+        {
+          manual_thread_.join();
+        }
       }
   
   void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
@@ -247,6 +257,7 @@ public:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher_;
 
   InstrumentController instrument_controller_;
+  std::thread manual_thread_;
 };
 
 int main(int argc, char* argv[])

@@ -17,7 +17,15 @@ class GearboxDigitalTwin:
         self.lower_motors = config["motor_groups"]["lower_motors"]
 
         self.lower_play_deg = config["backlash"]["lower_motors_play_deg"]
+        
+        backlash = config["backlash"]
 
+        self.gear_backlash_pulses = {
+            "gear_l1": backlash.get("gear_l1_backlash_pulses", 0),
+            "gear_l2": backlash.get("gear_l2_backlash_pulses", 0),
+            "gear_r1": backlash.get("gear_r1_backlash_pulses", 0),
+            "gear_r2": backlash.get("gear_r2_backlash_pulses", 0),
+        }   
         mapping = config["gearbox_mapping"]
         
         self.inner_shaft_lead_mm_per_rotation = (
@@ -38,6 +46,52 @@ class GearboxDigitalTwin:
         )
     
         self.inner_shaft_translation_state = 0.0
+
+        self.last_pulses = {
+            "gear_l1": 0.0,
+            "gear_l2": 0.0,
+            "gear_r1": 0.0,
+            "gear_r2": 0.0,
+        }
+
+        self.last_direction = {
+            "gear_l1": 0,
+            "gear_l2": 0,
+            "gear_r1": 0,
+            "gear_r2": 0,
+        }
+
+    def apply_backlash(self, gear_name, current_pulses, backlash_pulses):
+        """
+        Simple backlash model:
+        the first part of the motion is lost in mechanical play.
+        Simple static deadband approximation.
+        Real backlash should only be applied after direction reversal.
+        """
+        delta = current_pulses - self.last_pulses[gear_name]
+
+        if delta > 0:
+            direction = 1
+        elif delta < 0:
+            direction = -1
+        else:
+            direction = 0
+
+        effective_pulses = current_pulses
+
+        if (
+            direction != 0
+            and self.last_direction[gear_name] != 0
+            and direction != self.last_direction[gear_name]
+        ):
+            effective_pulses -= direction * backlash_pulses
+
+        self.last_direction[gear_name] = direction
+
+        if direction != 0:
+            self.last_pulses[gear_name] = current_pulses
+
+        return effective_pulses
 
     def motor_delta_pulses_to_gear_degrees(self, delta_motor_pulses):
         """
@@ -67,11 +121,35 @@ class GearboxDigitalTwin:
             pulses_per_rotation = self.pulses_per_motor_rotation * factor
             return delta_motor_pulses[motor_index] * 360.0 / pulses_per_rotation
 
+        gear_l1_pulses = self.apply_backlash(
+            "gear_l1",
+            delta_motor_pulses[self.gear_l1_motor],
+            self.gear_backlash_pulses["gear_l1"]
+        )
+
+        gear_l2_pulses = self.apply_backlash(
+            "gear_l2",
+            delta_motor_pulses[self.gear_l2_motor],
+            self.gear_backlash_pulses["gear_l2"]
+        )
+
+        gear_r1_pulses = self.apply_backlash(
+            "gear_r1",
+            delta_motor_pulses[self.gear_r1_motor],
+            self.gear_backlash_pulses["gear_r1"]
+        )
+
+        gear_r2_pulses = self.apply_backlash(
+            "gear_r2",
+            delta_motor_pulses[self.gear_r2_motor],
+            self.gear_backlash_pulses["gear_r2"]
+        )
+
         return {
-            "gear_l1_deg": motor_to_degrees(self.gear_l1_motor),
-            "gear_l2_deg": motor_to_degrees(self.gear_l2_motor),
-            "gear_r1_deg": motor_to_degrees(self.gear_r1_motor),
-            "gear_r2_deg": motor_to_degrees(self.gear_r2_motor),
+            "gear_l1_deg": gear_l1_pulses * 360.0 / self.pulses_per_upper_gear_rotation,
+            "gear_l2_deg": gear_l2_pulses * 360.0 / self.pulses_per_upper_gear_rotation,
+            "gear_r1_deg": gear_r1_pulses * 360.0 / self.pulses_per_lower_gear_rotation,
+            "gear_r2_deg": gear_r2_pulses * 360.0 / self.pulses_per_lower_gear_rotation,
         }
 
     def predict_instrument_shaft_inputs(self, delta_motor_pulses):

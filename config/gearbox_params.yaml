@@ -17,8 +17,21 @@ gearbox:
     inner_shaft_translation_min_mm: 0.0
     inner_shaft_translation_max_mm: 6.0 #is a bit of a guess, needs to be defined based on SW part
 
+  # backlash:
+  #   lower_motors_play_deg: 15
+
   backlash:
-    lower_motors_play_deg: 15
+    gear_l1_backlash_pulses: 50
+    gear_l1_backlash_deg: 12.0
+
+    gear_l2_backlash_pulses: 20
+    gear_l2_backlash_deg: 4.8
+
+    gear_r1_backlash_pulses: 60
+    gear_r1_backlash_deg: 24
+
+    gear_r2_backlash_pulses: 40
+    gear_r2_backlash_deg: 15.9
 
   offsets:
     lower_motor_start_offset_deg: 20

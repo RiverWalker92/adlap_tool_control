@@ -27,7 +27,7 @@ class ToolReader(Node):
 
         self.last_task = "unlabeled"
         self.log_files = {}
-        self.base_log_dir = Path.home() / "ros2_ws_roel_split" / "test_data"
+        self.base_log_dir = Path.home() / "ros2_ws" / "test_data"
         # Moet dit veranderd worden? 
 
         self.task_sub = self.create_subscription(

@@ -65,7 +65,7 @@ class GearboxStateNode(Node):
         out = Float64MultiArray()
         out.data = [
             state["inner_shaft_rotation_deg"],
-            state["inner_shaft_translation_index_deg"],
+            state["inner_shaft_relative_rotation_deg"],
             state["inner_shaft_translation_mm"],
             state["middle_shaft_rotation_deg"],
             state["outer_shaft_rotation_deg"],

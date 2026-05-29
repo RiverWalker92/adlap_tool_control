@@ -2,8 +2,8 @@
 
 #include <utility>
 
-MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const Motor& config)
-    : serial_(std::move(serial)), logger_(logger), motor_(config)
+MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const std::array<Motor,4>& motors)
+    : serial_(std::move(serial)), logger_(logger), motors(motors)
 {
   starting_positions = {0, 0, 0, 0};
   target_positions_ = {0, 0, 0, 0};
@@ -40,9 +40,15 @@ void MotorController::send_encoder_mode(const std::array<int, 4>&, bool) {}
 
 void MotorController::send_motor_configuration(int, bool) {}
 
-void MotorController::couple_sequence() {}
-
-void MotorController::setup_motors() {}
+std::array<int, 4>& MotorController::get_duty_cycles() const
+{
+  static std::array<int, 4> duty_cycle_array{0, 0, 0, 0};
+  for (size_t i = 0; i < 4; ++i)
+  {
+    duty_cycle_array[i] = motors[i].duty_cycle_percentage;
+  }
+  return duty_cycle_array;
+}
 
 void MotorController::update_target_positions()
 {

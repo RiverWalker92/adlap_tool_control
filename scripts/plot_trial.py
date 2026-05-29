@@ -3,7 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import os
 
-SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
+SEQUENCE_FOLDER = "/home/leanne/ros2_ws_roel_split/test_data/unstructured"
 
 sequence_tasks = [
     "coupling_sequence",
@@ -11,11 +11,13 @@ sequence_tasks = [
     "update_starting_positions",
 ]
 
-setup_folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
+setup_folder = "/home/leanne/ros2_ws_roel_split/test_data/setup_01_motors_only"
 time_filters = [
     # "20260504_135",
-    "20260511_102",
-    "20260511_103",
+    "20260528_133",
+    # "20260527_151",
+    # "20260511_102",
+    # "20260511_103",
 
 ]
 

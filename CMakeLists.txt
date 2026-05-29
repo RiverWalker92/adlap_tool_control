@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -30,6 +31,7 @@ if(BUILD_TESTING)
     test/test_angle_conversion.cpp
     test/motor_controller_stub.cpp
     src/instrument_controller.cpp
+    src/adlap_gearbox.cpp
     src/keyboard_reader.cpp
   )
 
@@ -38,19 +40,52 @@ if(BUILD_TESTING)
       ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
     ament_target_dependencies(test_angle_conversion rclcpp std_msgs geometry_msgs)
+    target_link_libraries(test_angle_conversion yaml-cpp)
   endif()
+
+  add_executable(angle_conversion_export
+    test/angle_conversion_export.cpp
+    test/motor_controller_stub.cpp
+    src/instrument_controller.cpp
+    src/adlap_gearbox.cpp
+    src/keyboard_reader.cpp
+  )
+
+  target_include_directories(angle_conversion_export PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+
+  ament_target_dependencies(angle_conversion_export rclcpp std_msgs geometry_msgs)
+  target_link_libraries(angle_conversion_export yaml-cpp)
+
+  add_executable(joint_angle_conversion_export
+    test/joint_angle_conversion_export.cpp
+    test/motor_controller_stub.cpp
+    src/instrument_controller.cpp
+    src/adlap_gearbox.cpp
+    src/keyboard_reader.cpp
+  )
+
+  target_include_directories(joint_angle_conversion_export PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+
+  ament_target_dependencies(joint_angle_conversion_export rclcpp std_msgs geometry_msgs)
+  target_link_libraries(joint_angle_conversion_export yaml-cpp)
 endif()
 
 add_executable(controller 
   src/node.cpp
   src/instrument_controller.cpp
+  src/manual_adjustment.cpp
+  src/adlap_gearbox.cpp
   src/serial_port.cpp
   src/keyboard_reader.cpp
   src/motor_controller.cpp
   src/motor_thread.cpp
 )
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
-
+target_link_libraries(controller yaml-cpp)
 
 # Include directories
 target_include_directories(controller PUBLIC
@@ -76,9 +111,32 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+if(TARGET angle_conversion_export)
+  install(TARGETS
+    angle_conversion_export
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
+
+if(TARGET joint_angle_conversion_export)
+  install(TARGETS
+    joint_angle_conversion_export
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
+
 install(
-  DIRECTORY launch
+  DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/tool_reader_node.py
+  scripts/setup_test_runner_node.py
+  scripts/plot_trial.py
+  scripts/gearbox_digital_twin.py
+  scripts/gearbox_state_node.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

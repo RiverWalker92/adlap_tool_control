@@ -27,7 +27,8 @@ class ToolReader(Node):
 
         self.last_task = "unlabeled"
         self.log_files = {}
-        self.base_log_dir = Path.home() / "ros2_ws" / "test_data"
+        self.base_log_dir = Path.home() / "ros2_ws_roel_split" / "test_data"
+        # Moet dit veranderd worden? 
 
         self.task_sub = self.create_subscription(
             String,
@@ -38,10 +39,12 @@ class ToolReader(Node):
 
         self.last_currents = []
         self.last_positions = []
-        self.last_instrument_angles = []
+        self.last_instrument_angles = [] # based on commands, not encoder feedback
+        self.last_current_instrument_angles = [] # based on motor encoder
         self.last_motor_commands = []
         # self.last_duty_cycle = []
         self.last_motor_config = []
+        self.last_led_command = None
 
         self.control_sub = self.create_subscription(
             String,
@@ -66,8 +69,15 @@ class ToolReader(Node):
 
         self.instrument_command_sub = self.create_subscription(
             Float64MultiArray,
-            '/right/tool_control_node/commanded_instrument_angles',
+            '/right/tool_control_node/instrument_angles',
             self.instrument_command_callback,
+            10
+        ) #commanded eruit gehaald, want dat is hetzelfde als instrument angles topic
+
+        self.current_instrument_sub = self.create_subscription(
+            Float64MultiArray,
+            '/right/tool_control_node/current_instrument_angles',
+            self.current_instrument_callback,
             10
         )
 
@@ -92,6 +102,14 @@ class ToolReader(Node):
             10
         )
 
+        self.led_sub = self.create_subscription(
+            String,
+            '/right/tool_control_node/led_control',
+            self.led_callback,
+            10
+        )
+
+
     def control_callback(self, msg):
         if msg.data == "stop_logging":
             self.get_logger().info("Stopping ToolReader")
@@ -104,14 +122,20 @@ class ToolReader(Node):
 
     def current_callback(self, msg):
         self.last_currents = list(msg.data)
+        self.get_logger().info(f"Got currents: {self.last_currents}")
         self.print_and_log_state()
 
     def position_callback(self, msg):
         self.last_positions = list(msg.data)
+        self.get_logger().info(f"Got positions: {self.last_positions}")
         self.print_and_log_state()
         
     def instrument_command_callback(self, msg):
         self.last_instrument_angles = list(msg.data)
+        self.print_and_log_state()
+
+    def current_instrument_callback(self, msg):
+        self.last_current_instrument_angles = list(msg.data)
         self.print_and_log_state()
 
     def motor_command_callback(self, msg):
@@ -125,6 +149,10 @@ class ToolReader(Node):
     def motor_config_callback(self, msg):
         self.last_motor_config.append(msg.data)
         self.get_logger().warn(f"Received motor config: {msg.data}")
+        self.print_and_log_state()
+
+    def led_callback(self, msg):
+        self.last_led_command = msg.data
         self.print_and_log_state()
 
     def get_log_file(self, task):
@@ -158,17 +186,22 @@ class ToolReader(Node):
         return self.log_files[task]
 
     def print_and_log_state(self):
+        self.get_logger().info(
+            f"Check lengths: currents={len(self.last_currents)}, positions={len(self.last_positions)}, task={self.last_task}"
+        )
         if len(self.last_currents) == 4 and len(self.last_positions) == 4: #and len(self.last_commands) == 4:
             timestamp = self.get_clock().now().nanoseconds / 1e9
 
             sample = {
                 "timestamp": timestamp,
                 "commanded_instrument_angles": self.last_instrument_angles if len(self.last_instrument_angles) == 4 else None,
+                "current_instrument_angles": self.last_current_instrument_angles if len(self.last_current_instrument_angles) == 4 else None,
                 "commanded_motor_positions": self.last_motor_commands if len(self.last_motor_commands) == 4 else None,
                 # "commanded_duty_cycle": self.last_duty_cycle if len(self.last_duty_cycle) == 4 else None,
                 "measured_motor_positions": self.last_positions,
                 "measured_currents": self.last_currents,
-                "motor_config": self.last_motor_config if self.last_motor_config else None
+                "motor_config": self.last_motor_config if self.last_motor_config else None,
+                "led_command": self.last_led_command
             }
 
             sample["task"] = self.last_task

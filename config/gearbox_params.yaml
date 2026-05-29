@@ -13,7 +13,9 @@ gearbox:
     lower_motors: [1, 2]
 
   linear_conversion:
-    inner_shaft_lead_mm_per_rotation: null
+    inner_shaft_lead_mm_per_rotation: 3.0 #defined based on SW part
+    inner_shaft_translation_min_mm: 0.0
+    inner_shaft_translation_max_mm: 6.0 #is a bit of a guess, needs to be defined based on SW part
 
   backlash:
     lower_motors_play_deg: 15

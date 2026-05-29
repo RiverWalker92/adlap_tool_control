@@ -19,8 +19,11 @@ class GearboxDigitalTwin:
         self.lower_play_deg = config["backlash"]["lower_motors_play_deg"]
 
         mapping = config["gearbox_mapping"]
-        self.inner_shaft_lead_mm_per_rotation = config["linear_conversion"]["inner_shaft_lead_mm_per_rotation"]
         
+        self.inner_shaft_lead_mm_per_rotation = (
+            config.get("linear_conversion", {}).get("inner_shaft_lead_mm_per_rotation")
+            or 3.0
+        )
         self.gear_l1_motor = mapping["gear_l1_motor"]
         self.gear_l2_motor = mapping["gear_l2_motor"]
         self.gear_r1_motor = mapping["gear_r1_motor"]
@@ -34,23 +37,6 @@ class GearboxDigitalTwin:
             self.pulses_per_motor_rotation * self.lower_motor_factor
         )
     
-        # # Encoder / motor conversion
-        # self.pulses_per_motor_rotation = 903
-
-        # # Additional transmission factor from gearbox design (e.g. upper motors have a 25:15 gear ratio and lower motors have a 15:15 ratio)
-        # self.upper_motor_factor = 25.0 / 15.0
-
-        # self.pulses_per_upper_gear_rotation = (
-        #     self.pulses_per_motor_rotation * self.upper_motor_factor
-        # )
-
-        # self.pulses_per_lower_gear_rotation = self.pulses_per_motor_rotation
-
-        # # Play if we want to include
-        # self.lower_play_deg = 15.0
-        # self.lower_play_pulses = self.lower_play_deg * self.pulses_per_lower_gear_rotation / 360.0
-
-        # # starting position of translation shaft
         self.inner_shaft_translation_state = 0.0
 
     def motor_delta_pulses_to_gear_degrees(self, delta_motor_pulses):
@@ -87,14 +73,6 @@ class GearboxDigitalTwin:
             "gear_r1_deg": motor_to_degrees(self.gear_r1_motor),
             "gear_r2_deg": motor_to_degrees(self.gear_r2_motor),
         }
-        # dm0, dm1, dm2, dm3 = delta_motor_pulses
-
-        # return {
-        #     "gear_l1_deg": dm3 * 360.0 / self.pulses_per_upper_gear_rotation,
-        #     "gear_l2_deg": dm0 * 360.0 / self.pulses_per_upper_gear_rotation,
-        #     "gear_r1_deg": dm1 * 360.0 / self.pulses_per_lower_gear_rotation,
-        #     "gear_r2_deg": dm2 * 360.0 / self.pulses_per_lower_gear_rotation,
-        # }
 
     def predict_instrument_shaft_inputs(self, delta_motor_pulses):
         """
@@ -117,18 +95,31 @@ class GearboxDigitalTwin:
         gear_r1 = gears["gear_r1_deg"]
         gear_r2 = gears["gear_r2_deg"]
 
-        # translation_increment = gear_l1 - gear_l2
-        # self.inner_shaft_translation_state += translation_increment
+        inner_shaft_relative_rotation_deg = gear_l1 - gear_l2
 
-        # gear_l2_left_limit = a #still to define
-        # gear_l2_right_limit = b #still to define
+        # inner_shaft_translation_mm_raw = (
+        #     None
+        #     if self.inner_shaft_lead_mm_per_rotation is None
+        #     else inner_shaft_relative_rotation_deg / 360.0 * self.inner_shaft_lead_mm_per_rotation
+        # )
 
-        # self.inner_shaft_translation_state = np.clip(
-        #     self.inner_shaft_translation_state,
-        #     gear_l2_left_limit,
-        #     gear_l2_right_limit)
+        # if inner_shaft_translation_mm_raw is None:
+        #     inner_shaft_translation_mm = None
+        # else:
+        #     inner_shaft_translation_mm = max(
+        #         0.0,
+        #         min(6.0, inner_shaft_translation_mm_raw)
+            # )
 
+        inner_shaft_translation_mm_raw = (
+            inner_shaft_relative_rotation_deg / 360.0
+            * self.inner_shaft_lead_mm_per_rotation
+        )
+
+        inner_shaft_translation_mm = inner_shaft_translation_mm_raw
+        
         instrument_shaft_inputs = {
+                
             # Individual gear rotations
             "gear_l1_deg": gear_l1,
             "gear_l2_deg": gear_l2,
@@ -141,18 +132,10 @@ class GearboxDigitalTwin:
 
             # m3 motion relative to m0 produces inner shaft translation.
             # If m0 is stationary and m3 moves, this gives pure translation.
-            # Rot-to-linear conversion is not included yet.
-            # "inner_shaft_translation_index": gear_l1 - gear_l2,
-            
-            # "inner_shaft_pure_translation_index": gear_l2,
-            # "inner_shaft_translation_state": self.inner_shaft_translation_state,
+            "inner_shaft_relative_rotation_deg": inner_shaft_relative_rotation_deg,
+            "inner_shaft_translation_mm_raw": inner_shaft_translation_mm_raw,
+            "inner_shaft_translation_mm": inner_shaft_translation_mm,
 
-        # Still to be fixed!!
-            "inner_shaft_translation_index_deg": gear_l1 - gear_l2,
-            "inner_shaft_translation_mm": None if self.inner_shaft_lead_mm_per_rotation is None else (gear_l1 - gear_l2) / 360.0 * self.inner_shaft_lead_mm_per_rotation,
-
-            # "inner_shaft_translation_state": self.inner_shaft_translation_state,
-            
             # Right gear block: middle and outer shaft rotations
             "middle_shaft_rotation_deg": gear_r1, #this one not included in instrument controller script
             "outer_shaft_rotation_deg": gear_r2,

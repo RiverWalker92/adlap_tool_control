@@ -40,8 +40,7 @@ private:
     double omega = 2.0 * M_PI * f;
 
     double pitch = R * std::cos(omega * t);  // x
-    // double yaw = R * std::sin(omega * t);   // y
-    double yaw = 0.0;
+    double yaw = R * std::sin(omega * t);    // y
 
     double roll = 0.0;
     double aperture = 0.0;

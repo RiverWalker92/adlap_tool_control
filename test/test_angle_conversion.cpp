@@ -37,13 +37,19 @@ protected:
 		}
 	}
 
-	AngleConversionTest()
-			: logger_(rclcpp::get_logger("angle_conversion_test")),
-				motor_(
-						std::shared_ptr<SerialPort>{},
-						logger_,
-						Motor::create(1, 360.0f, 1, 40, 30, 60, 1.0f, 0, 0, false)),
-				controller_(motor_, logger_)
+	    AngleConversionTest()
+		    : logger_(rclcpp::get_logger("angle_conversion_test")),
+			    motor_(
+				    std::shared_ptr<SerialPort>{},
+				    logger_,
+				    std::array<Motor,4>{
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default()
+				    }),
+			gearbox_(Gearbox::version_1(motor_, logger_)),
+			controller_(gearbox_, logger_)
 	{
 	}
 
@@ -72,6 +78,7 @@ protected:
 
 	rclcpp::Logger logger_;
 	MotorController motor_;
+	Gearbox gearbox_;
 	InstrumentController controller_;
 };
 
@@ -98,11 +105,17 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 	auto backlash_motor = MotorController(
 				std::shared_ptr<SerialPort>{},
 				logger_,
-				Motor::create(1, 360.0f, 1, 40, 30, 60, 1.0f, 12, 0, false));
-	InstrumentController backlash_controller(backlash_motor, logger_);
+				std::array<Motor,4>{
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default(),
+					Motor::create_default()
+				});
+	Gearbox backlash_gearbox = Gearbox::version_1(backlash_motor, logger_);
+	InstrumentController backlash_controller(backlash_gearbox, logger_);
 
 	const std::array<double, 4> baseline = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());
-	const int max_play = backlash_motor.get_pulses_lower_motors_play();
+	const int max_play = backlash_gearbox.get_pulses_lower_motors_play();
 	ASSERT_GT(max_play, 0);
 
 	constexpr double tol = 1e-9;
@@ -121,6 +134,69 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 			EXPECT_NEAR(out[3], baseline[3], tol);
 		}
 	}
+}
+
+TEST_F(AngleConversionTest, SinusoidalPathPerDofRoundTrip)
+{
+    constexpr int num_points = 20;
+    constexpr double tol = 0.01;  // Tolerance for accumulated numerical error in forward/inverse conversion
+
+    struct DofConfig {
+        const char* name;
+        double min_rad;
+        double max_rad;
+        int dof_index;
+    };
+
+    const std::vector<DofConfig> dofs = {
+        {"roll", -M_PI, M_PI, 0},
+        {"pitch", -M_PI / 4, M_PI / 4, 1},
+        {"yaw", -M_PI / 4, M_PI / 4, 2},
+        {"gripper", 0, M_PI / 6, 3},
+    };
+
+    for (const auto& dof : dofs) {
+        SCOPED_TRACE(::testing::Message() << "DOF: " << dof.name);
+
+        const double amplitude = (dof.max_rad - dof.min_rad) / 2.0;
+        const double center = (dof.max_rad + dof.min_rad) / 2.0;
+
+        for (int i = 0; i < num_points; ++i) {
+            const double phase = 2.0 * M_PI * i / num_points;
+            const double value = center + amplitude * std::sin(phase);
+
+            ASSERT_GE(value, dof.min_rad - 1e-9) << "Value out of range at point " << i;
+            ASSERT_LE(value, dof.max_rad + 1e-9) << "Value out of range at point " << i;
+
+            TestAngles in{0.0, 0.0, 0.0, 0.0};
+            in.roll = (dof.dof_index == 0) ? value : 0.0;
+            in.pitch = (dof.dof_index == 1) ? value : 0.0;
+            in.yaw = (dof.dof_index == 2) ? value : 0.0;
+            in.gripper = (dof.dof_index == 3) ? value : 0.0;
+
+            controller_.smoothed_tip_rotation_ = in.roll;
+            controller_.smoothed_pitch_ = in.pitch;
+            controller_.smoothed_yaw_ = in.yaw;
+            controller_.smoothed_articulation_ = in.gripper;
+
+            const std::array<int, 4> motor_positions = controller_.calculate_motor_positions_from_euler_angles(
+                controller_.smoothed_tip_rotation_,
+                controller_.smoothed_pitch_,
+                controller_.smoothed_yaw_,
+                controller_.smoothed_articulation_,
+                false
+            );
+			motor_.send_motor_positions(motor_positions);  // Update internal state to reflect the new motor positions
+
+            const std::array<double, 4> out = controller_.euler_angles_from_motors(motor_positions);
+
+            SCOPED_TRACE(::testing::Message() << "point=" << i << ", phase=" << phase << ", input=" << value);
+            EXPECT_NEAR(out[0], in.roll, tol) << "Roll mismatch at point " << i;
+            EXPECT_NEAR(out[1], in.pitch, tol) << "Pitch mismatch at point " << i;
+            EXPECT_NEAR(out[2], in.yaw, tol) << "Yaw mismatch at point " << i;
+            EXPECT_NEAR(out[3], in.gripper, tol) << "Gripper mismatch at point " << i;
+        }
+    }
 }
 
 }  // namespace

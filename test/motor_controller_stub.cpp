@@ -2,12 +2,13 @@
 
 #include <utility>
 
-MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const Motor& config)
-    : serial_(std::move(serial)), logger_(logger), motor_(config)
+MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger,
+                                 const std::array<Motor, 4>& motors)
+  : serial_(std::move(serial)), logger_(logger), motors(motors)
 {
-  starting_positions = {0, 0, 0, 0};
-  target_positions_ = {0, 0, 0, 0};
-  response_positions_ = {0, 0, 0, 0};
+  starting_positions = { 0, 0, 0, 0 };
+  target_positions_ = { 0, 0, 0, 0 };
+  response_positions_ = { 0, 0, 0, 0 };
 }
 
 MotorController::~MotorController() = default;
@@ -25,24 +26,32 @@ void MotorController::send_relative_motor_positions(const std::array<int, 4>& m_
 
 void MotorController::send_relative_motor_positions(int m0, int m1, int m2, int m3, bool verbose)
 {
-  std::array<int, 4> next = {
-    target_positions_[0] + m0,
-    target_positions_[1] + m1,
-    target_positions_[2] + m2,
-    target_positions_[3] + m3
-  };
+  std::array<int, 4> next = { target_positions_[0] + m0, target_positions_[1] + m1, target_positions_[2] + m2,
+                              target_positions_[3] + m3 };
   send_motor_positions(next, verbose);
 }
 
-void MotorController::send_duty_cycle(const std::array<int, 4>&, bool) {}
+void MotorController::send_duty_cycle(const std::array<int, 4>&, bool)
+{
+}
 
-void MotorController::send_encoder_mode(const std::array<int, 4>&, bool) {}
+void MotorController::send_encoder_mode(const std::array<int, 4>&, bool)
+{
+}
 
-void MotorController::send_motor_configuration(int, bool) {}
+void MotorController::send_motor_configuration(int, bool)
+{
+}
 
-void MotorController::couple_sequence() {}
-
-void MotorController::setup_motors() {}
+std::array<int, 4>& MotorController::get_duty_cycles() const
+{
+  static std::array<int, 4> duty_cycle_array{ 0, 0, 0, 0 };
+  for (size_t i = 0; i < 4; ++i)
+  {
+    duty_cycle_array[i] = motors[i].duty_cycle_percentage;
+  }
+  return duty_cycle_array;
+}
 
 void MotorController::update_target_positions()
 {
@@ -65,9 +74,13 @@ std::string MotorController::motor_message(const std::array<int, 4>& m_array)
          std::to_string(m_array[2]) + ", " + std::to_string(m_array[3]) + "\n";
 }
 
-void MotorController::start_stream_reader() {}
+void MotorController::start_stream_reader()
+{
+}
 
-void MotorController::stop_stream_reader() {}
+void MotorController::stop_stream_reader()
+{
+}
 
 std::array<bool, 4> MotorController::get_blocked() const
 {
@@ -119,7 +132,9 @@ bool MotorController::wait_for_next_frame(uint64_t, std::chrono::milliseconds)
   return true;
 }
 
-void MotorController::reader_loop() {}
+void MotorController::reader_loop()
+{
+}
 
 bool MotorController::parse_frame(const std::string&, bool)
 {
@@ -136,4 +151,6 @@ bool MotorController::parse_log_message(const uint8_t*, uint8_t)
   return true;
 }
 
-void MotorController::find_hall_sensor_positions() {}
+void MotorController::find_hall_sensor_positions()
+{
+}

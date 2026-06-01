@@ -45,6 +45,8 @@ class ToolReader(Node):
         # self.last_duty_cycle = []
         self.last_motor_config = []
         self.last_led_command = None
+        self.start_time = self.get_clock().now().nanoseconds / 1e9
+        self.last_gearbox_state = []
 
         self.control_sub = self.create_subscription(
             String,
@@ -109,6 +111,18 @@ class ToolReader(Node):
             10
         )
 
+        self.gearbox_state_sub = self.create_subscription(
+            Float64MultiArray,
+            '/right/tool_control_node/gearbox_state',
+            self.gearbox_state_callback,
+            10
+        )
+
+        self.log_rate_hz = 100.0
+        self.log_timer = self.create_timer(
+            1.0 / self.log_rate_hz,
+            self.print_and_log_state
+        )
 
     def control_callback(self, msg):
         if msg.data == "stop_logging":
@@ -123,24 +137,24 @@ class ToolReader(Node):
     def current_callback(self, msg):
         self.last_currents = list(msg.data)
         self.get_logger().info(f"Got currents: {self.last_currents}")
-        self.print_and_log_state()
+        # self.print_and_log_state()
 
     def position_callback(self, msg):
         self.last_positions = list(msg.data)
         self.get_logger().info(f"Got positions: {self.last_positions}")
-        self.print_and_log_state()
+        # self.print_and_log_state()
         
     def instrument_command_callback(self, msg):
         self.last_instrument_angles = list(msg.data)
-        self.print_and_log_state()
+        # self.print_and_log_state()
 
     def current_instrument_callback(self, msg):
         self.last_current_instrument_angles = list(msg.data)
-        self.print_and_log_state()
+        # self.print_and_log_state()
 
     def motor_command_callback(self, msg):
         self.last_motor_commands = list(msg.data)
-        self.print_and_log_state()
+        # self.print_and_log_state()
 
     # def duty_cycle_callback(self, msg):
     #     self.last_duty_cycle = list(msg.data)
@@ -149,11 +163,15 @@ class ToolReader(Node):
     def motor_config_callback(self, msg):
         self.last_motor_config.append(msg.data)
         self.get_logger().warn(f"Received motor config: {msg.data}")
-        self.print_and_log_state()
+        # self.print_and_log_state()
 
     def led_callback(self, msg):
         self.last_led_command = msg.data
-        self.print_and_log_state()
+        # self.print_and_log_state()
+
+    def gearbox_state_callback(self, msg):
+        self.last_gearbox_state = list(msg.data)
+        # self.print_and_log_state()
 
     def get_log_file(self, task):
         parts = task.split("|")
@@ -191,9 +209,11 @@ class ToolReader(Node):
         )
         if len(self.last_currents) == 4 and len(self.last_positions) == 4: #and len(self.last_commands) == 4:
             timestamp = self.get_clock().now().nanoseconds / 1e9
+            relative_time = timestamp - self.start_time
 
             sample = {
-                "timestamp": timestamp,
+                "time": relative_time,
+                "ros_timestamp": timestamp,
                 "commanded_instrument_angles": self.last_instrument_angles if len(self.last_instrument_angles) == 4 else None,
                 "current_instrument_angles": self.last_current_instrument_angles if len(self.last_current_instrument_angles) == 4 else None,
                 "commanded_motor_positions": self.last_motor_commands if len(self.last_motor_commands) == 4 else None,
@@ -201,7 +221,8 @@ class ToolReader(Node):
                 "measured_motor_positions": self.last_positions,
                 "measured_currents": self.last_currents,
                 "motor_config": self.last_motor_config if self.last_motor_config else None,
-                "led_command": self.last_led_command
+                "led_command": self.last_led_command,
+                "gearbox_state": self.last_gearbox_state if len(self.last_gearbox_state) == 6 else None
             }
 
             sample["task"] = self.last_task

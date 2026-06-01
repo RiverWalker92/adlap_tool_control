@@ -17,7 +17,7 @@ class GearboxStateNode(Node):
         # Same YAML config
         config_path = (
             Path.home()
-            / "ros2_ws_roel_split"
+            / "ros2_ws"
             / "src"
             / "adlap_tool_control"
             / "config"

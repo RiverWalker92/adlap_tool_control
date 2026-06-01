@@ -1,6 +1,7 @@
 tool_controller_node:
   ros__parameters:
-    topic: "/robot_cmd"
+    # topic: "/robot_cmd"
+    topic: "/right/tool_control_node/instrument_angles"
     publish_rate: 100.0
 
     # mode can be: constant, triangle, sinusoid
@@ -11,27 +12,27 @@ tool_controller_node:
 
     dof1:
       mode: "constant"
-      min: -3.14
-      max: 3.14
+      min: -1.57 #3.14
+      max: 1.57 #3.14
       frequency: 0.1
       value: 0.0   
 
     dof2:
       mode: "constant"
       value: 0.0
-      min: 0.2     
-      max: -0.2     
+      min: 0.1     
+      max: -0.1     
       frequency: 0.1  
 
     dof3:
-      mode: "constant"
+      mode: "triangle"
       min: -3.14
       max: 3.14
       frequency: 0.1
       value: 0.0
 
     dof4:
-      mode: "sinusoid"
+      mode: "constant"
       value: 0.0
       min: 0.0 
       max: 0.25

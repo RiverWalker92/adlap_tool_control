@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
+CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
 
 sequence_tasks = [
     "coupling_sequence",
@@ -11,7 +12,24 @@ sequence_tasks = [
     "update_starting_positions",
 ]
 
-setup_folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
+continuous_time_filters = [
+    "20260601_16",
+]
+
+GEARBOX_LABELS = [
+    "inner shaft rotation [deg]",
+    "inner shaft relative rotation [deg]",
+    "inner shaft translation [mm]",
+    "middle shaft rotation [deg]",
+    "outer shaft rotation [deg]",
+    "middle-outer relative rotation [deg]",
+]
+
+TRIM_BY_DURATION = True
+TRIM_DURATION = 30.0
+TRIM_MARGIN_AFTER = 0.5
+
+# folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
 time_filters = [
     # "20260504_135",
     "20260529_12",
@@ -21,16 +39,16 @@ time_filters = [
 
 ]
 
-PLOT_MODE = "test_type"  
-# opties: "idle", "duty_current", "test_type", "small_vs_medium", "sequence"
+PLOT_MODE = "continuous_dof" 
+# opties: "continuous_dof", "idle", "duty_current", "test_type", "small_vs_medium", "sequence"
 
 
 trial_numbers = [1, 2, 3]
 
-run_id = "_".join(time_filters)
+# run_id = "_".join(time_filters)
 
-run_dir = os.path.join(setup_folder, "plots", run_id)
-os.makedirs(run_dir, exist_ok=True)
+# run_dir = os.path.join(setup_folder, "plots", run_id)
+# os.makedirs(run_dir, exist_ok=True)
 
 
 test_types = [
@@ -52,6 +70,84 @@ test_descriptions = {
 }
 
 motor_folders = ["m1", "m2", "m3", "m4"]
+def load_continuous_file(file_path):
+    t = []
+    commanded = [[], [], [], []]
+    current_angles = [[], [], [], []]
+    motor_pos = [[], [], [], []]
+    currents = [[], [], [], []]
+    gearbox = [[], [], [], [], [], []]
+
+    with open(file_path, "r") as f:
+        for line in f:
+            data = json.loads(line)
+
+            t.append(data["time"])
+
+            cmd = data.get("commanded_instrument_angles")
+            cur_ang = data.get("current_instrument_angles")
+            pos = data.get("measured_motor_positions")
+            cur = data.get("measured_currents")
+            gb = data.get("gearbox_state")
+
+            if cmd is None or pos is None or cur is None or gb is None:
+                continue
+
+            for i in range(4):
+                commanded[i].append(cmd[i])
+                current_angles[i].append(cur_ang[i] if cur_ang is not None else None)
+                motor_pos[i].append(pos[i])
+                currents[i].append(cur[i])
+
+            for i in range(6):
+                gearbox[i].append(gb[i])
+
+            for i in range(6):
+                gearbox[i].append(data["gearbox_state"][i])
+
+    t0 = t[0]
+    t = [x - t0 for x in t]
+
+    for i in range(4):
+        p0 = motor_pos[i][0]
+        motor_pos[i] = [p - p0 for p in motor_pos[i]]
+
+    if TRIM_BY_DURATION:
+        t_end = TRIM_DURATION + TRIM_MARGIN_AFTER
+
+        keep = [
+            i for i, ti in enumerate(t)
+            if ti <= t_end
+        ]
+
+        t = [t[i] for i in keep]
+
+        for k in range(4):
+            commanded[k] = [commanded[k][i] for i in keep]
+            current_angles[k] = [current_angles[k][i] for i in keep]
+            motor_pos[k] = [motor_pos[k][i] for i in keep]
+            currents[k] = [currents[k][i] for i in keep]
+
+        for k in range(6):
+            gearbox[k] = [gearbox[k][i] for i in keep]
+
+    return t, commanded, current_angles, motor_pos, currents, gearbox
+
+def get_continuous_files():
+    files = []
+
+    for root, dirs, filenames in os.walk(CONTINUOUS_FOLDER):
+        for filename in filenames:
+            if not filename.endswith(".jsonl"):
+                continue
+
+            if continuous_time_filters and not any(f in filename for f in continuous_time_filters):
+                continue
+
+            files.append(os.path.join(root, filename))
+
+    files.sort()
+    return files
 
 def get_sequence_timestamp(file_path):
     name = os.path.basename(file_path)
@@ -183,6 +279,178 @@ def compute_velocity(timestamps, positions, position_window=11, velocity_window=
         ]
 
     return velocities
+
+def plot_continuous_file(file_path):
+    t, commanded, current_angles, motor_pos, currents, gearbox = load_continuous_file(file_path)
+
+    basename = os.path.basename(file_path).replace(".jsonl", "")
+
+    plot_dir = os.path.join(CONTINUOUS_FOLDER, "plots", basename)
+    os.makedirs(plot_dir, exist_ok=True)
+
+    # Plot 1: commanded vs current instrument angles
+    fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle("Instrument angles: commanded vs current", fontsize=16)
+
+    for i in range(4):
+        axes[i].plot(t, commanded[i], label=f"commanded dof{i+1}")
+        axes[i].plot(t, current_angles[i], label=f"current dof{i+1}", linestyle="--")
+        axes[i].set_ylabel(f"dof{i+1} [rad]")
+        axes[i].grid(True)
+        axes[i].legend(fontsize=8)
+
+    axes[-1].set_xlabel("Time [s]")
+    plt.tight_layout()
+    fig.savefig(os.path.join(plot_dir, "instrument_angles.png"), dpi=200)
+    plt.close(fig)
+
+    # Plot 2: motor positions
+    fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle("Measured motor positions", fontsize=16)
+
+    for i in range(4):
+        axes[i].plot(t, motor_pos[i], label=f"motor {i}")
+        axes[i].set_ylabel("Δ pulses")
+        axes[i].grid(True)
+        axes[i].legend(fontsize=8)
+
+    axes[-1].set_xlabel("Time [s]")
+    plt.tight_layout()
+    fig.savefig(os.path.join(plot_dir, "motor_positions.png"), dpi=200)
+    plt.close(fig)
+
+    # Plot 3: motor currents
+    fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
+    fig.suptitle("Measured motor currents", fontsize=16)
+
+    for i in range(4):
+        axes[i].plot(t, currents[i], label=f"motor {i}")
+        axes[i].set_ylabel("current")
+        axes[i].grid(True)
+        axes[i].legend(fontsize=8)
+
+    axes[-1].set_xlabel("Time [s]")
+    plt.tight_layout()
+    fig.savefig(os.path.join(plot_dir, "motor_currents.png"), dpi=200)
+    plt.close(fig)
+
+    # Plot 4: gearbox state
+    fig, axes = plt.subplots(6, 1, figsize=(12, 13), sharex=True)
+    fig.suptitle("Gearbox prediction", fontsize=16)
+
+    for i in range(6):
+        axes[i].plot(t, gearbox[i], label=GEARBOX_LABELS[i])
+        axes[i].set_ylabel(GEARBOX_LABELS[i])
+        axes[i].grid(True)
+        axes[i].legend(fontsize=8)
+
+    axes[-1].set_xlabel("Time [s]")
+    plt.tight_layout()
+    fig.savefig(os.path.join(plot_dir, "gearbox_state.png"), dpi=200)
+    plt.close(fig)
+
+                # Plot 5: general DOF mapping overview
+    active_dof = None
+    for i in range(4):
+        if max(commanded[i]) - min(commanded[i]) > 0.01:
+            active_dof = i
+            break
+
+    active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown dof"
+
+    fig, axes = plt.subplots(4, 1, figsize=(14, 11), sharex=True)
+
+    fig.suptitle(f"Continuous sinusoid test: {active_dof_name}", fontsize=16)
+
+    fig.text(
+        0.5,
+        0.94,
+        "Overview: active command, measured motor positions, measured motor currents, and gearbox prediction.",
+        ha="center",
+        fontsize=10
+    )
+
+    # 1. Active command
+    if active_dof is not None:
+        axes[0].plot(
+            t,
+            commanded[active_dof],
+            label=f"requested {active_dof_name}",
+            linewidth=1.5
+        )
+
+        if current_angles[active_dof] and current_angles[active_dof][0] is not None:
+            axes[0].plot(
+                t,
+                current_angles[active_dof],
+                linestyle="--",
+                label=f"controller output {active_dof_name}",
+                linewidth=1.2
+            )
+
+    axes[0].set_title("Instrument command")
+    axes[0].set_ylabel("Command [rad]")
+    axes[0].grid(True)
+    axes[0].legend(fontsize=8)
+
+    # 2. All motor positions
+    for motor_index in range(4):
+        axes[1].plot(
+            t,
+            motor_pos[motor_index],
+            label=f"motor {motor_index}",
+            linewidth=1.3
+        )
+
+    axes[1].set_title("Measured motor positions")
+    axes[1].set_ylabel("Motor position\nΔ pulses")
+    axes[1].grid(True)
+    axes[1].legend(fontsize=8, ncol=4)
+
+    # 3. All motor currents
+    for motor_index in range(4):
+        axes[2].plot(
+            t,
+            currents[motor_index],
+            label=f"motor {motor_index}",
+            linewidth=1.0
+        )
+
+    axes[2].set_title("Measured motor currents")
+    axes[2].set_ylabel("Motor current\n[Pico units]")
+    axes[2].grid(True)
+    axes[2].legend(fontsize=8, ncol=4)
+
+    # 4. Relevant gearbox output
+    if active_dof == 3:
+        # dof4
+        axes[3].plot(t, gearbox[2], label="Gearbox prediction: inner shaft translation [mm]")
+        axes[3].set_ylabel("Translation [mm]")
+        axes[3].set_title("Gearbox output: predicted inner shaft translation")
+
+    elif active_dof == 2:
+        # dof3
+        axes[3].plot(t, gearbox[0], label="Gearbox prediction: inner shaft rotation [deg]")
+        axes[3].set_ylabel("Rotation [deg]")
+        axes[3].set_title("Gearbox output: predicted inner shaft rotation")
+
+    else:
+        # dof1/dof2
+        axes[3].plot(t, gearbox[3], label="Gearbox prediction: middle shaft rotation [deg]")
+        axes[3].plot(t, gearbox[4], label="Gearbox prediction: outer shaft rotation [deg]")
+        axes[3].plot(t, gearbox[5], label="Gearbox prediction: middle-outer relative rotation [deg]")
+        axes[3].set_ylabel("Rotation [deg]")
+        axes[3].set_title("Gearbox output: predicted shaft rotations")
+
+    axes[3].set_xlabel("Time [s]")
+    axes[3].grid(True)
+    axes[3].legend(fontsize=8)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.91])
+    fig.savefig(os.path.join(plot_dir, "overview.png"), dpi=200)
+    plt.close(fig)
+
+    print(f"Saved plots in: {plot_dir}")
 
 def plot_sequence(task_name, file_path):
     data = load_sequence_file(file_path)
@@ -629,4 +897,15 @@ elif PLOT_MODE == "duty_current":
     plot_duty_current()
     print("Duty-current plots saved.")
 
+elif PLOT_MODE == "continuous_dof":
+    files = get_continuous_files()
+
+    if not files:
+        print("No continuous files found.")
+
+    for file_path in files:
+        plot_continuous_file(file_path)
+
+    print("Continuous DOF plots saved.")
+    
 print("All plots saved.")

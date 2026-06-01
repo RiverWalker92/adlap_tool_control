@@ -96,6 +96,7 @@ target_include_directories(controller PUBLIC
 install(PROGRAMS
   scripts/tool_reader_node.py
   scripts/setup_test_runner_node.py
+  scripts/pattern_runner_node.py
   scripts/plot_trial.py
   DESTINATION lib/${PROJECT_NAME}
 )

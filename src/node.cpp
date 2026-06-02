@@ -7,6 +7,7 @@
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/int32_multi_array.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include <thread>
 
 
@@ -87,11 +88,13 @@ public:
         // instrument_controller_.manual_adjustment();
 
     led_control_subscription_ =
-        this->create_subscription<std_msgs::msg::String>(
+        this->create_subscription<std_msgs::msg::Bool>(
             "~" + LED_CONTROL_TOPIC,
             10,
-            std::bind(&ToolController::led_control_callback, this, std::placeholders::_1)
-        );
+            std::bind(
+                &ToolController::led_control_callback,
+                this,
+                std::placeholders::_1));
       }
       ~ToolController()
       {
@@ -225,12 +228,15 @@ public:
       motor_positions_publisher_->publish(position_msg);
   }
 
-  void led_control_callback(const std_msgs::msg::String::SharedPtr msg)
+  void led_control_callback(const std_msgs::msg::Bool::SharedPtr msg)
   {
-      std::string command = msg->data + "\n";
-      serial_->write_data(command);
-
-      RCLCPP_INFO(this->get_logger(), "Sent to Pico: '%s'", command.c_str());
+      if (msg->data) {
+          serial_->write_data("led 1\n");
+          RCLCPP_INFO(this->get_logger(), "LED ON command sent");
+      } else {
+          serial_->write_data("led 0\n");
+          RCLCPP_INFO(this->get_logger(), "LED OFF command sent");
+      }
   }
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
@@ -248,7 +254,7 @@ public:
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_positions_publisher_;
   rclcpp::TimerBase::SharedPtr motor_positions_timer_;
 
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr led_control_subscription_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr led_control_subscription_;
 
   std::shared_ptr<SerialPort> serial_;
   MotorController motor_controller;

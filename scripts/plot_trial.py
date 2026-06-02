@@ -5,6 +5,8 @@ import os
 
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
+VIDEO_DATA_FOLDER = "/home/leanne/ros2_ws/test_data/video_data"
+VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1529_angles.jsonl"
 
 sequence_tasks = [
     "coupling_sequence",
@@ -13,7 +15,7 @@ sequence_tasks = [
 ]
 
 continuous_time_filters = [
-    "20260601_16",
+    "20260602_16",
 ]
 
 GEARBOX_LABELS = [
@@ -77,12 +79,14 @@ def load_continuous_file(file_path):
     motor_pos = [[], [], [], []]
     currents = [[], [], [], []]
     gearbox = [[], [], [], [], [], []]
+    ros_timestamps = []
 
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
 
             t.append(data["time"])
+            ros_timestamps.append(data["ros_timestamp"])
 
             cmd = data.get("commanded_instrument_angles")
             cur_ang = data.get("current_instrument_angles")
@@ -102,9 +106,7 @@ def load_continuous_file(file_path):
             for i in range(6):
                 gearbox[i].append(gb[i])
 
-            for i in range(6):
-                gearbox[i].append(data["gearbox_state"][i])
-
+    motor_ros_t0 = ros_timestamps[0]
     t0 = t[0]
     t = [x - t0 for x in t]
 
@@ -131,7 +133,7 @@ def load_continuous_file(file_path):
         for k in range(6):
             gearbox[k] = [gearbox[k][i] for i in keep]
 
-    return t, commanded, current_angles, motor_pos, currents, gearbox
+    return t, commanded, current_angles, motor_pos, currents, gearbox, motor_ros_t0
 
 def get_continuous_files():
     files = []
@@ -159,6 +161,25 @@ def get_sequence_timestamp(file_path):
         return parts[-2] + "_" + parts[-1]
 
     return "unknown_time"
+
+def load_video_angle_file(file_path, motor_ros_t0):
+    t_video = []
+    relative_angle = []
+
+    with open(file_path, "r") as f:
+        for line in f:
+            data = json.loads(line)
+
+            ros_time = data.get("ros_time_s")
+            angle = data.get("relative_marker_to_shaft_angle_deg")
+
+            if ros_time is None or angle is None:
+                continue
+
+            t_video.append(ros_time - motor_ros_t0)
+            relative_angle.append(angle)
+
+    return t_video, relative_angle
 
 def load_sequence_file(file_path):
     print(f"Loading: {file_path}")
@@ -281,12 +302,20 @@ def compute_velocity(timestamps, positions, position_window=11, velocity_window=
     return velocities
 
 def plot_continuous_file(file_path):
-    t, commanded, current_angles, motor_pos, currents, gearbox = load_continuous_file(file_path)
+    t, commanded, current_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
 
     basename = os.path.basename(file_path).replace(".jsonl", "")
 
     plot_dir = os.path.join(CONTINUOUS_FOLDER, "plots", basename)
     os.makedirs(plot_dir, exist_ok=True)
+
+    video_t, video_angle = load_video_angle_file(
+        VIDEO_ANGLE_FILE,
+        motor_ros_t0
+    )
+    print("video samples:", len(video_t))
+    print("first video t:", video_t[:5])
+    print("first video angle:", video_angle[:5])
 
     # Plot 1: commanded vs current instrument angles
     fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
@@ -441,6 +470,14 @@ def plot_continuous_file(file_path):
         axes[3].plot(t, gearbox[5], label="Gearbox prediction: middle-outer relative rotation [deg]")
         axes[3].set_ylabel("Rotation [deg]")
         axes[3].set_title("Gearbox output: predicted shaft rotations")
+
+    axes[3].plot(
+        video_t,
+        video_angle,
+        linewidth=2,
+        linestyle="--",
+        label="video measured angle"
+    )
 
     axes[3].set_xlabel("Time [s]")
     axes[3].grid(True)

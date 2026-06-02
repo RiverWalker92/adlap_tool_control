@@ -97,6 +97,8 @@ install(PROGRAMS
   scripts/tool_reader_node.py
   scripts/setup_test_runner_node.py
   scripts/pattern_runner_node.py
+  scripts/gearbox_state_node.py
+  scripts/video_angle_detector.py
   scripts/plot_trial.py
   DESTINATION lib/${PROJECT_NAME}
 )

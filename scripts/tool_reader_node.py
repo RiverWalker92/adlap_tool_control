@@ -6,7 +6,7 @@ from datetime import datetime
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray, Int32MultiArray, String
+from std_msgs.msg import Float64MultiArray, Int32MultiArray, String, Bool
 
 
 
@@ -105,7 +105,7 @@ class ToolReader(Node):
         )
 
         self.led_sub = self.create_subscription(
-            String,
+            Bool,
             '/right/tool_control_node/led_control',
             self.led_callback,
             10

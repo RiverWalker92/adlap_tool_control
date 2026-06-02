@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray, String
+from std_msgs.msg import Float64MultiArray, String, Bool
 from pathlib import Path
 
 
@@ -44,7 +44,19 @@ class PatternRunner(Node):
             10,
         )
 
+        self.led_pub = self.create_publisher(
+            Bool,
+            "/right/tool_control_node/led_control",
+            10
+        )
+
         self.start_time = time.time()
+        led_msg = Bool()
+
+        self.led_pulse_start_delay = 1.0
+        self.led_pulse_duration = 2.0
+        self.led_on_sent = False
+        self.led_off_sent = False
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         test_name = self.generate_test_name()
@@ -125,7 +137,30 @@ class PatternRunner(Node):
 
     def timer_callback(self):
         t = time.time() - self.start_time
+        if not self.led_on_sent and t >= self.led_pulse_start_delay:
+            led_msg = Bool()
+            led_msg.data = True
+            self.led_pub.publish(led_msg)
+
+            self.led_on_sent = True
+            self.get_logger().info("LED ON")
+
+        if self.led_on_sent and not self.led_off_sent and t >= self.led_pulse_start_delay + self.led_pulse_duration:
+            led_msg = Bool()
+            led_msg.data = False
+            self.led_pub.publish(led_msg)
+
+            self.led_off_sent = True
+            self.get_logger().info("LED OFF")
+
         if t > self.duration:
+            led_msg = Bool()
+            led_msg.data = False
+
+            for _ in range(5):
+                self.led_pub.publish(led_msg)
+
+            self.get_logger().info("LED OFF at pattern end")
             self.get_logger().info("Pattern finished")
             self.destroy_timer(self.timer)
             return
@@ -151,6 +186,13 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
+        led_msg = Bool()
+        led_msg.data = False
+
+        for _ in range(5):
+            node.led_pub.publish(led_msg)
+            rclpy.spin_once(node, timeout_sec=0.05)
+
         node.destroy_node()
         rclpy.shutdown()
 

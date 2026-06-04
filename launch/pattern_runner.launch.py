@@ -22,6 +22,12 @@ def generate_launch_description():
             parameters=[str(params_file)],
             output="screen",
         ),
+        
+        Node(
+            package="adlap_tool_control",
+            executable="tool_reader_node.py",
+            output="screen",
+        ),
 
         Node(
             package="adlap_tool_control",
@@ -31,15 +37,10 @@ def generate_launch_description():
 
         Node(
             package="adlap_tool_control",
-            executable="tool_reader_node.py",
-            output="screen",
-        ),
-
-        Node(
-            package="adlap_tool_control",
-            executable="pattern_runner_node.py",
-            name="tool_controller_node",
-            parameters=[str(params_file)],
+            executable="instrument_state_node.py",
+            parameters=[
+                str(Path.home() / "ros2_ws/src/adlap_tool_control/config/instrument_state_node.yaml")
+            ],
             output="screen",
         ),
     ])

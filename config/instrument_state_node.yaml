@@ -1,0 +1,5 @@
+instrument_state_node:
+  ros__parameters:
+    gearbox_output_topic: "/right/tool_control_node/gearbox_state"
+    predicted_instrument_angles_topic: "/right/instrument_digital_twin/predicted_instrument_angles"
+    instrument_params_file: "/home/leanne/ros2_ws/src/adlap_tool_control/config/instruments/gripper_params.yaml"

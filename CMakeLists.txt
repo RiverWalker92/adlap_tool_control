@@ -98,6 +98,8 @@ install(PROGRAMS
   scripts/setup_test_runner_node.py
   scripts/pattern_runner_node.py
   scripts/gearbox_state_node.py
+  scripts/instrument_state_node.py
+  scripts/instrument_digital_twin.py
   scripts/video_angle_detector.py
   scripts/plot_trial.py
   DESTINATION lib/${PROJECT_NAME}

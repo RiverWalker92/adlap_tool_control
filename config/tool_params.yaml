@@ -20,7 +20,7 @@ tool_controller_node:
     dof2:
       mode: "sinusoid"
       value: 0.0
-      min: -0.35     
+      min: -0.25     
       max: 0.25    
       frequency: 0.1  
 

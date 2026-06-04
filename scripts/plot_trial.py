@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import json
+import numpy as np
 import matplotlib.pyplot as plt
 import os
 
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
 VIDEO_DATA_FOLDER = "/home/leanne/ros2_ws/test_data/video_data"
-VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1529_angles.jsonl"
+VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1566_angles.jsonl"
 
 sequence_tasks = [
     "coupling_sequence",
@@ -15,7 +16,8 @@ sequence_tasks = [
 ]
 
 continuous_time_filters = [
-    "20260602_16",
+    "20260604_1639",
+    # "20260604_151",
 ]
 
 GEARBOX_LABELS = [
@@ -79,6 +81,7 @@ def load_continuous_file(file_path):
     motor_pos = [[], [], [], []]
     currents = [[], [], [], []]
     gearbox = [[], [], [], [], [], []]
+    predicted_angles = [[], [], [], []]
     ros_timestamps = []
 
     with open(file_path, "r") as f:
@@ -93,8 +96,9 @@ def load_continuous_file(file_path):
             pos = data.get("measured_motor_positions")
             cur = data.get("measured_currents")
             gb = data.get("gearbox_state")
+            pred_ang = data.get("predicted_instrument_angles")
 
-            if cmd is None or pos is None or cur is None or gb is None:
+            if cmd is None or pos is None or cur is None or gb is None or pred_ang is None:
                 continue
 
             for i in range(4):
@@ -106,6 +110,9 @@ def load_continuous_file(file_path):
             for i in range(6):
                 gearbox[i].append(gb[i])
 
+            for i in range(4):
+                predicted_angles[i].append(pred_ang[i])
+
     motor_ros_t0 = ros_timestamps[0]
     t0 = t[0]
     t = [x - t0 for x in t]
@@ -113,6 +120,14 @@ def load_continuous_file(file_path):
     for i in range(4):
         p0 = motor_pos[i][0]
         motor_pos[i] = [p - p0 for p in motor_pos[i]]
+    
+    for i in range(4):
+        first_valid = next((v for v in predicted_angles[i] if v is not None), None)
+        if first_valid is not None:
+            predicted_angles[i] = [
+                v - first_valid if v is not None else None
+                for v in predicted_angles[i]
+            ]
 
     if TRIM_BY_DURATION:
         t_end = TRIM_DURATION + TRIM_MARGIN_AFTER
@@ -133,7 +148,10 @@ def load_continuous_file(file_path):
         for k in range(6):
             gearbox[k] = [gearbox[k][i] for i in keep]
 
-    return t, commanded, current_angles, motor_pos, currents, gearbox, motor_ros_t0
+        for k in range(4):
+            predicted_angles[k] = [predicted_angles[k][i] for i in keep]
+
+    return t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0
 
 def get_continuous_files():
     files = []
@@ -164,22 +182,30 @@ def get_sequence_timestamp(file_path):
 
 def load_video_angle_file(file_path, motor_ros_t0):
     t_video = []
-    relative_angle = []
-
+    video_angle = []
+    yellow_relative_angle = []
+    
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
 
             ros_time = data.get("ros_time_s")
-            angle = data.get("relative_marker_to_shaft_angle_deg")
+            red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
+            yellow_angle = data.get("yellow_gripper_opening_deg")
 
-            if ros_time is None or angle is None:
+            if ros_time is None:
+                continue
+            
+            t_rel = ros_time - motor_ros_t0
+
+            if t_rel < -1.0 or t_rel > TRIM_DURATION + 1.0:
                 continue
 
-            t_video.append(ros_time - motor_ros_t0)
-            relative_angle.append(angle)
+            t_video.append(t_rel)
+            video_angle.append(red_angle)
+            yellow_relative_angle.append(yellow_angle)
 
-    return t_video, relative_angle
+    return t_video, video_angle, yellow_relative_angle
 
 def load_sequence_file(file_path):
     print(f"Loading: {file_path}")
@@ -302,20 +328,12 @@ def compute_velocity(timestamps, positions, position_window=11, velocity_window=
     return velocities
 
 def plot_continuous_file(file_path):
-    t, commanded, current_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
+    t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
 
     basename = os.path.basename(file_path).replace(".jsonl", "")
 
     plot_dir = os.path.join(CONTINUOUS_FOLDER, "plots", basename)
     os.makedirs(plot_dir, exist_ok=True)
-
-    video_t, video_angle = load_video_angle_file(
-        VIDEO_ANGLE_FILE,
-        motor_ros_t0
-    )
-    print("video samples:", len(video_t))
-    print("first video t:", video_t[:5])
-    print("first video angle:", video_angle[:5])
 
     # Plot 1: commanded vs current instrument angles
     fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
@@ -387,14 +405,19 @@ def plot_continuous_file(file_path):
 
     active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown dof"
 
-    fig, axes = plt.subplots(4, 1, figsize=(14, 11), sharex=True)
+    video_t, video_angle, yellow_video_angle = load_video_angle_file(
+        VIDEO_ANGLE_FILE,
+        motor_ros_t0
+    )
+
+    fig, axes = plt.subplots(5, 1, figsize=(14, 13), sharex=True)
 
     fig.suptitle(f"Continuous sinusoid test: {active_dof_name}", fontsize=16)
 
     fig.text(
         0.5,
         0.94,
-        "Overview: active command, measured motor positions, measured motor currents, and gearbox prediction.",
+        "Overview: active command, measured motor positions, measured motor currents, gearbox prediction and predicted instrument angles.",
         ha="center",
         fontsize=10
     )
@@ -471,23 +494,127 @@ def plot_continuous_file(file_path):
         axes[3].set_ylabel("Rotation [deg]")
         axes[3].set_title("Gearbox output: predicted shaft rotations")
 
-    axes[3].plot(
-        video_t,
-        video_angle,
-        linewidth=2,
-        linestyle="--",
-        label="video measured angle"
-    )
+        # axes[3].plot(
+        #     video_t,
+        #     video_angle,
+        #     linewidth=2,
+        #     linestyle="--",
+        #     label="video measured angle"
+        # )
 
     axes[3].set_xlabel("Time [s]")
     axes[3].grid(True)
     axes[3].legend(fontsize=8)
+    # 5. Instrument DT prediction vs video measurement
+    if active_dof is not None:
+        predicted_deg = np.degrees(predicted_angles[active_dof])
+        commanded_deg = np.degrees(commanded[active_dof])
+        if active_dof == 3:
+            predicted_deg = predicted_deg
+
+        axes[4].plot(
+            t,
+            commanded_deg,
+            label=f"commanded {active_dof_name} [deg]",
+            linewidth=1.2,
+        )
+
+        axes[4].plot(
+            t,
+            predicted_deg,
+            label=f"instrument DT predicted {active_dof_name} [deg]",
+            linewidth=1.5,
+        )
+
+    # axes[4].plot(
+    #     video_t,
+    #     video_angle,
+    #     linestyle="--",
+    #     linewidth=2,
+    #     label="video measured angle [deg]",
+    # )
+
+    axes[4].plot(
+        video_t,
+        video_angle, # yellow_video_angle,
+        linestyle="--",
+        linewidth=2,
+        label="video measured gripper opening from red marker [deg]",
+    )
+
+    axes[4].set_title("Instrument output: DT prediction vs video measurement")
+    axes[4].set_ylabel("Angle [deg]")
+    axes[4].set_xlabel("Time [s]")
+    axes[4].grid(True)
+    axes[4].legend(fontsize=8)
 
     plt.tight_layout(rect=[0, 0, 1, 0.91])
     fig.savefig(os.path.join(plot_dir, "overview.png"), dpi=200)
     plt.close(fig)
 
+    if active_dof == 1:
+        plot_dof2_video_validation(
+            plot_dir,
+            t,
+            commanded,
+            current_angles,
+            motor_pos,
+            video_t,
+            video_angle
+        )
+        
     print(f"Saved plots in: {plot_dir}")
+
+def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos, video_t, video_angle):
+    motor2_minus_motor1 = [
+        m2 - m1 for m1, m2 in zip(motor_pos[1], motor_pos[2])
+    ]
+
+    fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
+    fig.suptitle("DOF2 validation: command, motor difference, and video angle", fontsize=16)
+
+    axes[0].plot(t, commanded[1], label="commanded dof2 / pitch [rad]")
+    axes[0].plot(t, current_angles[1], linestyle="--", label="current dof2 / pitch from motors [rad]")
+    axes[0].set_ylabel("Pitch [rad]")
+    axes[0].grid(True)
+    axes[0].legend(fontsize=8)
+
+    axes[1].plot(t, motor_pos[1], label="motor 1")
+    axes[1].plot(t, motor_pos[2], label="motor 2")
+    axes[1].plot(t, motor2_minus_motor1, linewidth=2, label="motor2 - motor1")
+    axes[1].set_ylabel("Δ pulses")
+    axes[1].grid(True)
+    axes[1].legend(fontsize=8)
+
+    pitch_deg = np.degrees(current_angles[1])
+    command_deg = np.degrees(commanded[1])
+    axes[2].plot(
+        t,
+        command_deg,
+        label="commanded pitch [deg]"
+    )
+
+    axes[2].plot(
+        t,
+        pitch_deg,
+        label="current pitch from motors [deg]"
+    )
+
+    axes[2].plot(
+        video_t,
+        video_angle,
+        "--",
+        linewidth=2,
+        label="video measured angle [deg]"
+    )
+
+    axes[2].set_ylabel("Angle [deg]")
+    axes[2].grid(True)
+    axes[2].legend(fontsize=8)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig(os.path.join(plot_dir, "dof2_video_validation.png"), dpi=200)
+    plt.close(fig)
 
 def plot_sequence(task_name, file_path):
     data = load_sequence_file(file_path)

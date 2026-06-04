@@ -1,0 +1,14 @@
+instrument:
+  bend_factor: 3.5 #1.5
+  articulation_factor: 16.0
+  # articulation_deg_per_mm: 4.0
+  #55 degrees of articulation at 6mm translation, so 55/6 = 9.1667 deg/mm
+  articulation_deg_per_mm: 9.1667
+  jaw_angle_deg_per_mm: 6 #9.1667 #18.333
+  jaw_opening_backlash_mm: 0.08
+  jaw_closing_backlash_mm: 0.05
+
+  shaft_roll_sign: 1.0
+  bend_sign: -1.0
+  tip_rotation_sign: 1.0
+  articulation_sign: 1.0

@@ -47,6 +47,7 @@ class ToolReader(Node):
         self.last_led_command = None
         self.start_time = self.get_clock().now().nanoseconds / 1e9
         self.last_gearbox_state = []
+        self.last_predicted_instrument_angles = []
 
         self.control_sub = self.create_subscription(
             String,
@@ -118,6 +119,13 @@ class ToolReader(Node):
             10
         )
 
+        self.predicted_instrument_sub = self.create_subscription(
+            Float64MultiArray,
+            '/right/instrument_digital_twin/predicted_instrument_angles',
+            self.predicted_instrument_callback,
+            10
+        )
+
         self.log_rate_hz = 100.0
         self.log_timer = self.create_timer(
             1.0 / self.log_rate_hz,
@@ -173,6 +181,12 @@ class ToolReader(Node):
         self.last_gearbox_state = list(msg.data)
         # self.print_and_log_state()
 
+    def predicted_instrument_callback(self, msg):
+        self.last_predicted_instrument_angles = list(msg.data)
+        self.get_logger().error(
+            f"PREDICTED CALLBACK FIRED: {self.last_predicted_instrument_angles}"
+        )
+
     def get_log_file(self, task):
         parts = task.split("|")
 
@@ -222,7 +236,8 @@ class ToolReader(Node):
                 "measured_currents": self.last_currents,
                 "motor_config": self.last_motor_config if self.last_motor_config else None,
                 "led_command": self.last_led_command,
-                "gearbox_state": self.last_gearbox_state if len(self.last_gearbox_state) == 6 else None
+                "gearbox_state": self.last_gearbox_state if len(self.last_gearbox_state) == 6 else None,
+                "predicted_instrument_angles": (self.last_predicted_instrument_angles if len(self.last_predicted_instrument_angles) == 4 else None),
             }
 
             sample["task"] = self.last_task

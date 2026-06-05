@@ -33,6 +33,23 @@ class GearboxDigitalTwin:
             config.get("linear_conversion", {}).get("inner_shaft_lead_mm_per_rotation")
             or 3.0
         )
+        linear_config = config.get("linear_conversion", {})
+
+        self.inner_shaft_translation_start_mm = linear_config.get(
+            "inner_shaft_translation_start_mm",
+            0.0,
+        )
+
+        self.inner_shaft_translation_min_mm = linear_config.get(
+            "inner_shaft_translation_min_mm",
+            None,
+        )
+
+        self.inner_shaft_translation_max_mm = linear_config.get(
+            "inner_shaft_translation_max_mm",
+            None,
+        )
+
         self.gear_l1_motor = mapping["gear_l1_motor"]
         self.gear_l2_motor = mapping["gear_l2_motor"]
         self.gear_r1_motor = mapping["gear_r1_motor"]
@@ -221,13 +238,32 @@ class GearboxDigitalTwin:
         #         min(6.0, inner_shaft_translation_mm_raw)
             # )
 
+        # inner_shaft_translation_mm_raw = (
+        #     inner_shaft_relative_rotation_deg / 360.0
+        #     * self.inner_shaft_lead_mm_per_rotation
+        # )
+
+        # inner_shaft_translation_mm = inner_shaft_translation_mm_raw
         inner_shaft_translation_mm_raw = (
-            inner_shaft_relative_rotation_deg / 360.0
+            self.inner_shaft_translation_start_mm
+            + inner_shaft_relative_rotation_deg / 360.0
             * self.inner_shaft_lead_mm_per_rotation
         )
 
         inner_shaft_translation_mm = inner_shaft_translation_mm_raw
-        
+
+        if self.inner_shaft_translation_min_mm is not None:
+            inner_shaft_translation_mm = max(
+                self.inner_shaft_translation_min_mm,
+                inner_shaft_translation_mm,
+            )
+
+        if self.inner_shaft_translation_max_mm is not None:
+            inner_shaft_translation_mm = min(
+                self.inner_shaft_translation_max_mm,
+                inner_shaft_translation_mm,
+            )
+                
         instrument_shaft_inputs = {
                 
             # Individual gear rotations

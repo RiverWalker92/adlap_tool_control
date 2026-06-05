@@ -3,9 +3,8 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
-import yaml
 from pathlib import Path
-from instrument_digital_twin import InstrumentDigitalTwin, InstrumentDigitalTwinParams
+from instrument_digital_twin import InstrumentDigitalTwin
 
 class InstrumentStateNode(Node):
     def __init__(self):
@@ -42,21 +41,7 @@ class InstrumentStateNode(Node):
             self.get_parameter("instrument_params_file").value
         )
 
-        with open(self.instrument_params_file, "r") as f:
-            config = yaml.safe_load(f)
-        instrument_config = config["instrument"]
-
-        self.instrument_dt = InstrumentDigitalTwin(
-            InstrumentDigitalTwinParams(
-                bend_factor=instrument_config["bend_factor"],
-                articulation_factor=instrument_config["articulation_factor"],
-                shaft_roll_sign=instrument_config["shaft_roll_sign"],
-                bend_sign=instrument_config["bend_sign"],                
-                tip_rotation_sign=instrument_config["tip_rotation_sign"],
-                articulation_sign=instrument_config["articulation_sign"],
-                jaw_angle_deg_per_mm=instrument_config["jaw_angle_deg_per_mm"],
-            )
-        )
+        self.instrument_dt = InstrumentDigitalTwin(config_path=self.instrument_params_file)
 
 
         self.predicted_pub = self.create_publisher(

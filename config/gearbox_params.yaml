@@ -14,12 +14,11 @@ gearbox:
 
   linear_conversion:
     inner_shaft_lead_mm_per_rotation: 3.0 #defined based on SW part
+    inner_shaft_rotation_start_mm: 3.0 
     inner_shaft_translation_min_mm: 0.0
     inner_shaft_translation_max_mm: 6.0 #is a bit of a guess, needs to be defined based on SW part
     # This is the maximum linear movement of gearbox not instrument, defined using the SW file of collet.
     inner_shaft_translation_zero_mm: 3.5 #defined based on measurements of inner axis. 
-  # backlash:
-  #   lower_motors_play_deg: 15
 
   backlash:
     gear_l1_backlash_pulses: 50

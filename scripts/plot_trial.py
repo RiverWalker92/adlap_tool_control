@@ -7,7 +7,7 @@ import os
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
 VIDEO_DATA_FOLDER = "/home/leanne/ros2_ws/test_data/video_data"
-VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1566_angles.jsonl"
+VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1591_angles.jsonl"
 
 sequence_tasks = [
     "coupling_sequence",
@@ -16,7 +16,7 @@ sequence_tasks = [
 ]
 
 continuous_time_filters = [
-    "20260604_1639",
+    "20260605_13",
     # "20260604_151",
 ]
 
@@ -533,14 +533,28 @@ def plot_continuous_file(file_path):
     #     linewidth=2,
     #     label="video measured angle [deg]",
     # )
+    if active_dof == 3:
+        video_data = yellow_video_angle
+        video_label = "video measured gripper opening [deg]"
+    else:
+        video_data = video_angle
+        video_label = "video measured bend angle [deg]"
 
     axes[4].plot(
         video_t,
-        video_angle, # yellow_video_angle,
-        linestyle="--",
+        video_data,
+        "--",
         linewidth=2,
-        label="video measured gripper opening from red marker [deg]",
+        label=video_label,
     )
+
+    # axes[4].plot(
+    #     video_t,
+    #     yellow_video_angle, # video_angle,
+    #     linestyle="--",
+    #     linewidth=2,
+    #     label="video measured gripper opening from yellow marker [deg]",
+    # )
 
     axes[4].set_title("Instrument output: DT prediction vs video measurement")
     axes[4].set_ylabel("Angle [deg]")
@@ -586,8 +600,11 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
     axes[1].grid(True)
     axes[1].legend(fontsize=8)
 
-    pitch_deg = np.degrees(current_angles[1])
-    command_deg = np.degrees(commanded[1])
+    pitch_rad = np.array(current_angles[1], dtype=float)
+    command_rad = np.array(commanded[1], dtype=float)
+
+    pitch_deg = np.degrees(pitch_rad)
+    command_deg = np.degrees(command_rad)
     axes[2].plot(
         t,
         command_deg,

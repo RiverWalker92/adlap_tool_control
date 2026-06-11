@@ -23,7 +23,7 @@ class PatternRunner(Node):
         )
         self.declare_parameter("topic", "/right/tool_control_node/instrument_angles")
         self.declare_parameter("publish_rate", 100.0)
-        self.declare_parameter("duration", 30.0)
+        self.declare_parameter("duration", 10.0)
         self.duration = float(self.get_parameter("duration").value)
 
         for i in range(1, 5):
@@ -34,10 +34,69 @@ class PatternRunner(Node):
             self.declare_parameter(f"{prefix}.max", 0.0)
             self.declare_parameter(f"{prefix}.frequency", 0.1)
 
+        # Generic sequence parameters for DOF2 and DOF4
+        for dof_name in ["dof2", "dof4"]:
+            self.declare_parameter(f"{dof_name}.sequence_modes", ["sinusoid", "triangle_mid"])
+            self.declare_parameter(f"{dof_name}.sequence_cycles", [5, 5])
+            self.declare_parameter(f"{dof_name}.sequence_pause_duration", 5.0)
+            self.declare_parameter(f"{dof_name}.sequence_pause_led_start", 1.0)
+            self.declare_parameter(f"{dof_name}.sequence_pause_led_duration", 2.0)
+
+        self.sequence_enabled = {}
+        self.sequence_modes = {}
+        self.sequence_cycles = {}
+        self.sequence_pause_duration = {}
+        self.sequence_pause_led_start = {}
+        self.sequence_pause_led_duration = {}
+
+        for dof_name in ["dof2", "dof4"]:
+            mode = self.get_parameter(f"{dof_name}.mode").value
+            self.sequence_enabled[dof_name] = mode == "sequence"
+
+            self.sequence_modes[dof_name] = list(
+                self.get_parameter(f"{dof_name}.sequence_modes").value
+            )
+
+            self.sequence_cycles[dof_name] = [
+                int(x) for x in self.get_parameter(f"{dof_name}.sequence_cycles").value
+            ]
+
+            self.sequence_pause_duration[dof_name] = float(
+                self.get_parameter(f"{dof_name}.sequence_pause_duration").value
+            )
+
+            self.sequence_pause_led_start[dof_name] = float(
+                self.get_parameter(f"{dof_name}.sequence_pause_led_start").value
+            )
+
+            self.sequence_pause_led_duration[dof_name] = float(
+                self.get_parameter(f"{dof_name}.sequence_pause_led_duration").value
+            )
+
+            if len(self.sequence_modes[dof_name]) != len(self.sequence_cycles[dof_name]):
+                raise ValueError(
+                    f"{dof_name}.sequence_modes and {dof_name}.sequence_cycles must have the same length"
+                )
+
+        self.sequence_led_active = False
+        self.active_sequence_dof = None
+
+        for dof_name in ["dof2", "dof4"]:
+            if self.sequence_enabled[dof_name]:
+                self.active_sequence_dof = dof_name
+                break
+        
         self.topic = self.get_parameter("topic").value
         self.publish_rate = self.get_parameter("publish_rate").value
 
-        self.dof4_active = self.get_parameter("dof4.mode").value != "constant"
+        # self.dof4_active = self.get_parameter("dof4.mode").value != "constant"
+        self.dof4_mode = self.get_parameter("dof4.mode").value
+        self.dof4_sequence_enabled = self.sequence_enabled["dof4"]
+
+        self.dof4_active = (
+            self.dof4_sequence_enabled
+            or self.dof4_mode != "constant"
+        )
         self.dof4_preroll_angle = 1.7 #90.0
         print("### USING PREROLL ANGLE =", self.dof4_preroll_angle, "###", flush=True)
         self.get_logger().info(f"DOF4 preroll angle: {self.dof4_preroll_angle}")
@@ -111,14 +170,17 @@ class PatternRunner(Node):
         for i in range(1, 5):
             mode = self.get_parameter(f"dof{i}.mode").value
 
-            if mode != "constant":
+            if mode == "sequence":
+                modes = list(self.get_parameter(f"dof{i}.sequence_modes").value)
+                active.append(f"dof{i}_sequence_{'_'.join(modes)}")
+            elif mode != "constant":
                 active.append(f"dof{i}_{mode}")
 
         if not active:
             return "all_constant"
 
         return "continuous_" + "_".join(active)
-
+        
     def compute_dof(self, dof_name, t):
         mode = self.get_parameter(f"{dof_name}.mode").value
         value = float(self.get_parameter(f"{dof_name}.value").value)
@@ -145,6 +207,96 @@ class PatternRunner(Node):
 
         self.get_logger().warn(f"Unknown mode '{mode}' for {dof_name}, using constant value")
         return value
+
+    def compute_dof_with_mode(self, dof_name, mode, t):
+        value = float(self.get_parameter(f"{dof_name}.value").value)
+        min_value = float(self.get_parameter(f"{dof_name}.min").value)
+        max_value = float(self.get_parameter(f"{dof_name}.max").value)
+        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+
+        if mode == "constant":
+            return value
+
+        if mode == "sinusoid":
+            offset = 0.5 * (max_value + min_value)
+            amplitude = 0.5 * (max_value - min_value)
+            return offset + amplitude * math.sin(2.0 * math.pi * frequency * t)
+
+        if mode == "triangle":
+            period = 1.0 / frequency
+            phase = (t % period) / period
+
+            if phase < 0.5:
+                return min_value + 2.0 * phase * (max_value - min_value)
+            else:
+                return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
+        
+        if mode == "triangle_mid":
+            period = 1.0 / frequency
+            phase = ((t % period) / period + 0.25) % 1.0
+
+            if phase < 0.5:
+                return min_value + 2.0 * phase * (max_value - min_value)
+            else:
+                return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
+        
+        self.get_logger().warn(f"Unknown mode '{mode}' for {dof_name}, using constant value")
+        return value
+
+
+    def compute_dof_sequence(self, dof_name, t):
+        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+        value = float(self.get_parameter(f"{dof_name}.value").value)
+
+        elapsed_in_sequence = t
+        self.sequence_led_active = False
+
+        for idx, (mode, cycles) in enumerate(
+            zip(self.sequence_modes[dof_name], self.sequence_cycles[dof_name])
+        ):
+            stage_duration = float(cycles) / frequency
+
+            # Motion stage
+            if elapsed_in_sequence <= stage_duration:
+                return self.compute_dof_with_mode(dof_name, mode, elapsed_in_sequence)
+
+            elapsed_in_sequence -= stage_duration
+
+            # Pause only between stages, not after the final stage
+            is_last_stage = idx == len(self.sequence_modes[dof_name]) - 1
+
+            if not is_last_stage:
+                pause_duration = self.sequence_pause_duration[dof_name]
+
+                if elapsed_in_sequence <= pause_duration:
+                    self.sequence_led_active = (
+                        self.sequence_pause_led_start[dof_name]
+                        <= elapsed_in_sequence
+                        <
+                        self.sequence_pause_led_start[dof_name]
+                        + self.sequence_pause_led_duration[dof_name]
+                    )
+
+                    # Hold still during pause
+                    return value
+
+                elapsed_in_sequence -= pause_duration
+
+        return None
+
+
+    def get_sequence_duration(self, dof_name):
+        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+
+        motion_duration = sum(
+            float(cycles) / frequency
+            for cycles in self.sequence_cycles[dof_name]
+        )
+
+        number_of_pauses = max(0, len(self.sequence_modes[dof_name]) - 1)
+        pause_duration = number_of_pauses * self.sequence_pause_duration[dof_name]
+
+        return motion_duration + pause_duration
 
     def timer_callback(self):
         elapsed = time.time() - self.start_time
@@ -278,7 +430,13 @@ class PatternRunner(Node):
 
             # Echte continuous test begint pas na LED uit
             t = elapsed - motion_start
-        if t > self.duration:
+
+        if self.active_sequence_dof is not None:
+            pattern_duration = self.get_sequence_duration(self.active_sequence_dof)
+        else:
+            pattern_duration = self.duration
+
+        if t > pattern_duration:
             led_msg = Bool()
             led_msg.data = False
 
@@ -290,11 +448,28 @@ class PatternRunner(Node):
             self.destroy_timer(self.timer)
             return
 
+        dof_values = {}
+
+        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
+            if self.sequence_enabled.get(dof_name, False):
+                dof_value = self.compute_dof_sequence(dof_name, t)
+
+                led_msg = Bool()
+                led_msg.data = self.sequence_led_active
+                self.led_pub.publish(led_msg)
+
+                if dof_value is None:
+                    dof_value = float(self.get_parameter(f"{dof_name}.value").value)
+            else:
+                dof_value = self.compute_dof(dof_name, t)
+
+            dof_values[dof_name] = dof_value
+
         values = [
-            self.compute_dof("dof1", t),
-            self.compute_dof("dof2", t),
-            self.dof4_preroll_angle if self.dof4_active else self.compute_dof("dof3", t),
-            self.compute_dof("dof4", t),
+            dof_values["dof1"],
+            dof_values["dof2"],
+            self.dof4_preroll_angle if self.dof4_active else dof_values["dof3"],
+            dof_values["dof4"],
         ]
 
         msg = Float64MultiArray()

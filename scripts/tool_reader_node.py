@@ -237,7 +237,8 @@ class ToolReader(Node):
                 "motor_config": self.last_motor_config if self.last_motor_config else None,
                 "led_command": self.last_led_command,
                 "gearbox_state": self.last_gearbox_state if len(self.last_gearbox_state) == 6 else None,
-                "predicted_instrument_angles": (self.last_predicted_instrument_angles if len(self.last_predicted_instrument_angles) == 4 else None),
+                "predicted_instrument_angles": (self.last_predicted_instrument_angles
+                    if self.last_predicted_instrument_angles else None),
             }
 
             sample["task"] = self.last_task

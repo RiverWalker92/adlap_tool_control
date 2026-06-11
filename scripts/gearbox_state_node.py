@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import json
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 
 from gearbox_digital_twin import GearboxDigitalTwin
 
@@ -37,6 +38,12 @@ class GearboxStateNode(Node):
         self.gearbox_state_pub = self.create_publisher(
             Float64MultiArray,
             "/right/tool_control_node/gearbox_state",
+            10,
+        )
+
+        self.gearbox_debug_pub = self.create_publisher(
+            String,
+            "/right/tool_control_node/gearbox_debug_state",
             10,
         )
 
@@ -76,6 +83,26 @@ class GearboxStateNode(Node):
 
         self.get_logger().info(f"Delta motor pulses: {delta_motor_pulses}")
         self.get_logger().info(f"Gearbox state: {out.data}")
+
+        debug = String()
+        debug.data = json.dumps({
+            "motor_delta_pulses": list(delta_motor_pulses),
+
+            "gear_l1_deg": state["gear_l1_deg"],
+            "gear_l2_deg": state["gear_l2_deg"],
+            "gear_r1_deg": state["gear_r1_deg"],
+            "gear_r2_deg": state["gear_r2_deg"],
+
+            "inner_shaft_rotation_deg": state["inner_shaft_rotation_deg"],
+            "inner_shaft_relative_rotation_deg": state["inner_shaft_relative_rotation_deg"],
+            "inner_shaft_translation_mm_raw": state["inner_shaft_translation_mm_raw"],
+            "inner_shaft_translation_mm": state["inner_shaft_translation_mm"],
+
+            "middle_shaft_rotation_deg": state["middle_shaft_rotation_deg"],
+            "outer_shaft_rotation_deg": state["outer_shaft_rotation_deg"],
+            "middle_outer_relative_rotation_deg": state["middle_outer_relative_rotation_deg"],
+        })
+        self.gearbox_debug_pub.publish(debug)
 
 
 def main(args=None):

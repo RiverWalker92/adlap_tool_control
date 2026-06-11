@@ -1,10 +1,11 @@
 
 #!/usr/bin/env python3
-
+import sys
+import cv2
 import cv2
 
-VIDEO = "/home/leanne/Downloads/IMG_1533.MOV"
-FRAME_TO_SELECT = 180
+VIDEO = "/home/leanne/sequence_DOF4_trial_03.mp4"
+FRAME_TO_SELECT = 10 #180
 SCALE = 0.35
 
 

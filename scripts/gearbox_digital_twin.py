@@ -2,10 +2,13 @@
 import yaml
 from pathlib import Path
 
-# This script defines a digital twin for the gearbox, which can be used to predict the state of the output shaft based on the raw motor encoder readings. This is a preliminary model and can be refined with physical calibration
+# This script defines a digital twin for the gearbox, 
+# which can be used to predict the state of the output shaft 
+# based on the raw motor encoder readings. 
+# This is a preliminary model and can be refined with physical calibration
 class GearboxDigitalTwin:
     def __init__(self, config_path="config/gearbox_params.yaml"):
-        # Load configuration from YAML file
+        # Load configuration from gearbox selection of YAML file
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)["gearbox"]
 
@@ -16,8 +19,11 @@ class GearboxDigitalTwin:
         self.upper_motors = config["motor_groups"]["upper_motors"]
         self.lower_motors = config["motor_groups"]["lower_motors"]
 
-        self.lower_play_deg = config["backlash"].get("lower_motors_play_deg", 0.0)        
+        # self.lower_play_deg = config["backlash"].get("lower_motors_play_deg", 0.0)        
+        # Load backlash compensation parameters for each gear.
+# The deadband avoids treating small encoder jitter as a real direction reversal.
         backlash = config["backlash"]
+        self.direction_deadband_pulses = backlash.get("direction_deadband_pulses", 5)
 
         self.gear_backlash_pulses = {
             "gear_l1": backlash.get("gear_l1_backlash_pulses", 0),
@@ -31,7 +37,6 @@ class GearboxDigitalTwin:
         
         self.inner_shaft_lead_mm_per_rotation = (
             config.get("linear_conversion", {}).get("inner_shaft_lead_mm_per_rotation")
-            or 3.0
         )
         linear_config = config.get("linear_conversion", {})
 
@@ -55,6 +60,7 @@ class GearboxDigitalTwin:
         self.gear_r1_motor = mapping["gear_r1_motor"]
         self.gear_r2_motor = mapping["gear_r2_motor"]
 
+        # Precompute how many encoder pulses correspond to one full gear rotation.
         self.pulses_per_upper_gear_rotation = (
             self.pulses_per_motor_rotation * self.upper_motor_factor
         )
@@ -62,7 +68,10 @@ class GearboxDigitalTwin:
         self.pulses_per_lower_gear_rotation = (
             self.pulses_per_motor_rotation * self.lower_motor_factor
         )
-    
+        # Store motion history for each gear.
+        # This is required because backlash depends on previous 
+        # direction and previous position.
+
         self.inner_shaft_translation_state = 0.0
         self.last_direction = {
             "gear_l1": 0,
@@ -92,18 +101,31 @@ class GearboxDigitalTwin:
             "gear_r2": 0.0,
         }
 
+        self.pending_direction = {
+            "gear_l1": 0,
+            "gear_l2": 0,
+            "gear_r1": 0,
+            "gear_r2": 0,
+        }
+
+        self.reversal_reference_pulses = {
+            "gear_l1": 0.0,
+            "gear_l2": 0.0,
+            "gear_r1": 0.0,
+            "gear_r2": 0.0,
+        }
+
+    # Apply a history-dependent backlash model.
+    # After a confirmed direction reversal, part of the motor 
+    # motion is lost before the gear output moves again.
+
     def apply_backlash(self, gear_name, current_pulses, backlash_pulses):
-        """
-        Simple backlash model:
-        the first part of the motion is lost in mechanical play.
-        Simple static deadband approximation.
-        Real backlash should only be applied after direction reversal.
-        """
         previous_input = self.last_input_pulses[gear_name]
         previous_output = self.last_output_pulses[gear_name]
         previous_direction = self.last_direction[gear_name]
-        delta = current_pulses - previous_input
 
+        delta = current_pulses - previous_input
+        #Determines movement direction
         if delta > 0:
             direction = 1
         elif delta < 0:
@@ -111,27 +133,52 @@ class GearboxDigitalTwin:
         else:
             return previous_output
 
-        if previous_direction != 0 and direction != previous_direction:
+        # First movement: no backlash yet, just follow input
+        if previous_direction == 0:
+            effective_output = previous_output + delta
+
+            self.last_input_pulses[gear_name] = current_pulses
+            self.last_output_pulses[gear_name] = effective_output
+            self.last_direction[gear_name] = direction
+            return effective_output
+
+        # Possible direction reversal
+        if direction != previous_direction:
+            # Start or update pending reversal
+            if self.pending_direction[gear_name] != direction:
+                self.pending_direction[gear_name] = direction
+                self.reversal_reference_pulses[gear_name] = previous_input
+
+            reversal_movement = abs(
+                current_pulses - self.reversal_reference_pulses[gear_name]
+            )
+
+            # Ignore tiny reversals as encoder jitter/noise.
+            if reversal_movement < self.direction_deadband_pulses:
+                return previous_output
+
+            # Real reversal confirmed: activate backlash
             self.remaining_backlash_pulses[gear_name] = backlash_pulses
+            self.last_direction[gear_name] = direction
+            self.pending_direction[gear_name] = 0
 
-        movement = abs(delta)
+            movement = reversal_movement
 
+        else:
+            # Same direction as before: normal movement
+            self.pending_direction[gear_name] = 0
+            movement = abs(delta)
+
+        # Apply remaining backlash if active
         if self.remaining_backlash_pulses[gear_name] > 0:
             lost = min(movement, self.remaining_backlash_pulses[gear_name])
             self.remaining_backlash_pulses[gear_name] -= lost
-            movement -= lost
+            movement_after_backlash = movement - lost
+        else:
+            movement_after_backlash = movement
 
-        effective_output = previous_output + direction * movement
-        if (
-            direction != 0
-            and self.last_direction[gear_name] != 0
-            and direction != self.last_direction[gear_name]
-        ):
-            print(
-                f"BACKLASH {gear_name}: "
-                f"dir {self.last_direction[gear_name]} -> {direction}"
-            )
-            
+        effective_output = previous_output + direction * movement_after_backlash
+
         self.last_input_pulses[gear_name] = current_pulses
         self.last_output_pulses[gear_name] = effective_output
         self.last_direction[gear_name] = direction
@@ -140,14 +187,15 @@ class GearboxDigitalTwin:
 
     def motor_delta_pulses_to_gear_degrees(self, delta_motor_pulses):
         """
-        Converts motor displacement relative to the start position to gear rotations.
+        Converts motor displacement relative to the start position
+        to gear rotations.
 
         Input:
             delta_motor_pulses = [dm0, dm1, dm2, dm3]
 
         Gear naming:
-            Left to right in gearbox:   left side = collet screw side
-                                        right side = instrument / outer shaft side
+            Left to right in gearbox: left side = collet screw side
+                                      right side = instrument / outer shaft side
             left side:  gear_l1, gear_l2
             right side: gear_r1, gear_r2
 
@@ -158,6 +206,7 @@ class GearboxDigitalTwin:
             gear_r2 <- dm2, lower/direct ratio
         """
         def motor_to_degrees(motor_index):
+            # not used now.
             factor = (
                 self.upper_motor_factor
                 if motor_index in self.upper_motors
@@ -171,11 +220,7 @@ class GearboxDigitalTwin:
             delta_motor_pulses[self.gear_l1_motor],
             self.gear_backlash_pulses["gear_l1"]
         )
-        # gear_l1_pulses = delta_motor_pulses[self.gear_l1_motor]
-        # gear_l2_pulses = delta_motor_pulses[self.gear_l2_motor]
-        # gear_r1_pulses = delta_motor_pulses[self.gear_r1_motor]
-        # gear_r2_pulses = delta_motor_pulses[self.gear_r2_motor]
-        
+
         gear_l2_pulses = self.apply_backlash(
             "gear_l2",
             delta_motor_pulses[self.gear_l2_motor],
@@ -203,18 +248,20 @@ class GearboxDigitalTwin:
 
     def predict_instrument_shaft_inputs(self, delta_motor_pulses):
         """
-        Converts motor encoder positions to the gearbox outputs that drive
-        the coupled instrument shafts.
+        Converts motor encoder positions to gearbox outputs.
 
-        This model describes only the gearbox/transmission output:
-            - inner shaft rotation
-            - inner shaft translation index
-            - middle shaft rotation
-            - outer shaft rotation
+        Gearbox/collet model:
+            gear_l1 = axially fixed collet/screw gear
+            gear_l2 = gear coupled to the inner shaft
 
-        Instrument-specific effects such as jaw opening, bending, or tip angle
-        are not included here.
+        Within the collet translation range:
+            gear_l1 - gear_l2 causes inner shaft translation
+
+        At a translation stop:
+            translation is clamped
+            extra gear_l1 motion is interpreted as shaft rotation
         """
+
         gears = self.motor_delta_pulses_to_gear_degrees(delta_motor_pulses)
 
         gear_l1 = gears["gear_l1_deg"]
@@ -222,34 +269,17 @@ class GearboxDigitalTwin:
         gear_r1 = gears["gear_r1_deg"]
         gear_r2 = gears["gear_r2_deg"]
 
-        inner_shaft_relative_rotation_deg = gear_l1 - gear_l2
+        # Raw screw/collet relation
+        inner_shaft_relative_rotation_deg_raw = gear_l1 - gear_l2
 
-        # inner_shaft_translation_mm_raw = (
-        #     None
-        #     if self.inner_shaft_lead_mm_per_rotation is None
-        #     else inner_shaft_relative_rotation_deg / 360.0 * self.inner_shaft_lead_mm_per_rotation
-        # )
-
-        # if inner_shaft_translation_mm_raw is None:
-        #     inner_shaft_translation_mm = None
-        # else:
-        #     inner_shaft_translation_mm = max(
-        #         0.0,
-        #         min(6.0, inner_shaft_translation_mm_raw)
-            # )
-
-        # inner_shaft_translation_mm_raw = (
-        #     inner_shaft_relative_rotation_deg / 360.0
-        #     * self.inner_shaft_lead_mm_per_rotation
-        # )
-
-        # inner_shaft_translation_mm = inner_shaft_translation_mm_raw
         inner_shaft_translation_mm_raw = (
             self.inner_shaft_translation_start_mm
-            + inner_shaft_relative_rotation_deg / 360.0
+            + inner_shaft_relative_rotation_deg_raw / 360.0
             * self.inner_shaft_lead_mm_per_rotation
         )
 
+        # Clamp the predicted translation to the physical min/max 
+        # travel of the collet mechanism.
         inner_shaft_translation_mm = inner_shaft_translation_mm_raw
 
         if self.inner_shaft_translation_min_mm is not None:
@@ -263,44 +293,63 @@ class GearboxDigitalTwin:
                 self.inner_shaft_translation_max_mm,
                 inner_shaft_translation_mm,
             )
-                
+
+        # Convert the physically possible translation back to effective relative rotation
+        if self.inner_shaft_lead_mm_per_rotation != 0:
+            inner_shaft_relative_rotation_deg = (
+                (inner_shaft_translation_mm - self.inner_shaft_translation_start_mm)
+                / self.inner_shaft_lead_mm_per_rotation
+                * 360.0
+            )
+        else:
+            inner_shaft_relative_rotation_deg = inner_shaft_relative_rotation_deg_raw
+
+        # Effective inner shaft rotation
+        # Inside translation range this equals gear_l2.
+        # At a stop, relative rotation is clamped, so gear_l1 motion
+        # becomes shaft rotation.
+        inner_shaft_rotation_deg_raw = gear_l2
+        inner_shaft_rotation_deg = gear_l1 - inner_shaft_relative_rotation_deg
+
+        inner_shaft_translation_blocked_mm = (
+            inner_shaft_translation_mm_raw - inner_shaft_translation_mm
+        )
+
+        collet_at_min_stop = (
+            self.inner_shaft_translation_min_mm is not None
+            and inner_shaft_translation_mm_raw < self.inner_shaft_translation_min_mm
+        )
+
+        collet_at_max_stop = (
+            self.inner_shaft_translation_max_mm is not None
+            and inner_shaft_translation_mm_raw > self.inner_shaft_translation_max_mm
+        )
+        # Return all gearbox output states 
+        # needed by the instrument Digital Twin layer.
         instrument_shaft_inputs = {
-                
             # Individual gear rotations
             "gear_l1_deg": gear_l1,
             "gear_l2_deg": gear_l2,
             "gear_r1_deg": gear_r1,
             "gear_r2_deg": gear_r2,
 
-            # Left gear block: inner shaft
-            # Positive = clockwise inner shaft rotation
-            "inner_shaft_rotation_deg": gear_l2, #0.5 * (gear_l1 + gear_l2),
+            # Left gear block / collet
+            "inner_shaft_rotation_deg_raw": inner_shaft_rotation_deg_raw,
+            "inner_shaft_rotation_deg": inner_shaft_rotation_deg,
 
-            # relative = gear_l1 - gear_l2
-            # translation_raw = relative / 360 * lead
-
-            # if translation_raw <= lower_stop:
-            #     translation = lower_stop
-            #     rotation = gear_l1   # of gear_l2, afhankelijk van sign
-            # elif translation_raw >= upper_stop:
-            #     translation = upper_stop
-            #     rotation = gear_l1   # of gear_l2
-            # else:
-            #     translation = translation_raw
-            #     rotation = previous_rotation
-
-            # m3 motion relative to m0 produces inner shaft translation.
-            # If m0 is stationary and m3 moves, this gives pure translation.
+            "inner_shaft_relative_rotation_deg_raw": inner_shaft_relative_rotation_deg_raw,
             "inner_shaft_relative_rotation_deg": inner_shaft_relative_rotation_deg,
+
             "inner_shaft_translation_mm_raw": inner_shaft_translation_mm_raw,
             "inner_shaft_translation_mm": inner_shaft_translation_mm,
+            "inner_shaft_translation_blocked_mm": inner_shaft_translation_blocked_mm,
 
-            # Right gear block: middle and outer shaft rotations
-            "middle_shaft_rotation_deg": gear_r1, #this one not included in instrument controller script
+            "collet_at_min_stop": collet_at_min_stop,
+            "collet_at_max_stop": collet_at_max_stop,
+
+            # Right gear block
+            "middle_shaft_rotation_deg": gear_r1,
             "outer_shaft_rotation_deg": gear_r2,
-
-            # Relative rotation between middle and outer shaft. = bend and rot instrument 
-            # Instrument effect depends on the coupled instrument.
             "middle_outer_relative_rotation_deg": gear_r1 - gear_r2,
         }
 

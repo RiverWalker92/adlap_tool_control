@@ -7,7 +7,9 @@ import os
 SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
 VIDEO_DATA_FOLDER = "/home/leanne/ros2_ws/test_data/video_data"
-VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1591_angles.jsonl"
+# VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1644_angles.jsonl"
+VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/sequence_DOF2_trial_05_angles.jsonl"
+
 
 sequence_tasks = [
     "coupling_sequence",
@@ -16,7 +18,7 @@ sequence_tasks = [
 ]
 
 continuous_time_filters = [
-    "20260605_13",
+    "20260611_145",
     # "20260604_151",
 ]
 
@@ -30,7 +32,7 @@ GEARBOX_LABELS = [
 ]
 
 TRIM_BY_DURATION = True
-TRIM_DURATION = 30.0
+TRIM_DURATION = 240
 TRIM_MARGIN_AFTER = 0.5
 
 # folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
@@ -81,15 +83,12 @@ def load_continuous_file(file_path):
     motor_pos = [[], [], [], []]
     currents = [[], [], [], []]
     gearbox = [[], [], [], [], [], []]
-    predicted_angles = [[], [], [], []]
+    predicted_angles = [[] for _ in range(8)]
     ros_timestamps = []
 
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
-
-            t.append(data["time"])
-            ros_timestamps.append(data["ros_timestamp"])
 
             cmd = data.get("commanded_instrument_angles")
             cur_ang = data.get("current_instrument_angles")
@@ -101,6 +100,9 @@ def load_continuous_file(file_path):
             if cmd is None or pos is None or cur is None or gb is None or pred_ang is None:
                 continue
 
+            t.append(data["time"])
+            ros_timestamps.append(data["ros_timestamp"])
+
             for i in range(4):
                 commanded[i].append(cmd[i])
                 current_angles[i].append(cur_ang[i] if cur_ang is not None else None)
@@ -110,8 +112,11 @@ def load_continuous_file(file_path):
             for i in range(6):
                 gearbox[i].append(gb[i])
 
-            for i in range(4):
-                predicted_angles[i].append(pred_ang[i])
+            for i in range(8):
+                if pred_ang is not None and len(pred_ang) > i:
+                    predicted_angles[i].append(pred_ang[i])
+                else:
+                    predicted_angles[i].append(None)
 
     motor_ros_t0 = ros_timestamps[0]
     t0 = t[0]
@@ -121,7 +126,7 @@ def load_continuous_file(file_path):
         p0 = motor_pos[i][0]
         motor_pos[i] = [p - p0 for p in motor_pos[i]]
     
-    for i in range(4):
+    for i in range(8):
         first_valid = next((v for v in predicted_angles[i] if v is not None), None)
         if first_valid is not None:
             predicted_angles[i] = [
@@ -148,7 +153,7 @@ def load_continuous_file(file_path):
         for k in range(6):
             gearbox[k] = [gearbox[k][i] for i in keep]
 
-        for k in range(4):
+        for k in range(8):
             predicted_angles[k] = [predicted_angles[k][i] for i in keep]
 
     return t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0
@@ -182,16 +187,33 @@ def get_sequence_timestamp(file_path):
 
 def load_video_angle_file(file_path, motor_ros_t0):
     t_video = []
-    video_angle = []
-    yellow_relative_angle = []
+    red_shaft_angle = []
+    jaw_angle = []
+    yellow_shaft_angle = []
+    # blue_shaft_angle = [] 
     
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
 
             ros_time = data.get("ros_time_s")
-            red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
-            yellow_angle = data.get("yellow_gripper_opening_deg")
+
+            red_angle = data.get("measured_angle_red_shaft_zeroed")
+            if red_angle is None:
+                red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
+            raw_red_shaft = data.get("measured_angle_red_shaft")
+
+            yellow_angle = data.get("measured_angle_yellow_shaft_zeroed")
+            if yellow_angle is None:
+                yellow_angle = data.get("yellow_relative_angle_zeroed_deg")
+            raw_yellow_shaft = data.get("measured_angle_yellow_shaft")
+
+            # blue_angle = data.get("measured_angle_blue_shaft_zeroed")
+            # if blue_angle is None:
+            #     blue_angle = data.get("blue_relative_angle_zeroed_deg")
+            # raw_blue_shaft = data.get("measured_angle_blue_shaft")
+
+            measured_jaw_angle = data.get("measured_angle_between_jaws")
 
             if ros_time is None:
                 continue
@@ -202,10 +224,17 @@ def load_video_angle_file(file_path, motor_ros_t0):
                 continue
 
             t_video.append(t_rel)
-            video_angle.append(red_angle)
-            yellow_relative_angle.append(yellow_angle)
+            red_shaft_angle.append(red_angle)
+            jaw_angle.append(measured_jaw_angle)
+            yellow_shaft_angle.append(yellow_angle)
+            # blue_shaft_angle.append(blue_angle)
 
-    return t_video, video_angle, yellow_relative_angle
+    print("video samples:", len(t_video))
+    print("valid red shaft angles:", sum(v is not None for v in red_shaft_angle))
+    print("valid jaw angles:", sum(v is not None for v in jaw_angle))
+    # print("valid yellow shaft angles:", sum(v is not None for v in yellow_shaft_angle))
+
+    return t_video, red_shaft_angle, jaw_angle, yellow_shaft_angle #yellow_shaft_angle
 
 def load_sequence_file(file_path):
     print(f"Loading: {file_path}")
@@ -405,14 +434,14 @@ def plot_continuous_file(file_path):
 
     active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown dof"
 
-    video_t, video_angle, yellow_video_angle = load_video_angle_file(
+    video_t, red_shaft_video_angle, jaw_video_angle, yellow_shaft_video_angle = load_video_angle_file(
         VIDEO_ANGLE_FILE,
         motor_ros_t0
     )
 
     fig, axes = plt.subplots(5, 1, figsize=(14, 13), sharex=True)
 
-    fig.suptitle(f"Continuous sinusoid test: {active_dof_name}", fontsize=16)
+    fig.suptitle(f"Continuous sequence sinusoid-triangle test: {active_dof_name}", fontsize=16)
 
     fig.text(
         0.5,
@@ -505,12 +534,108 @@ def plot_continuous_file(file_path):
     axes[3].set_xlabel("Time [s]")
     axes[3].grid(True)
     axes[3].legend(fontsize=8)
-    # 5. Instrument DT prediction vs video measurement
-    if active_dof is not None:
-        predicted_deg = np.degrees(predicted_angles[active_dof])
-        commanded_deg = np.degrees(commanded[active_dof])
-        if active_dof == 3:
-            predicted_deg = predicted_deg
+
+
+    # Plot 5. Instrument DT prediction vs video measurement
+        # Plot 5. Instrument DT prediction vs video measurement
+    if active_dof == 1:
+        # DOF2 / bending:
+        # Compare commanded bend, raw DT bend, backlash-corrected DT bend,
+        # pitch projection, and video red-marker-vs-shaft measurement.
+
+        commanded_bend_deg = np.degrees(np.array(commanded[1], dtype=float))
+        predicted_pitch_deg = np.degrees(np.array(predicted_angles[1], dtype=float))
+        predicted_bend_deg = np.degrees(np.array(predicted_angles[4], dtype=float))
+        raw_bend_deg = np.degrees(np.array(predicted_angles[5], dtype=float))
+
+        axes[4].plot(
+            t,
+            commanded_bend_deg,
+            label="commanded bend [deg]",
+            linewidth=1.2,
+        )
+
+        # axes[4].plot(
+        #     t,
+        #     raw_bend_deg,
+        #     label="DT raw bend before instrument backlash [deg]",
+        #     linewidth=1.2,
+        #     linestyle=":",
+        # )
+
+        axes[4].plot(
+            t,
+            predicted_bend_deg,
+            label="DT predicted bend after instrument backlash [deg]",
+            linewidth=1.5,
+        )
+
+        axes[4].plot(
+            t,
+            predicted_pitch_deg,
+            label="DT predicted pitch projection [deg]",
+            linewidth=1.2,
+            linestyle="-.",
+        )
+
+        axes[4].plot(
+            video_t,
+            red_shaft_video_angle,
+            "--",
+            linewidth=2,
+            label="video measured red marker vs shaft [deg]",
+        )
+
+    elif active_dof == 3:
+        # DOF4 / gripper:
+        # Compare commanded gripper output, DT gripper prediction,
+        # and different video measurements.
+
+        commanded_deg = np.degrees(np.array(commanded[3], dtype=float))
+        predicted_deg = np.degrees(np.array(predicted_angles[3], dtype=float))
+
+        axes[4].plot(
+            t,
+            commanded_deg,
+            label="commanded gripper/articulation [deg]",
+            linewidth=1.2,
+        )
+
+        axes[4].plot(
+            t,
+            predicted_deg,
+            label="instrument DT predicted gripper/articulation [deg]",
+            linewidth=1.5,
+        )
+
+        axes[4].plot(
+            video_t,
+            jaw_video_angle,
+            ".",
+            markersize=3,
+            label="video measured angle between jaws [deg]",
+        )
+
+        axes[4].plot(
+            video_t,
+            yellow_shaft_video_angle,
+            "--",
+            linewidth=1.5,
+            label="video measured yellow marker vs shaft [deg]",
+        )
+
+        axes[4].plot(
+            video_t,
+            red_shaft_video_angle,
+            "--",
+            linewidth=1.5,
+            label="video measured red marker vs shaft [deg]",
+        )
+
+    elif active_dof is not None:
+        # Fallback for DOF1/DOF3 or unknown active DOF.
+        predicted_deg = np.degrees(np.array(predicted_angles[active_dof], dtype=float))
+        commanded_deg = np.degrees(np.array(commanded[active_dof], dtype=float))
 
         axes[4].plot(
             t,
@@ -526,35 +651,13 @@ def plot_continuous_file(file_path):
             linewidth=1.5,
         )
 
-    # axes[4].plot(
-    #     video_t,
-    #     video_angle,
-    #     linestyle="--",
-    #     linewidth=2,
-    #     label="video measured angle [deg]",
-    # )
-    if active_dof == 3:
-        video_data = yellow_video_angle
-        video_label = "video measured gripper opening [deg]"
-    else:
-        video_data = video_angle
-        video_label = "video measured bend angle [deg]"
-
-    axes[4].plot(
-        video_t,
-        video_data,
-        "--",
-        linewidth=2,
-        label=video_label,
-    )
-
-    # axes[4].plot(
-    #     video_t,
-    #     yellow_video_angle, # video_angle,
-    #     linestyle="--",
-    #     linewidth=2,
-    #     label="video measured gripper opening from yellow marker [deg]",
-    # )
+        axes[4].plot(
+            video_t,
+            red_shaft_video_angle,
+            "--",
+            linewidth=2,
+            label="video measured red marker vs shaft [deg]",
+        )
 
     axes[4].set_title("Instrument output: DT prediction vs video measurement")
     axes[4].set_ylabel("Angle [deg]")
@@ -574,10 +677,65 @@ def plot_continuous_file(file_path):
             current_angles,
             motor_pos,
             video_t,
-            video_angle
+            red_shaft_video_angle
         )
-        
+    if active_dof == 3:
+        plot_gripper_video_measurements(
+            plot_dir,
+            video_t,
+            jaw_video_angle,
+            yellow_shaft_video_angle, #yellow_shaft_video_angle,
+            red_shaft_video_angle,
+        )    
     print(f"Saved plots in: {plot_dir}")
+
+def plot_gripper_video_measurements(
+    plot_dir,
+    video_t,
+    jaw_video_angle,
+    yellow_shaft_video_angle, #yellow_shaft_video_angle,
+    red_shaft_video_angle,
+):
+    fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
+    fig.suptitle("Gripper video measurements", fontsize=16)
+
+    axes[0].plot(
+        video_t,
+        jaw_video_angle,
+        "--",
+        linewidth=2,
+        label="measured jaw angle: yellow vs red [deg]",
+    )
+    axes[0].set_ylabel("Jaw angle [deg]")
+    axes[0].grid(True)
+    axes[0].legend(fontsize=8)
+
+    axes[1].plot(
+        video_t,
+        yellow_shaft_video_angle, #yellow_shaft_video_angle,
+        "--",
+        linewidth=2,
+        label="measured yellow marker vs shaft [deg]",
+    )
+    axes[1].set_ylabel("Yellow-shaft [deg]")
+    axes[1].grid(True)
+    axes[1].legend(fontsize=8)
+
+    axes[2].plot(
+        video_t,
+        red_shaft_video_angle,
+        "--",
+        linewidth=2,
+        label="measured red marker vs shaft [deg]",
+    )
+    axes[2].set_ylabel("Red-shaft [deg]")
+    axes[2].set_xlabel("Time [s]")
+    axes[2].grid(True)
+    axes[2].legend(fontsize=8)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig(os.path.join(plot_dir, "gripper_video_measurements.png"), dpi=200)
+    plt.close(fig)
 
 def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos, video_t, video_angle):
     motor2_minus_motor1 = [

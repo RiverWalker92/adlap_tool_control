@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-
+import sys
 import cv2
 import numpy as np
 import math
 import json
 from pathlib import Path
-
-VIDEO = "/home/leanne/Downloads/IMG_1638 1.MOV"
+VIDEO = "/home/leanne/ros2_ws/src/adlap_tool_control/sequence_DOF2_trial_05.mp4"
 VIDEO_PATH = Path(VIDEO)
-ACTIVE_DOF = 4  # 1, 2, 3, 4
+
+# if len(sys.argv) < 2:
+#     raise RuntimeError("Usage: python3 video_angle_detector.py <video_path>")
+
+# VIDEO = sys.argv[1]
+# VIDEO_PATH = Path(VIDEO)
+ACTIVE_DOF = 2  # 1, 2, 3, 4
 DOF_NAME = f"dof{ACTIVE_DOF}"
 
 USE_RED_MARKER = True
 USE_YELLOW_MARKER = True
-# USE_BLUE_MARKER = True
+USE_BLUE_MARKER = False
 USE_SHAFT = True
 
 OUTPUT_DIR = (
@@ -32,14 +37,20 @@ ROS_DATA_DIR = (
 )
 
 # LED_ROI = (2960, 930, 160, 160)
-LED_ROI = (2508, 828, 788, 660)
-MARKER_ROI = (485, 325, 1214, 1165)
+# LED_ROI = (1154, 560, 262, 200)
+LED_ROI= (1648, 720, 262, 160)
+ #(1514, 634, 265, 182)
+MARKER_ROI = (608, 537, 528, 297)
+SHAFT_ROI = (1228, 582, 691, 180)
+
 # BLUE_MARKER_ROI = (971, 654, 677, 594)
-SHAFT_ROI = (1585, 725, 2254, 400)
+# MARKER_ROI = (774, 528, 291, 200)
+# SHAFT_ROI = (1180, 582, 740, 122)
 
 
-LED_RED_PIXEL_THRESHOLD = 500
-MARKER_MIN_AREA = 100
+
+LED_RED_PIXEL_THRESHOLD = 100
+MARKER_MIN_AREA = 60
 SHAFT_MIN_POINTS = 50
 
 KERNEL = np.ones((5, 5), np.uint8)
@@ -107,9 +118,14 @@ def detect_red_marker_angle(frame):
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
     # Minder streng dan LED, want marker is tape
-    lower_red1 = np.array([0, 80, 80])
-    upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 80, 80])
+    # lower_red1 = np.array([0, 80, 80])
+    # upper_red1 = np.array([10, 255, 255])
+    # lower_red2 = np.array([170, 80, 80])
+    # upper_red2 = np.array([180, 255, 255])
+    
+    lower_red1 = np.array([0, 40, 40])
+    upper_red1 = np.array([15, 255, 255])
+    lower_red2 = np.array([165, 40, 40])
     upper_red2 = np.array([180, 255, 255])
 
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -183,48 +199,59 @@ def detect_yellow_marker_angle(frame):
 
     return angle, line
 
-# def detect_blue_marker_angle(frame):
-#     x, y, w, h = MARKER_ROI
-#     roi = frame[y:y+h, x:x+w]
+def detect_blue_marker_angle(frame):
+    x, y, w, h = MARKER_ROI
+    roi = frame[y:y+h, x:x+w]
 
-#     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
-#     lower_blue = np.array([85, 50, 50])
-#     upper_blue = np.array([110, 255, 255])
+    # lower_blue = np.array([95, 60, 80])
+    # upper_blue = np.array([115, 255, 255])
+    lower_blue = np.array([95, 40, 50])
+    upper_blue = np.array([120, 255, 255])
 
-#     mask = cv2.inRange(hsv, lower_blue, upper_blue)
 
-#     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, KERNEL)
-#     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, KERNEL)
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
 
-#     h_sub, w_sub = mask.shape
-#     points = []
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, KERNEL)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, KERNEL)
 
-#     margin = 10
-#     for x_col in range(margin, w_sub - margin):
-#         ys = np.where(mask[:, x_col] > 0)[0]
-#         if len(ys) > 0:
-#             y_edge = np.max(ys)  # onderste rand van blauwe marker
-#             points.append([x_col, y_edge])
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-#     if len(points) < MARKER_MIN_AREA:
-#         return np.nan, None
+    valid = []
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area < MARKER_MIN_AREA:
+            continue
 
-#     points = np.array(points, dtype=np.float32)
+        M = cv2.moments(c)
+        if M["m00"] == 0:
+            continue
 
-#     vx, vy, x0, y0 = cv2.fitLine(points, cv2.DIST_L2, 0, 0.01, 0.01)
-#     vx, vy, x0, y0 = vx.item(), vy.item(), x0.item(), y0.item()
+        cx = M["m10"] / M["m00"]
+        cy = M["m01"] / M["m00"]
 
-#     angle = normalize_angle_deg(math.degrees(math.atan2(vy, vx)))
+        valid.append((cx, area, c))
 
-#     line = {
-#         "vx": vx,
-#         "vy": vy,
-#         "x0_abs": x + x0,
-#         "y0_abs": y + y0,
-#     }
+    if not valid:
+        return np.nan, None
 
-#     return angle, line
+    # blauwe marker zit links in de marker ROI, dus kies de meest linkse geldige contour
+    _, _, marker = min(valid, key=lambda item: item[0])
+
+    vx, vy, x0, y0 = cv2.fitLine(marker, cv2.DIST_L2, 0, 0.01, 0.01)
+    vx, vy, x0, y0 = vx.item(), vy.item(), x0.item(), y0.item()
+
+    angle = normalize_angle_deg(math.degrees(math.atan2(vy, vx)))
+
+    line = {
+        "vx": vx,
+        "vy": vy,
+        "x0_abs": x + x0,
+        "y0_abs": y + y0,
+    }
+
+    return angle, line
 
 def detect_shaft_angle(frame):
     x, y, w, h = SHAFT_ROI
@@ -361,8 +388,8 @@ def main():
         if ACTIVE_DOF == 4:
 
             red_marker_angle, red_marker_line = detect_red_marker_angle(frame)
-            yellow_marker_angle, yellow_marker_line = detect_yellow_marker_angle(frame)
-            # blue_marker_angle, blue_marker_line = detect_blue_marker_angle(frame)
+            blue_marker_angle, blue_marker_line = np.nan, None
+            yellow_marker_angle, yellow_marker_line = detect_yellow_marker_angle(frame) 
             shaft_angle, shaft_line = detect_shaft_angle(frame)
 
         elif ACTIVE_DOF == 2:
@@ -371,7 +398,7 @@ def main():
             shaft_angle, shaft_line = detect_shaft_angle(frame)
 
             yellow_marker_angle, yellow_marker_line = np.nan, None
-            # blue_marker_angle, blue_marker_line = np.nan, None
+            blue_marker_angle, blue_marker_line = np.nan, None
 
         else:
 
@@ -406,6 +433,10 @@ def main():
 
             measured_angle_yellow_shaft = relative_angle_between(
                 yellow_marker_angle,
+                shaft_angle
+            )
+            measured_angle_blue_shaft = relative_angle_between(
+                blue_marker_angle,
                 shaft_angle
             )
 
@@ -445,13 +476,13 @@ def main():
             "red_marker_angle_deg": nan_to_none(red_marker_angle),
             "yellow_marker_angle_deg": nan_to_none(yellow_marker_angle),
             # "blue_marker_angle_deg": nan_to_none(blue_marker_angle),
-            # "relative_marker_to_shaft_angle_deg": nan_to_none(relative_angle),
-            # "yellow_relative_angle_deg": nan_to_none(yellow_relative_angle),
             "measured_angle_between_jaws": nan_to_none(measured_angle_between_jaws),
             # "measured_angle_yellow_blue": nan_to_none(measured_angle_yellow_blue),
             # "measured_angle_red_blue": nan_to_none(measured_angle_red_blue),
             "measured_angle_yellow_shaft": nan_to_none(measured_angle_yellow_shaft),
             "measured_angle_red_shaft": nan_to_none(measured_angle_red_shaft),
+            # "blue_marker_angle_deg": nan_to_none(blue_marker_angle),
+            # "measured_angle_blue_shaft": nan_to_none(measured_angle_blue_shaft),
         }
 
         records.append(record)
@@ -469,9 +500,9 @@ def main():
         cv2.rectangle(display, (x, y), (x+w, y+h), (255, 0, 0), 3)
 
         draw_line(display, red_marker_line, (0, 0, 255))
-        draw_line(display, shaft_line, (255, 0, 0))
+        draw_line(display, shaft_line, (0, 0, 0))
+        # draw_line(display, yellow_marker_line, (0, 255, 255))
         draw_line(display, yellow_marker_line, (0, 255, 255))
-        # draw_line(display, blue_marker_line, (255, 255, 0))
 
         cv2.putText(display, f"frame: {frame_idx}", (30, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
@@ -485,9 +516,20 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(display, f"yellow marker: {yellow_marker_angle:.2f}", (30, 250),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-        cv2.putText(display, f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}", (30, 290),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-
+        if measured_angle_yellow_shaft is not None:
+            cv2.putText(
+                display,
+                f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}",
+                (30, 290),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 255),
+                2,
+            )
+        # cv2.putText(display, f"blue marker: {blue_marker_angle:.2f}", (30, 250),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+        # cv2.putText(display, f"measured blue marker vs shaft angle: {measured_angle_blue_shaft:.2f}", (30, 290),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         small = cv2.resize(display, None, fx=0.35, fy=0.35)
 
         if debug_writer is None:
@@ -538,13 +580,38 @@ def main():
 
     print(f"Red start baseline: {red_start_baseline}")
 
+    # valid_blue_values = [
+    #     r["measured_angle_blue_shaft"]
+    #     for r in records
+    #     if r["measured_angle_blue_shaft"] is not None
+    #     and r["ros_time_s"] is not None
+    # ]
+
+    # if valid_blue_values:
+    #     blue_closed_baseline = float(np.percentile(valid_blue_values, 5))
+    # else:
+    #     blue_closed_baseline = None
+
+    # for r in records:
+    #     raw_blue = r["measured_angle_blue_shaft"]
+
+    #     if raw_blue is None or blue_closed_baseline is None:
+    #         r["measured_angle_blue_shaft_zeroed"] = None
+    #         r["blue_relative_angle_zeroed_deg"] = None
+    #         r["blue_gripper_opening_deg"] = None
+    #     else:
+    #         zeroed = raw_blue - blue_closed_baseline
+
+    #         r["measured_angle_blue_shaft_zeroed"] = zeroed
+    #         r["blue_relative_angle_zeroed_deg"] = zeroed
+    #         r["blue_gripper_opening_deg"] = max(0.0, zeroed)
+    # 
     valid_yellow_values = [
         r["measured_angle_yellow_shaft"]
         for r in records
         if r["measured_angle_yellow_shaft"] is not None
         and r["ros_time_s"] is not None
     ]
-
     if valid_yellow_values:
         yellow_closed_baseline = float(np.percentile(valid_yellow_values, 5))
     else:
@@ -569,6 +636,7 @@ def main():
             f.write(json.dumps(r) + "\n")
 
     print(f"Yellow closed baseline: {yellow_closed_baseline}")
+    # print(f"Blue closed baseline: {blue_closed_baseline}")
     if debug_writer is not None:
         debug_writer.release()
 

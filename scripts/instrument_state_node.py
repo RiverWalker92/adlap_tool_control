@@ -77,10 +77,14 @@ class InstrumentStateNode(Node):
 
         out = Float64MultiArray()
         out.data = [
-            float(predicted["tip_rotation"]),
-            float(predicted["pitch"]),
-            float(predicted["yaw"]),
-            float(predicted["articulation"]),
+            float(predicted["tip_rotation"]),       # 0
+            float(predicted["pitch"]),              # 1
+            float(predicted["yaw"]),                # 2
+            float(predicted["articulation"]),       # 3
+            float(predicted["bend"]),               # 4
+            float(predicted["raw_bend"]),           # 5
+            float(predicted["shaft_roll"]),         # 6
+            float(predicted["articulation_one_jaw"])# 7
         ]
 
         self.predicted_pub.publish(out)

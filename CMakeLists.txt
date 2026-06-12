@@ -102,6 +102,7 @@ install(PROGRAMS
   scripts/instrument_digital_twin.py
   scripts/video_angle_detector.py
   scripts/webcam_video_angle_detector.py
+  scripts/automated_trial_runner.py
   scripts/plot_trial.py
   DESTINATION lib/${PROJECT_NAME}
 )

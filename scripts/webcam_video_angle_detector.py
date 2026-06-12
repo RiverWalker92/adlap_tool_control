@@ -5,7 +5,7 @@ import numpy as np
 import math
 import json
 from pathlib import Path
-VIDEO = "/home/leanne/ros2_ws/src/adlap_tool_control/sequence_DOF2_trial_05.mp4"
+VIDEO = "/home/leanne/ros2_ws/sequence_DOF4_trial_14.mp4"
 VIDEO_PATH = Path(VIDEO)
 
 # if len(sys.argv) < 2:
@@ -13,7 +13,7 @@ VIDEO_PATH = Path(VIDEO)
 
 # VIDEO = sys.argv[1]
 # VIDEO_PATH = Path(VIDEO)
-ACTIVE_DOF = 2  # 1, 2, 3, 4
+ACTIVE_DOF = 4  # 1, 2, 3, 4
 DOF_NAME = f"dof{ACTIVE_DOF}"
 
 USE_RED_MARKER = True
@@ -41,7 +41,7 @@ ROS_DATA_DIR = (
 LED_ROI= (1648, 720, 262, 160)
  #(1514, 634, 265, 182)
 MARKER_ROI = (608, 537, 528, 297)
-SHAFT_ROI = (1228, 582, 691, 180)
+SHAFT_ROI = (1228, 582, 610, 180)
 
 # BLUE_MARKER_ROI = (971, 654, 677, 594)
 # MARKER_ROI = (774, 528, 291, 200)
@@ -135,12 +135,33 @@ def detect_red_marker_angle(frame):
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, KERNEL)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, KERNEL)
 
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_NONE
+    )
 
-    if not contours:
+    valid = []
+
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area < MARKER_MIN_AREA:
+            continue
+
+        x_box, y_box, w_box, h_box = cv2.boundingRect(c)
+
+        # Marker moet langwerpig zijn, geen brede schaduwvlek
+        aspect = max(w_box, h_box) / max(1, min(w_box, h_box))
+
+        if aspect < 2.0:
+            continue
+
+        valid.append((area, c))
+
+    if not valid:
         return np.nan, None
 
-    largest = max(contours, key=cv2.contourArea)
+    largest = max(valid, key=lambda item: item[0])[1]
     area = cv2.contourArea(largest)
 
     if area < MARKER_MIN_AREA:
@@ -313,7 +334,7 @@ def relative_angle_between(a, b):
         return np.nan
     return normalize_angle_deg(a - b)
 
-def main():
+def main(output_path_override=None, ros_log_path_override=None):
     cap = cv2.VideoCapture(VIDEO)
 
     if not cap.isOpened():
@@ -332,17 +353,25 @@ def main():
 
     video_stem = VIDEO_PATH.stem
 
-    output_path = (
-        OUTPUT_DIR
-        / f"{video_stem}_angles.jsonl"
-    )
+    if output_path_override is None:
+        output_path = OUTPUT_DIR / f"{video_stem}_angles.jsonl"
+    else:
+        output_path = Path(output_path_override)
 
     debug_video_path = OUTPUT_DIR / f"{video_stem}_{DOF_NAME}_debug.mp4"
     debug_frame_path = OUTPUT_DIR / f"{video_stem}_{DOF_NAME}_debug_frame.png"
 
+    open_jaws_debug_frame_saved = False
+    open_jaws_debug_frame_path = output_path.with_name(
+        output_path.stem + "_open_jaws_debug_frame.png"
+    )
+
     debug_writer = None
 
-    ros_log_path = find_latest_ros_log()
+    if ros_log_path_override is None:
+        ros_log_path = find_latest_ros_log()
+    else:
+        ros_log_path = Path(ros_log_path_override)
     motor_led_on_time_s = read_led_on_time_from_ros_log(ros_log_path)
     print(f"Using ROS log: {ros_log_path}")
     print(f"Motor LED ON time: {motor_led_on_time_s}")
@@ -532,6 +561,17 @@ def main():
         #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         small = cv2.resize(display, None, fx=0.35, fy=0.35)
 
+        if (
+            not open_jaws_debug_frame_saved
+            and measured_angle_yellow_shaft is not None
+            and not np.isnan(measured_angle_yellow_shaft)
+            and abs(measured_angle_yellow_shaft) > 3.0
+            and ros_time_s is not None
+        ):
+            cv2.imwrite(str(open_jaws_debug_frame_path), small)
+            print(f"Saved open jaws debug frame: {open_jaws_debug_frame_path}")
+            open_jaws_debug_frame_saved = True
+
         if debug_writer is None:
             height, width = small.shape[:2]
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -650,5 +690,34 @@ def main():
         duration = (led_off_frame - led_on_frame) / fps
         print(f"LED duration: {duration:.3f} s")
 
+def process_video(video_path, ros_log_path, dof, output_path):
+    global VIDEO, VIDEO_PATH, ACTIVE_DOF, DOF_NAME, OUTPUT_DIR
+
+    VIDEO = str(video_path)
+    VIDEO_PATH = Path(video_path)
+    ACTIVE_DOF = int(dof)
+    DOF_NAME = f"dof{ACTIVE_DOF}"
+    OUTPUT_DIR = Path(output_path).parent
+
+    main(
+        output_path_override=Path(output_path),
+        ros_log_path_override=Path(ros_log_path),
+    )
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video", required=True)
+    parser.add_argument("--ros-log", required=True)
+    parser.add_argument("--dof", type=int, choices=[2, 4], required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+
+    process_video(
+        video_path=args.video,
+        ros_log_path=args.ros_log,
+        dof=args.dof,
+        output_path=args.output,
+    )

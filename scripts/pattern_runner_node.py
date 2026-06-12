@@ -88,7 +88,18 @@ class PatternRunner(Node):
         
         self.topic = self.get_parameter("topic").value
         self.publish_rate = self.get_parameter("publish_rate").value
+        for i in range(1, 5):
+            mode = self.get_parameter(f"dof{i}.mode").value
+            value = self.get_parameter(f"dof{i}.value").value
+            min_value = self.get_parameter(f"dof{i}.min").value
+            max_value = self.get_parameter(f"dof{i}.max").value
+            frequency = self.get_parameter(f"dof{i}.frequency").value
 
+            self.get_logger().info(
+                f"Loaded dof{i}: mode={mode}, value={value}, "
+                f"min={min_value}, max={max_value}, frequency={frequency}"
+            )
+            
         # self.dof4_active = self.get_parameter("dof4.mode").value != "constant"
         self.dof4_mode = self.get_parameter("dof4.mode").value
         self.dof4_sequence_enabled = self.sequence_enabled["dof4"]
@@ -117,6 +128,7 @@ class PatternRunner(Node):
         )
 
         self.start_time = time.time()
+        self.finished = False
         led_msg = Bool()
 
         self.led_pulse_start_delay = 1.0
@@ -445,7 +457,14 @@ class PatternRunner(Node):
 
             self.get_logger().info("LED OFF at pattern end")
             self.get_logger().info("Pattern finished")
-            self.destroy_timer(self.timer)
+
+            self.finished = True
+
+            try:
+                self.destroy_timer(self.timer)
+            except Exception:
+                pass
+
             return
 
         dof_values = {}
@@ -475,25 +494,30 @@ class PatternRunner(Node):
         msg = Float64MultiArray()
         msg.data = values
         self.pub.publish(msg)
+
 def main(args=None):
     rclpy.init(args=args)
     node = PatternRunner()
 
     try:
-        rclpy.spin(node)
+        while rclpy.ok() and not node.finished:
+            rclpy.spin_once(node, timeout_sec=0.1)
+
     except KeyboardInterrupt:
         pass
+
     finally:
         led_msg = Bool()
         led_msg.data = False
 
-        for _ in range(5):
+        for _ in range(10):
             node.led_pub.publish(led_msg)
             rclpy.spin_once(node, timeout_sec=0.05)
 
         node.destroy_node()
-        rclpy.shutdown()
 
+        if rclpy.ok():
+            rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ SEQUENCE_FOLDER = "/home/leanne/ros2_ws/test_data/unstructured"
 CONTINUOUS_FOLDER = "/home/leanne/ros2_ws/test_data/setup_03/gearbox_instrument"
 VIDEO_DATA_FOLDER = "/home/leanne/ros2_ws/test_data/video_data"
 # VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/IMG_1644_angles.jsonl"
-VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/sequence_DOF2_trial_05_angles.jsonl"
+VIDEO_ANGLE_FILE = "/home/leanne/ros2_ws/test_data/video_data/sequence_DOF4_trial_14_angles.jsonl"
 
 
 sequence_tasks = [
@@ -18,7 +18,7 @@ sequence_tasks = [
 ]
 
 continuous_time_filters = [
-    "20260611_145",
+    "20260612_0954",
     # "20260604_151",
 ]
 
@@ -356,14 +356,21 @@ def compute_velocity(timestamps, positions, position_window=11, velocity_window=
 
     return velocities
 
-def plot_continuous_file(file_path):
+def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
     t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
-
+    
     basename = os.path.basename(file_path).replace(".jsonl", "")
 
-    plot_dir = os.path.join(CONTINUOUS_FOLDER, "plots", basename)
-    os.makedirs(plot_dir, exist_ok=True)
+    # Example:
+    # file_path = .../continuous_dof4_sequence_sinusoid_triangle/trial_01_20260612_154840.jsonl
+    pattern_name = os.path.basename(os.path.dirname(file_path))
 
+    if output_dir is None:
+        plot_dir = os.path.join(CONTINUOUS_FOLDER, "plots", basename)
+    else:
+        plot_dir = output_dir
+
+    os.makedirs(plot_dir, exist_ok=True)
     # Plot 1: commanded vs current instrument angles
     fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
     fig.suptitle("Instrument angles: commanded vs current", fontsize=16)
@@ -434,8 +441,11 @@ def plot_continuous_file(file_path):
 
     active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown dof"
 
+    if video_angle_file is None:
+        video_angle_file = VIDEO_ANGLE_FILE
+
     video_t, red_shaft_video_angle, jaw_video_angle, yellow_shaft_video_angle = load_video_angle_file(
-        VIDEO_ANGLE_FILE,
+        video_angle_file,
         motor_ros_t0
     )
 
@@ -616,21 +626,21 @@ def plot_continuous_file(file_path):
             label="video measured angle between jaws [deg]",
         )
 
-        axes[4].plot(
-            video_t,
-            yellow_shaft_video_angle,
-            "--",
-            linewidth=1.5,
-            label="video measured yellow marker vs shaft [deg]",
-        )
+        # axes[4].plot(
+        #     video_t,
+        #     yellow_shaft_video_angle,
+        #     "--",
+        #     linewidth=1.5,
+        #     label="video measured yellow marker vs shaft [deg]",
+        # )
 
-        axes[4].plot(
-            video_t,
-            red_shaft_video_angle,
-            "--",
-            linewidth=1.5,
-            label="video measured red marker vs shaft [deg]",
-        )
+        # axes[4].plot(
+        #     video_t,
+        #     red_shaft_video_angle,
+        #     "--",
+        #     linewidth=1.5,
+        #     label="video measured red marker vs shaft [deg]",
+        # )
 
     elif active_dof is not None:
         # Fallback for DOF1/DOF3 or unknown active DOF.
@@ -666,6 +676,12 @@ def plot_continuous_file(file_path):
     axes[4].legend(fontsize=8)
 
     plt.tight_layout(rect=[0, 0, 1, 0.91])
+    safe_pattern_name = pattern_name.replace("/", "_").replace("|", "_").replace(" ", "_")
+    safe_active_dof_name = active_dof_name.replace(" ", "_")
+
+    overview_filename = f"overview_{safe_pattern_name}_{safe_active_dof_name}.png"
+
+    fig.savefig(os.path.join(plot_dir, overview_filename), dpi=200)
     fig.savefig(os.path.join(plot_dir, "overview.png"), dpi=200)
     plt.close(fig)
 
@@ -1208,43 +1224,60 @@ def plot_small_vs_medium(trial_number):
 
 
 
-if PLOT_MODE == "idle":
-    for trial_number in trial_numbers:
-        plot_idle_baseline(trial_number)
-    print("Idle baseline plots saved.")
+# if PLOT_MODE == "idle":
+#     for trial_number in trial_numbers:
+#         plot_idle_baseline(trial_number)
+#     print("Idle baseline plots saved.")
 
-elif PLOT_MODE == "test_type":
-    for trial_number in trial_numbers:
-        for test_type in test_types:
-            plot_test_type(test_type, trial_number)
-    print("Test type plots saved.")
+# elif PLOT_MODE == "test_type":
+#     for trial_number in trial_numbers:
+#         for test_type in test_types:
+#             plot_test_type(test_type, trial_number)
+#     print("Test type plots saved.")
 
-elif PLOT_MODE == "small_vs_medium":
-    for trial_number in trial_numbers:
-        plot_small_vs_medium(trial_number)
-    print("Small vs medium comparison plots saved.")
+# elif PLOT_MODE == "small_vs_medium":
+#     for trial_number in trial_numbers:
+#         plot_small_vs_medium(trial_number)
+#     print("Small vs medium comparison plots saved.")
 
-elif PLOT_MODE == "sequence":
-    for task_name in sequence_tasks:
-        files = get_sequence_files(task_name)
+# elif PLOT_MODE == "sequence":
+#     for task_name in sequence_tasks:
+#         files = get_sequence_files(task_name)
 
-        for file_path in files:
-            plot_sequence(task_name, file_path)
-    print("Sequence plots saved.")
+#         for file_path in files:
+#             plot_sequence(task_name, file_path)
+#     print("Sequence plots saved.")
 
-elif PLOT_MODE == "duty_current":
-    plot_duty_current()
-    print("Duty-current plots saved.")
+# elif PLOT_MODE == "duty_current":
+#     plot_duty_current()
+#     print("Duty-current plots saved.")
 
-elif PLOT_MODE == "continuous_dof":
-    files = get_continuous_files()
+# elif PLOT_MODE == "continuous_dof":
+#     files = get_continuous_files()
 
-    if not files:
-        print("No continuous files found.")
+#     if not files:
+#         print("No continuous files found.")
 
-    for file_path in files:
-        plot_continuous_file(file_path)
+#     for file_path in files:
+#         plot_continuous_file(file_path)
 
-    print("Continuous DOF plots saved.")
+#     print("Continuous DOF plots saved.")
     
-print("All plots saved.")
+# print("All plots saved.")
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file", required=True)
+    parser.add_argument("--video-angles", default=None)
+    parser.add_argument("--output-dir", default=None)
+    args = parser.parse_args()
+
+    plot_continuous_file(
+        file_path=args.file,
+        video_angle_file=args.video_angles,
+        output_dir=args.output_dir,
+    )
+
+    print("All plots saved.")

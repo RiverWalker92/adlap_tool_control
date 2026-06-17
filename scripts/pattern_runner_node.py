@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from std_msgs.msg import Float64MultiArray, String, Bool
 from pathlib import Path
 
@@ -36,47 +37,104 @@ class PatternRunner(Node):
 
         # Generic sequence parameters for DOF2 and DOF4
         for dof_name in ["dof2", "dof4"]:
-            self.declare_parameter(f"{dof_name}.sequence_modes", ["sinusoid", "triangle_mid"])
-            self.declare_parameter(f"{dof_name}.sequence_cycles", [5, 5])
-            self.declare_parameter(f"{dof_name}.sequence_pause_duration", 5.0)
-            self.declare_parameter(f"{dof_name}.sequence_pause_led_start", 1.0)
-            self.declare_parameter(f"{dof_name}.sequence_pause_led_duration", 2.0)
+            self.declare_parameter(f"{dof_name}.sequence_modes")
+            self.declare_parameter(f"{dof_name}.sequence_cycles")
+            self.declare_parameter(f"{dof_name}.sequence_pause_duration")
+            self.declare_parameter(f"{dof_name}.sequence_pause_led_start")
+            self.declare_parameter(f"{dof_name}.sequence_pause_led_duration")
 
+            self.declare_parameter(f"{dof_name}.sequence_frequency_factors")
+            self.declare_parameter(f"{dof_name}.sequence_between_frequency_pause")
+
+            self.declare_parameter(f"{dof_name}.sequence_range_factors")
+            self.declare_parameter(f"{dof_name}.sequence_between_range_pause")
+        
         self.sequence_enabled = {}
         self.sequence_modes = {}
         self.sequence_cycles = {}
         self.sequence_pause_duration = {}
         self.sequence_pause_led_start = {}
         self.sequence_pause_led_duration = {}
+        self.sequence_frequency_factors = {}
+        self.sequence_between_frequency_pause = {}
+        self.sequence_range_factors = {}
+        self.sequence_between_range_pause = {}
 
         for dof_name in ["dof2", "dof4"]:
             mode = self.get_parameter(f"{dof_name}.mode").value
             self.sequence_enabled[dof_name] = mode == "sequence"
 
-            self.sequence_modes[dof_name] = list(
-                self.get_parameter(f"{dof_name}.sequence_modes").value
-            )
-
-            self.sequence_cycles[dof_name] = [
-                int(x) for x in self.get_parameter(f"{dof_name}.sequence_cycles").value
-            ]
-
-            self.sequence_pause_duration[dof_name] = float(
-                self.get_parameter(f"{dof_name}.sequence_pause_duration").value
-            )
-
-            self.sequence_pause_led_start[dof_name] = float(
-                self.get_parameter(f"{dof_name}.sequence_pause_led_start").value
-            )
-
-            self.sequence_pause_led_duration[dof_name] = float(
-                self.get_parameter(f"{dof_name}.sequence_pause_led_duration").value
-            )
-
-            if len(self.sequence_modes[dof_name]) != len(self.sequence_cycles[dof_name]):
-                raise ValueError(
-                    f"{dof_name}.sequence_modes and {dof_name}.sequence_cycles must have the same length"
+            if self.sequence_enabled[dof_name]:
+                self.sequence_modes[dof_name] = list(
+                    self.get_required_parameter_value(f"{dof_name}.sequence_modes")
                 )
+
+                self.sequence_cycles[dof_name] = [
+                    int(x)
+                    for x in self.get_required_parameter_value(f"{dof_name}.sequence_cycles")
+                ]
+
+                self.sequence_pause_duration[dof_name] = float(
+                    self.get_required_parameter_value(f"{dof_name}.sequence_pause_duration")
+                )
+
+                self.sequence_pause_led_start[dof_name] = float(
+                    self.get_required_parameter_value(f"{dof_name}.sequence_pause_led_start")
+                )
+
+                self.sequence_pause_led_duration[dof_name] = float(
+                    self.get_required_parameter_value(f"{dof_name}.sequence_pause_led_duration")
+                )
+
+                self.sequence_frequency_factors[dof_name] = [
+                    float(x)
+                    for x in self.get_required_parameter_value(
+                        f"{dof_name}.sequence_frequency_factors"
+                    )
+                ]
+
+                self.sequence_between_frequency_pause[dof_name] = float(
+                    self.get_required_parameter_value(
+                        f"{dof_name}.sequence_between_frequency_pause"
+                    )
+                )
+
+                self.sequence_range_factors[dof_name] = [
+                    float(x)
+                    for x in self.get_required_parameter_value(
+                        f"{dof_name}.sequence_range_factors"
+                    )
+                ]
+
+                self.sequence_between_range_pause[dof_name] = float(
+                    self.get_required_parameter_value(
+                        f"{dof_name}.sequence_between_range_pause"
+                    )
+                )
+
+                if len(self.sequence_modes[dof_name]) != len(self.sequence_cycles[dof_name]):
+                    raise ValueError(
+                        f"{dof_name}.sequence_modes and {dof_name}.sequence_cycles must have the same length"
+                    )
+
+                self.get_logger().info(
+                    f"Loaded {dof_name} sequence: "
+                    f"modes={self.sequence_modes[dof_name]}, "
+                    f"cycles={self.sequence_cycles[dof_name]}, "
+                    f"frequency_factors={self.sequence_frequency_factors[dof_name]}, "
+                    f"range_factors={self.sequence_range_factors[dof_name]}"
+                )
+
+            else:
+                self.sequence_modes[dof_name] = []
+                self.sequence_cycles[dof_name] = []
+                self.sequence_pause_duration[dof_name] = 0.0
+                self.sequence_pause_led_start[dof_name] = 0.0
+                self.sequence_pause_led_duration[dof_name] = 0.0
+                self.sequence_frequency_factors[dof_name] = []
+                self.sequence_between_frequency_pause[dof_name] = 0.0
+                self.sequence_range_factors[dof_name] = []
+                self.sequence_between_range_pause[dof_name] = 0.0
 
         self.sequence_led_active = False
         self.active_sequence_dof = None
@@ -167,6 +225,16 @@ class PatternRunner(Node):
         self.get_logger().info(f"Publish rate: {self.publish_rate} Hz")
         self.get_logger().info(f"task label: {task.data}")
     
+    def get_required_parameter_value(self, parameter_name):
+        parameter = self.get_parameter(parameter_name)
+
+        if parameter.type_ == Parameter.Type.NOT_SET:
+            raise RuntimeError(
+                f"Required parameter '{parameter_name}' is missing from tool_params.yaml"
+            )
+
+        return parameter.value
+
     def publish_task_label_repeatedly(self):
         if self.task_publish_count >= 10:
             self.destroy_timer(self.task_timer)
@@ -184,7 +252,28 @@ class PatternRunner(Node):
 
             if mode == "sequence":
                 modes = list(self.get_parameter(f"dof{i}.sequence_modes").value)
-                active.append(f"dof{i}_sequence_{'_'.join(modes)}")
+                frequency_factors = list(
+                    self.get_parameter(f"dof{i}.sequence_frequency_factors").value
+                )
+                range_factors = list(
+                    self.get_parameter(f"dof{i}.sequence_range_factors").value
+                )
+
+                frequency_text = "_".join(
+                    f"{float(f):.1f}".replace(".", "p")
+                    for f in frequency_factors
+                )
+
+                range_text = "_".join(
+                    f"{float(r):.1f}".replace(".", "p")
+                    for r in range_factors
+                )
+
+                active.append(
+                    f"dof{i}_sequence_{'_'.join(modes)}"
+                    f"_freqx{frequency_text}"
+                    f"_rangex{range_text}"
+                )
             elif mode != "constant":
                 active.append(f"dof{i}_{mode}")
 
@@ -220,11 +309,31 @@ class PatternRunner(Node):
         self.get_logger().warn(f"Unknown mode '{mode}' for {dof_name}, using constant value")
         return value
 
-    def compute_dof_with_mode(self, dof_name, mode, t):
+    def compute_dof_with_mode(
+        self,
+        dof_name,
+        mode,
+        t,
+        frequency_override=None,
+        range_factor_override=None,
+    ):
         value = float(self.get_parameter(f"{dof_name}.value").value)
         min_value = float(self.get_parameter(f"{dof_name}.min").value)
         max_value = float(self.get_parameter(f"{dof_name}.max").value)
-        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+
+        if range_factor_override is not None:
+            range_factor = float(range_factor_override)
+
+            # Scale motion range around the neutral value.
+            # For DOF4 with value=0, min=0, max=0.4:
+            # range_factor 0.5 gives max=0.2.
+            min_value = value + range_factor * (min_value - value)
+            max_value = value + range_factor * (max_value - value)
+
+        if frequency_override is None:
+            frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+        else:
+            frequency = float(frequency_override)
 
         if mode == "constant":
             return value
@@ -232,7 +341,11 @@ class PatternRunner(Node):
         if mode == "sinusoid":
             offset = 0.5 * (max_value + min_value)
             amplitude = 0.5 * (max_value - min_value)
-            return offset + amplitude * math.sin(2.0 * math.pi * frequency * t)
+
+            # Starts and ends at min_value after each full cycle.
+            return offset - amplitude * math.cos(
+                2.0 * math.pi * frequency * t
+            )
 
         if mode == "triangle":
             period = 1.0 / frequency
@@ -242,7 +355,7 @@ class PatternRunner(Node):
                 return min_value + 2.0 * phase * (max_value - min_value)
             else:
                 return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
-        
+
         if mode == "triangle_mid":
             period = 1.0 / frequency
             phase = ((t % period) / period + 0.25) % 1.0
@@ -251,13 +364,19 @@ class PatternRunner(Node):
                 return min_value + 2.0 * phase * (max_value - min_value)
             else:
                 return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
-        
-        self.get_logger().warn(f"Unknown mode '{mode}' for {dof_name}, using constant value")
+
+        self.get_logger().warn(
+            f"Unknown mode '{mode}' for {dof_name}, using constant value"
+        )
         return value
 
-
-    def compute_dof_sequence(self, dof_name, t):
-        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+    def compute_dof_sequence_single_frequency(
+        self,
+        dof_name,
+        t,
+        frequency,
+        range_factor,
+    ):
         value = float(self.get_parameter(f"{dof_name}.value").value)
 
         elapsed_in_sequence = t
@@ -270,11 +389,17 @@ class PatternRunner(Node):
 
             # Motion stage
             if elapsed_in_sequence <= stage_duration:
-                return self.compute_dof_with_mode(dof_name, mode, elapsed_in_sequence)
+                return self.compute_dof_with_mode(
+                    dof_name,
+                    mode,
+                    elapsed_in_sequence,
+                    frequency_override=frequency,
+                    range_factor_override=range_factor,
+                )
 
             elapsed_in_sequence -= stage_duration
 
-            # Pause only between stages, not after the final stage
+            # Pause only between waveform stages, not after final waveform
             is_last_stage = idx == len(self.sequence_modes[dof_name]) - 1
 
             if not is_last_stage:
@@ -289,26 +414,110 @@ class PatternRunner(Node):
                         + self.sequence_pause_led_duration[dof_name]
                     )
 
-                    # Hold still during pause
                     return value
 
                 elapsed_in_sequence -= pause_duration
 
         return None
 
+    def compute_dof_sequence(self, dof_name, t):
+        base_frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+        value = float(self.get_parameter(f"{dof_name}.value").value)
 
-    def get_sequence_duration(self, dof_name):
-        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+        elapsed = t
+        self.sequence_led_active = False
 
+        frequency_factors = self.sequence_frequency_factors[dof_name]
+        range_factors = self.sequence_range_factors[dof_name]
+
+        for range_index, range_factor in enumerate(range_factors):
+            for frequency_index, frequency_factor in enumerate(frequency_factors):
+                frequency = base_frequency * float(frequency_factor)
+
+                block_duration = self.get_single_frequency_sequence_duration(
+                    dof_name,
+                    frequency,
+                )
+
+                if elapsed <= block_duration:
+                    return self.compute_dof_sequence_single_frequency(
+                        dof_name,
+                        elapsed,
+                        frequency,
+                        range_factor=range_factor,
+                    )
+
+                elapsed -= block_duration
+
+                # Pause between frequency blocks within the same range block.
+                is_last_frequency = frequency_index == len(frequency_factors) - 1
+
+                if not is_last_frequency:
+                    pause_duration = self.sequence_between_frequency_pause[dof_name]
+
+                    if elapsed <= pause_duration:
+                        self.sequence_led_active = True
+                        return value
+
+                    elapsed -= pause_duration
+
+            # Pause between range blocks.
+            is_last_range = range_index == len(range_factors) - 1
+
+            if not is_last_range:
+                pause_duration = self.sequence_between_range_pause[dof_name]
+
+                if elapsed <= pause_duration:
+                    self.sequence_led_active = True
+                    return value
+
+                elapsed -= pause_duration
+
+        return None
+
+    def get_single_frequency_sequence_duration(self, dof_name, frequency):
         motion_duration = sum(
             float(cycles) / frequency
             for cycles in self.sequence_cycles[dof_name]
         )
 
-        number_of_pauses = max(0, len(self.sequence_modes[dof_name]) - 1)
-        pause_duration = number_of_pauses * self.sequence_pause_duration[dof_name]
+        number_of_stage_pauses = max(0, len(self.sequence_modes[dof_name]) - 1)
+        stage_pause_duration = (
+            number_of_stage_pauses
+            * self.sequence_pause_duration[dof_name]
+        )
 
-        return motion_duration + pause_duration
+        return motion_duration + stage_pause_duration
+
+
+    def get_sequence_duration(self, dof_name):
+        base_frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+
+        frequency_factors = self.sequence_frequency_factors[dof_name]
+        range_factors = self.sequence_range_factors[dof_name]
+
+        total_duration = 0.0
+
+        for range_index, _range_factor in enumerate(range_factors):
+            for frequency_index, frequency_factor in enumerate(frequency_factors):
+                frequency = base_frequency * float(frequency_factor)
+
+                total_duration += self.get_single_frequency_sequence_duration(
+                    dof_name,
+                    frequency,
+                )
+
+                is_last_frequency = frequency_index == len(frequency_factors) - 1
+
+                if not is_last_frequency:
+                    total_duration += self.sequence_between_frequency_pause[dof_name]
+
+            is_last_range = range_index == len(range_factors) - 1
+
+            if not is_last_range:
+                total_duration += self.sequence_between_range_pause[dof_name]
+
+        return total_duration
 
     def timer_callback(self):
         elapsed = time.time() - self.start_time

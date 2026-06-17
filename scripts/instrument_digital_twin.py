@@ -34,6 +34,8 @@ class InstrumentDigitalTwin:
         self.jaw_angle_deg_per_mm = config["jaw_angle_deg_per_mm"]
         self.between_jaws_deg_per_mm = config["between_jaws_deg_per_mm"]
         self.jaw_opening_threshold_mm = config["jaw_opening_threshold_mm"]
+        self.jaw_closing_threshold_mm = config["jaw_closing_treshold_mm"]
+        
         self.jaw_opening_backlash_mm = config["jaw_opening_backlash_mm"]
         self.jaw_closing_backlash_mm = config["jaw_closing_backlash_mm"]
 
@@ -60,12 +62,16 @@ class InstrumentDigitalTwin:
 
         self._jaw_effective_translation_mm = None
         self._effective_bend_deg = None
+        self._last_usable_translation_mm = None
+        self._last_jaw_direction = 0
     
     # Reset backlash memory before starting a new 
     # trial or independent simulation.
     def reset(self):
         self._jaw_effective_translation_mm = None
         self._effective_bend_deg = None
+        self._last_usable_translation_mm = None
+        self._last_jaw_direction = 0
 
     def apply_jaw_backlash(self, translation_mm: float) -> float:
         opening_backlash = self.jaw_opening_backlash_mm
@@ -196,18 +202,43 @@ class InstrumentDigitalTwin:
             )
 
         usable_translation_mm = max(0.0, usable_translation_mm)
-        # Apply backlash
+
+        # Determine whether the jaw mechanism is opening or closing
+        # based on the raw usable translation before backlash.
+        if self._last_usable_translation_mm is None:
+            jaw_direction = 0
+        else:
+            delta_translation = usable_translation_mm - self._last_usable_translation_mm
+
+            if delta_translation > 1e-6:
+                jaw_direction = 1      # opening
+            elif delta_translation < -1e-6:
+                jaw_direction = -1     # closing
+            else:
+                jaw_direction = self._last_jaw_direction
+
+        self._last_usable_translation_mm = usable_translation_mm
+        self._last_jaw_direction = jaw_direction
+
+        # Apply direction-dependent jaw backlash.
         backlash_translation_mm = self.apply_jaw_backlash(usable_translation_mm)
+
+        # Apply direction-dependent threshold, but keep one shared gain.
+        if jaw_direction < 0:
+            jaw_threshold_mm = self.jaw_closing_threshold_mm
+        else:
+            jaw_threshold_mm = self.jaw_opening_threshold_mm
 
         opening_translation_mm = max(
             0.0,
-            backlash_translation_mm - self.jaw_opening_threshold_mm
+            backlash_translation_mm - jaw_threshold_mm
         )
 
         articulation_one_jaw_deg = (
             opening_translation_mm
             * self.jaw_angle_deg_per_mm
         )
+
         articulation_deg = (
             opening_translation_mm
             * self.between_jaws_deg_per_mm

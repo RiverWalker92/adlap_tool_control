@@ -12,7 +12,10 @@ instrument:
   articulation_factor: 16.0
   jaw_angle_deg_per_mm: 9 #8 #6.0
   between_jaws_deg_per_mm: 17.0 #18.0
+
   jaw_opening_threshold_mm: 0.05 #0.05
+  jaw_closing_treshold_mm: 0.075
+
   jaw_opening_backlash_mm: 0.08 #0.08
   jaw_closing_backlash_mm: 0.05 #0.05
 

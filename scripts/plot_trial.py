@@ -32,7 +32,7 @@ GEARBOX_LABELS = [
 ]
 
 TRIM_BY_DURATION = True
-TRIM_DURATION = 240
+TRIM_DURATION = 500
 TRIM_MARGIN_AFTER = 0.5
 
 # folder = "/home/leanne/ros2_ws/test_data/setup_01_motors_only"
@@ -295,6 +295,169 @@ def get_sequence_files(task_name):
     files.sort()
     return files
 
+def extract_ros_parameters(config: dict) -> dict:
+    if not isinstance(config, dict):
+        raise RuntimeError("YAML config is empty or invalid.")
+
+    preferred_keys = [
+        "tool_controller_node",
+        "/tool_controller_node",
+        "pattern_runner_node",
+        "/pattern_runner_node",
+        "/**",
+    ]
+
+    for key in preferred_keys:
+        if key in config and isinstance(config[key], dict):
+            if "ros__parameters" in config[key]:
+                return config[key]["ros__parameters"]
+
+    if "ros__parameters" in config:
+        return config["ros__parameters"]
+
+    return config
+
+
+def safe_number_for_filename(value):
+    return f"{float(value):.3g}".replace(".", "p").replace("-", "m")
+
+
+def get_frequency_segments_from_params(params_file, active_dof, t, commanded):
+    """
+    Returns time windows for every range-frequency block in the sequence.
+
+    Example:
+    sequence_range_factors: [0.5, 1.0]
+    sequence_frequency_factors: [2.0, 1.0, 0.5]
+
+    Output:
+    range 0.5, freq 2.0
+    range 0.5, freq 1.0
+    range 0.5, freq 0.5
+    range 1.0, freq 2.0
+    range 1.0, freq 1.0
+    range 1.0, freq 0.5
+    """
+    if params_file is None or active_dof is None:
+        return []
+
+    import yaml
+    import numpy as np
+
+    with open(params_file, "r") as f:
+        config = yaml.safe_load(f)
+
+    params = extract_ros_parameters(config)
+
+    dof_name = f"dof{active_dof + 1}"
+
+    if dof_name not in params:
+        return []
+
+    dof_params = params[dof_name]
+
+    if dof_params.get("mode", "constant") != "sequence":
+        return []
+
+    base_frequency = float(dof_params.get("frequency", 0.1))
+    value = float(dof_params.get("value", 0.0))
+
+    frequency_factors = [
+        float(x)
+        for x in dof_params.get("sequence_frequency_factors", [1.0])
+    ]
+
+    range_factors = [
+        float(x)
+        for x in dof_params.get("sequence_range_factors", [1.0])
+    ]
+
+    modes = list(dof_params.get("sequence_modes", ["sinusoid", "triangle"]))
+
+    cycles = [
+        float(x)
+        for x in dof_params.get("sequence_cycles", [5, 5])
+    ]
+
+    stage_pause = float(dof_params.get("sequence_pause_duration", 5.0))
+    between_frequency_pause = float(
+        dof_params.get("sequence_between_frequency_pause", 5.0)
+    )
+    between_range_pause = float(
+        dof_params.get("sequence_between_range_pause", 5.0)
+    )
+
+    if len(modes) != len(cycles):
+        return []
+
+    # Estimate where the real sequence starts in the plotted time axis.
+    # For DOF4 this is after preroll/sync; command starts changing after that.
+    cmd = np.array(commanded[active_dof], dtype=float)
+    tt = np.array(t, dtype=float)
+
+    valid = np.isfinite(cmd)
+    moving_indices = np.where(valid & (np.abs(cmd - value) > 1e-4))[0]
+
+    if len(moving_indices) == 0:
+        motion_start = float(tt[0])
+    else:
+        first_idx = max(0, int(moving_indices[0]) - 2)
+        motion_start = float(tt[first_idx])
+
+    segments = []
+    elapsed = 0.0
+    sequence_block_index = 0
+
+    for range_index, range_factor in enumerate(range_factors):
+        for frequency_index, frequency_factor in enumerate(frequency_factors):
+            frequency = base_frequency * frequency_factor
+
+            motion_duration = sum(
+                cycle_count / frequency
+                for cycle_count in cycles
+            )
+
+            number_of_stage_pauses = max(0, len(modes) - 1)
+            block_duration = (
+                motion_duration
+                + number_of_stage_pauses * stage_pause
+            )
+
+            start = motion_start + elapsed
+            end = start + block_duration
+
+            segments.append(
+                {
+                    "sequence_block_index": sequence_block_index,
+                    "range_index": range_index,
+                    "range_factor": range_factor,
+                    "frequency_index": frequency_index,
+                    "frequency_factor": frequency_factor,
+                    "frequency": frequency,
+                    "start": start,
+                    "end": end,
+                }
+            )
+
+            sequence_block_index += 1
+            elapsed += block_duration
+
+            # Pause between frequency blocks within the same range block.
+            is_last_frequency = (
+                frequency_index == len(frequency_factors) - 1
+            )
+
+            if not is_last_frequency:
+                elapsed += between_frequency_pause
+
+        # Pause between range blocks.
+        is_last_range = range_index == len(range_factors) - 1
+
+        if not is_last_range:
+            elapsed += between_range_pause
+
+    return segments
+    
 def moving_average(values, window=11):
     """
     Symmetric moving average.
@@ -356,9 +519,8 @@ def compute_velocity(timestamps, positions, position_window=11, velocity_window=
 
     return velocities
 
-def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
+def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, params_file=None):
     t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
-    
     basename = os.path.basename(file_path).replace(".jsonl", "")
 
     # Example:
@@ -467,7 +629,8 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             t,
             commanded[active_dof],
             label=f"requested {active_dof_name}",
-            linewidth=1.5
+            linewidth=1.5,
+            color="#1F77B4"
         )
 
         if current_angles[active_dof] and current_angles[active_dof][0] is not None:
@@ -476,7 +639,8 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
                 current_angles[active_dof],
                 linestyle="--",
                 label=f"controller output {active_dof_name}",
-                linewidth=1.2
+                linewidth=1.2,
+                color = "#777777"
             )
 
     axes[0].set_title("Instrument command")
@@ -515,13 +679,13 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
     # 4. Relevant gearbox output
     if active_dof == 3:
         # dof4
-        axes[3].plot(t, gearbox[2], label="Gearbox prediction: inner shaft translation [mm]")
+        axes[3].plot(t, gearbox[2], label="Gearbox prediction: inner shaft translation [mm]", color = "#009E73")
         axes[3].set_ylabel("Translation [mm]")
         axes[3].set_title("Gearbox output: predicted inner shaft translation")
 
     elif active_dof == 2:
         # dof3
-        axes[3].plot(t, gearbox[0], label="Gearbox prediction: inner shaft rotation [deg]")
+        axes[3].plot(t, gearbox[0], label="Gearbox prediction: inner shaft rotation [deg]", color = "#009E73")
         axes[3].set_ylabel("Rotation [deg]")
         axes[3].set_title("Gearbox output: predicted inner shaft rotation")
 
@@ -529,7 +693,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
         # dof1/dof2
         axes[3].plot(t, gearbox[3], label="Gearbox prediction: middle shaft rotation [deg]")
         axes[3].plot(t, gearbox[4], label="Gearbox prediction: outer shaft rotation [deg]")
-        axes[3].plot(t, gearbox[5], label="Gearbox prediction: middle-outer relative rotation [deg]")
+        axes[3].plot(t, gearbox[5], label="Gearbox prediction: middle-outer relative rotation [deg]", color = "#009E73")
         axes[3].set_ylabel("Rotation [deg]")
         axes[3].set_title("Gearbox output: predicted shaft rotations")
 
@@ -558,12 +722,12 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
         predicted_bend_deg = np.degrees(np.array(predicted_angles[4], dtype=float))
         raw_bend_deg = np.degrees(np.array(predicted_angles[5], dtype=float))
 
-        axes[4].plot(
-            t,
-            commanded_bend_deg,
-            label="commanded bend [deg]",
-            linewidth=1.2,
-        )
+        # axes[4].plot(
+        #     t,
+        #     commanded_bend_deg,
+        #     label="commanded bend [deg]",
+        #     linewidth=1.2,
+        # )
 
         # axes[4].plot(
         #     t,
@@ -578,6 +742,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             predicted_bend_deg,
             label="DT predicted bend after instrument backlash [deg]",
             linewidth=1.5,
+            color = "#6A3D9A"
         )
 
         axes[4].plot(
@@ -586,6 +751,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             label="DT predicted pitch projection [deg]",
             linewidth=1.2,
             linestyle="-.",
+            color = "#6A3D9A"
         )
 
         axes[4].plot(
@@ -593,6 +759,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             red_shaft_video_angle,
             "--",
             linewidth=2,
+            color="#E69F00",   
             label="video measured red marker vs shaft [deg]",
         )
 
@@ -604,18 +771,19 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
         commanded_deg = np.degrees(np.array(commanded[3], dtype=float))
         predicted_deg = np.degrees(np.array(predicted_angles[3], dtype=float))
 
-        axes[4].plot(
-            t,
-            commanded_deg,
-            label="commanded gripper/articulation [deg]",
-            linewidth=1.2,
-        )
+        # axes[4].plot(
+        #     t,
+        #     commanded_deg,
+        #     label="commanded gripper/articulation [deg]",
+        #     linewidth=1.2,
+        # )
 
         axes[4].plot(
             t,
             predicted_deg,
             label="instrument DT predicted gripper/articulation [deg]",
             linewidth=1.5,
+            color = "#6A3D9A"
         )
 
         axes[4].plot(
@@ -623,6 +791,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             jaw_video_angle,
             ".",
             markersize=3,
+            color="#E69F00",
             label="video measured angle between jaws [deg]",
         )
 
@@ -647,18 +816,19 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
         predicted_deg = np.degrees(np.array(predicted_angles[active_dof], dtype=float))
         commanded_deg = np.degrees(np.array(commanded[active_dof], dtype=float))
 
-        axes[4].plot(
-            t,
-            commanded_deg,
-            label=f"commanded {active_dof_name} [deg]",
-            linewidth=1.2,
-        )
+        # axes[4].plot(
+        #     t,
+        #     commanded_deg,
+        #     label=f"commanded {active_dof_name} [deg]",
+        #     linewidth=1.2,
+        # )
 
         axes[4].plot(
             t,
             predicted_deg,
             label=f"instrument DT predicted {active_dof_name} [deg]",
             linewidth=1.5,
+            color = "#6A3D9A"
         )
 
         axes[4].plot(
@@ -666,6 +836,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
             red_shaft_video_angle,
             "--",
             linewidth=2,
+            color="#E69F00",
             label="video measured red marker vs shaft [deg]",
         )
 
@@ -682,7 +853,40 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None):
     overview_filename = f"overview_{safe_pattern_name}_{safe_active_dof_name}.png"
 
     fig.savefig(os.path.join(plot_dir, overview_filename), dpi=200)
-    fig.savefig(os.path.join(plot_dir, "overview.png"), dpi=200)
+    # fig.savefig(os.path.join(plot_dir, "overview.png"), dpi=200)
+    
+    # Cropped overview per frequency block
+    frequency_segments = get_frequency_segments_from_params(
+        params_file=params_file,
+        active_dof=active_dof,
+        t=t,
+        commanded=commanded,
+    )
+
+    original_xlim = axes[0].get_xlim()
+
+    for segment in frequency_segments:
+        for ax in axes:
+            ax.set_xlim(segment["start"], segment["end"])
+
+        freq_text = safe_number_for_filename(segment["frequency"])
+        freq_factor_text = safe_number_for_filename(segment["frequency_factor"])
+        range_text = safe_number_for_filename(segment["range_factor"])
+
+        segment_filename = (
+            f"overview_{safe_pattern_name}_{safe_active_dof_name}"
+            f"_range{range_text}"
+            f"_freq{freq_text}Hz"
+            f"_freqfactor{freq_factor_text}.png"
+        )
+
+        fig.savefig(os.path.join(plot_dir, segment_filename), dpi=200)
+
+
+    # Restore full view in case the figure is reused before closing
+    for ax in axes:
+        ax.set_xlim(original_xlim)
+
     plt.close(fig)
 
     if active_dof == 1:
@@ -1222,62 +1426,32 @@ def plot_small_vs_medium(trial_number):
 
     plt.close(fig)
 
-
-
-# if PLOT_MODE == "idle":
-#     for trial_number in trial_numbers:
-#         plot_idle_baseline(trial_number)
-#     print("Idle baseline plots saved.")
-
-# elif PLOT_MODE == "test_type":
-#     for trial_number in trial_numbers:
-#         for test_type in test_types:
-#             plot_test_type(test_type, trial_number)
-#     print("Test type plots saved.")
-
-# elif PLOT_MODE == "small_vs_medium":
-#     for trial_number in trial_numbers:
-#         plot_small_vs_medium(trial_number)
-#     print("Small vs medium comparison plots saved.")
-
-# elif PLOT_MODE == "sequence":
-#     for task_name in sequence_tasks:
-#         files = get_sequence_files(task_name)
-
-#         for file_path in files:
-#             plot_sequence(task_name, file_path)
-#     print("Sequence plots saved.")
-
-# elif PLOT_MODE == "duty_current":
-#     plot_duty_current()
-#     print("Duty-current plots saved.")
-
-# elif PLOT_MODE == "continuous_dof":
-#     files = get_continuous_files()
-
-#     if not files:
-#         print("No continuous files found.")
-
-#     for file_path in files:
-#         plot_continuous_file(file_path)
-
-#     print("Continuous DOF plots saved.")
-    
-# print("All plots saved.")
-
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--file", required=True)
     parser.add_argument("--video-angles", default=None)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument(
+        "--params-file",
+        default=str(
+            Path.home()
+            / "ros2_ws"
+            / "src"
+            / "adlap_tool_control"
+            / "config"
+            / "tool_params.yaml"
+        ),
+    )
     args = parser.parse_args()
 
     plot_continuous_file(
         file_path=args.file,
         video_angle_file=args.video_angles,
         output_dir=args.output_dir,
+        params_file=args.params_file,
     )
 
     print("All plots saved.")

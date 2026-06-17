@@ -21,7 +21,7 @@ class GearboxDigitalTwin:
 
         # self.lower_play_deg = config["backlash"].get("lower_motors_play_deg", 0.0)        
         # Load backlash compensation parameters for each gear.
-# The deadband avoids treating small encoder jitter as a real direction reversal.
+        # The deadband avoids treating small encoder jitter as a real direction reversal.
         backlash = config["backlash"]
         self.direction_deadband_pulses = backlash.get("direction_deadband_pulses", 5)
 

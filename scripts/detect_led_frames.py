@@ -4,7 +4,7 @@ import sys
 import cv2
 import cv2
 
-VIDEO = "/home/leanne/sequence_DOF4_trial_03.mp4"
+VIDEO = "/home/leanne/ros2_ws/test_data/automated_trials/auto_dof4_20260617_100857/auto_dof4_20260617_100857_webcam.mp4"  #"/home/leanne/sequence_DOF4_trial_03.mp4"
 FRAME_TO_SELECT = 10 #180
 SCALE = 0.35
 

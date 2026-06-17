@@ -216,7 +216,28 @@ def find_newest_ros_log(test_data_dir: Path, started_after: float) -> Path:
 
     newest = max(candidates, key=lambda p: p.stat().st_mtime)
     return newest
+    
+def reencode_video_to_h264(input_video: Path):
+    """
+    Re-encodes OpenCV-written video to a broadly compatible H.264 MP4.
+    This fixes videos that look black in some players but contain readable frames.
+    """
+    fixed_video = input_video.with_name(input_video.stem + "_h264.mp4")
 
+    cmd = (
+        f"ffmpeg -y -i {shlex.quote(str(input_video))} "
+        f"-c:v libx264 -pix_fmt yuv420p -movflags +faststart "
+        f"{shlex.quote(str(fixed_video))}"
+    )
+
+    returncode = run_command(cmd, check=False)
+
+    if returncode != 0 or not fixed_video.exists() or fixed_video.stat().st_size == 0:
+        print("Warning: H.264 re-encoding failed. Keeping original OpenCV video.")
+        return input_video
+
+    print(f"Re-encoded video saved as: {fixed_video}")
+    return fixed_video
 
 def main():
     parser = argparse.ArgumentParser(
@@ -265,7 +286,7 @@ def main():
         "--plot-cmd",
         default=(
             "ros2 run adlap_tool_control plot_trial.py "
-            "--file {ros_log} --video-angles {angles} --output-dir {plot_dir}"
+            "--file {ros_log} --video-angles {angles} --output-dir {plot_dir} --params-file {params_file}"
         ),
         help="Command for plotting. Available placeholders: {ros_log}, {angles}, {plot_dir}.",
     )
@@ -292,7 +313,8 @@ def main():
     output_dir = Path(args.output_dir).expanduser() / trial_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    video_path = output_dir / f"{trial_name}_webcam.mp4"
+    original_video_path = output_dir / f"{trial_name}_webcam.mp4"
+    video_path = original_video_path
     angles_path = output_dir / f"{trial_name}_webcam_angles.jsonl"
     metadata_path = output_dir / f"{trial_name}_metadata.json"
     plots_dir = output_dir / "plots"
@@ -346,6 +368,7 @@ def main():
         raise RuntimeError(record_errors[0])
     if not video_path.exists() or video_path.stat().st_size == 0:
         raise RuntimeError(f"Video file was not created correctly: {video_path}")
+    video_path = reencode_video_to_h264(video_path)
 
     if pattern_returncode != 0:
         raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
@@ -370,6 +393,7 @@ def main():
         plot_dir=shlex.quote(str(plots_dir)),
         dof=args.dof,
         video=shlex.quote(str(video_path)),
+        params_file=shlex.quote(str(params_file)),
     )
 
     run_command(plot_cmd, check=True)
@@ -384,6 +408,7 @@ def main():
         "requested_height": args.height,
         "requested_fps": args.fps,
         "video_path": str(video_path),
+        "original_video_path": str(original_video_path),
         "ros_log_path": str(ros_log_path),
         "angles_path": str(angles_path),
         "plots_dir": str(plots_dir),
@@ -399,6 +424,7 @@ def main():
     print(f"Video:      {video_path}")
     print(f"ROS log:    {ros_log_path}")
     print(f"Angles:     {angles_path}")
+    print(f"Plots:      {plots_dir}")
     print(f"Metadata:   {metadata_path}")
 
 

@@ -43,7 +43,7 @@ public:
     // Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
     // Motor::create_default(),  // Default motor config polulu
     gearbox(motor_controller, GearboxParameters::from_yaml(
-        "/home/leanne/ros2_ws_roel_split/src/adlap_tool_control/config/gearbox_params.yaml"), this->get_logger()),
+        "/home/leanne/ros2_ws/src/adlap_tool_control/config/gearbox_params.yaml"), this->get_logger()),
     task_publisher_(this->create_publisher<std_msgs::msg::String>("~" + TASK_TOPIC, 10)),
     instrument_controller_(gearbox, this->get_logger(), task_publisher_)
   {

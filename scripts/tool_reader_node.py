@@ -183,9 +183,6 @@ class ToolReader(Node):
 
     def predicted_instrument_callback(self, msg):
         self.last_predicted_instrument_angles = list(msg.data)
-        self.get_logger().error(
-            f"PREDICTED CALLBACK FIRED: {self.last_predicted_instrument_angles}"
-        )
 
     def get_log_file(self, task):
         parts = task.split("|")

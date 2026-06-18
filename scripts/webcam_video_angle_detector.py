@@ -43,10 +43,10 @@ ROS_DATA_DIR = (
 # MARKER_ROI = (608, 537, 528, 297)
 # SHAFT_ROI = (1228, 582, 610, 180)
 
-MARKER_ROI = (565, 431, 517, 225)
-LED_ROI = (1565, 545, 317, 188)
-# SHAFT_ROI = (1211, 448, 708, 157)
-SHAFT_ROI = (1245, 500, 674, 145)
+LED_ROI    = (1457, 380, 454, 180)
+MARKER_ROI = (537, 331, 554, 448)
+SHAFT_ROI  = (1194, 451, 691, 165)
+
 
 
 
@@ -150,12 +150,13 @@ def detect_red_marker_angle(frame):
         if area < MARKER_MIN_AREA:
             continue
 
-        x_box, y_box, w_box, h_box = cv2.boundingRect(c)
+        rect = cv2.minAreaRect(c)
+        (_, _), (rw_box, rh_box), _ = rect
 
-        # Marker moet langwerpig zijn, geen brede schaduwvlek
-        aspect = max(w_box, h_box) / max(1, min(w_box, h_box))
+        # Rotated aspect ratio: beter voor schuine markers
+        aspect = max(rw_box, rh_box) / max(1.0, min(rw_box, rh_box))
 
-        if aspect < 2.0:
+        if aspect < 2.5:
             continue
 
         valid.append((area, c))
@@ -197,17 +198,37 @@ def detect_yellow_marker_angle(frame):
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, KERNEL)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, KERNEL)
 
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_NONE
+    )
 
-    if not contours:
+    valid = []
+
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area < MARKER_MIN_AREA:
+            continue
+
+        rect = cv2.minAreaRect(c)
+        (_, _), (rw_box, rh_box), _ = rect
+
+        # Rotated aspect ratio: werkt ook als de marker schuin staat
+        aspect = max(rw_box, rh_box) / max(1.0, min(rw_box, rh_box))
+
+        if aspect < 2.0:
+            continue
+
+        valid.append((area, aspect, c))
+
+    if not valid:
         return np.nan, None
 
-    largest = max(contours, key=cv2.contourArea)
+    # Kies de grootste geldige langwerpige contour
+    largest = max(valid, key=lambda item: item[0])[2]
     area = cv2.contourArea(largest)
-
-    if area < MARKER_MIN_AREA:
-        return np.nan, None
-
+    
     vx, vy, x0, y0 = cv2.fitLine(largest, cv2.DIST_L2, 0, 0.01, 0.01)
     vx, vy, x0, y0 = vx.item(), vy.item(), x0.item(), y0.item()
 

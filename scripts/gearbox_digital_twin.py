@@ -6,11 +6,69 @@ from pathlib import Path
 # which can be used to predict the state of the output shaft 
 # based on the raw motor encoder readings. 
 # This is a preliminary model and can be refined with physical calibration
+def load_active_gearbox_config(config_path):
+    """
+    Load the active gearbox variant from the gearbox YAML file.
+
+    Supports two formats:
+
+    New format:
+        gearbox:
+          active_variant: gearbox_2
+          variants:
+            gearbox_1:
+              ...
+            gearbox_2:
+              ...
+
+    Old format:
+        gearbox:
+          version: 1
+          encoder:
+            ...
+    """
+    with open(config_path, "r") as f:
+        data = yaml.safe_load(f)
+
+    gearbox_root = data["gearbox"]
+
+    # New format: gearbox -> active_variant -> variants
+    if "variants" in gearbox_root:
+        active_variant = gearbox_root.get("active_variant")
+
+        if active_variant is None:
+            raise ValueError(
+                "No 'active_variant' specified in gearbox YAML."
+            )
+
+        variants = gearbox_root["variants"]
+
+        if active_variant not in variants:
+            available = list(variants.keys())
+            raise ValueError(
+                f"Active gearbox variant '{active_variant}' not found. "
+                f"Available variants are: {available}"
+            )
+
+        config = variants[active_variant]
+        config["active_variant"] = active_variant
+
+    # Old format fallback
+    else:
+        config = gearbox_root
+        config["active_variant"] = f"version_{config.get('version', 'unknown')}"
+
+    return config
+
+
 class GearboxDigitalTwin:
     def __init__(self, config_path="config/gearbox_params.yaml"):
         # Load configuration from gearbox selection of YAML file
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)["gearbox"]
+        config = load_active_gearbox_config(config_path)
+
+        self.active_variant = config.get("active_variant", "unknown")
+        self.version = config.get("version", None)
+        print(f"Loaded gearbox variant: {self.active_variant}, version: {self.version}")
 
         self.pulses_per_motor_rotation = config["encoder"]["pulses_per_motor_rotation"]
         self.upper_motor_factor = config["ratios"]["upper_motor_factor"]

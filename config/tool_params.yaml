@@ -49,7 +49,7 @@ tool_controller_node:
       # sequence_frequency_factors: [0.5, 1.0, 2.0]
       sequence_frequency_factors: [2.0, 1.0, 0.5]
       sequence_between_frequency_pause: 5.0
-      sequence_range_factors: [0.5, 1.0]
+      sequence_range_factors: [0.5] #voor laatste test nieuw gb > grotere opening/ 
       sequence_between_range_pause: 5.0
 
       sequence_modes: ["sinusoid", "triangle"]

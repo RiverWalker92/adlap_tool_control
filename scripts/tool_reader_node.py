@@ -126,7 +126,7 @@ class ToolReader(Node):
             10
         )
 
-        self.log_rate_hz = 100.0
+        self.log_rate_hz = 2 #100.0
         self.log_timer = self.create_timer(
             1.0 / self.log_rate_hz,
             self.print_and_log_state

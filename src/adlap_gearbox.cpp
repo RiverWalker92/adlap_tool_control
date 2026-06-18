@@ -1,5 +1,7 @@
 #include "adlap_tool_control/adlap_gearbox.hpp"
 #include <yaml-cpp/yaml.h>
+#include <iostream>
+#include <stdexcept>
 
 // ------------------------------------------------------------
 // Control sequences for specific operations like coupling and setup
@@ -8,8 +10,26 @@
 GearboxParameters GearboxParameters::from_yaml(const std::string& yaml_path)
 {
     YAML::Node root = YAML::LoadFile(yaml_path);
-    YAML::Node gearbox = root["gearbox"];
+    YAML::Node gearbox_root = root["gearbox"];
+    YAML::Node gearbox;
 
+    if (gearbox_root["variants"]) {
+        std::string active_variant = gearbox_root["active_variant"].as<std::string>();
+        std::cerr << "DEBUG active gearbox variant = "
+          << active_variant << std::endl;
+        
+        gearbox = gearbox_root["variants"][active_variant];
+        std::cout << "Active gearbox variant: "
+          << active_variant << std::endl;
+
+        if (!gearbox) {
+            throw std::runtime_error(
+                "Active gearbox variant not found: " + active_variant
+            );
+        }
+    } else {
+        gearbox = gearbox_root;
+    }
     GearboxParameters params;
 
     params.upper_motor_factor =

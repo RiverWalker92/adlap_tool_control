@@ -35,6 +35,25 @@ class PatternRunner(Node):
             self.declare_parameter(f"{prefix}.max", 0.0)
             self.declare_parameter(f"{prefix}.frequency", 0.1)
 
+        self.declare_parameter("dof4.tip_compensation_pulses", 0)
+        self.declare_parameter("dof4.tip_compensation_sign", -1)
+
+        self.dof4_tip_compensation_pulses = int(
+            self.get_parameter("dof4.tip_compensation_pulses").value
+        )
+        self.dof4_tip_compensation_sign = int(
+            self.get_parameter("dof4.tip_compensation_sign").value
+        )
+
+        self.dof4_tip_compensation_offset_rad = 0.0
+        self.previous_dof4_value_for_tip_compensation = None
+        self.previous_dof4_direction_for_tip_compensation = 0
+
+        self.get_logger().warn(
+            f"TIP_COMP_LOADED pulses={self.dof4_tip_compensation_pulses}, "
+            f"sign={self.dof4_tip_compensation_sign}"
+        )
+
         # Generic sequence parameters for DOF2 and DOF4
         for dof_name in ["dof2", "dof4"]:
             self.declare_parameter(f"{dof_name}.sequence_modes")
@@ -48,6 +67,7 @@ class PatternRunner(Node):
 
             self.declare_parameter(f"{dof_name}.sequence_range_factors")
             self.declare_parameter(f"{dof_name}.sequence_between_range_pause")
+            self.declare_parameter(f"{dof_name}.sequence_final_pause_duration")
         
         self.sequence_enabled = {}
         self.sequence_modes = {}
@@ -59,6 +79,7 @@ class PatternRunner(Node):
         self.sequence_between_frequency_pause = {}
         self.sequence_range_factors = {}
         self.sequence_between_range_pause = {}
+        self.sequence_final_pause_duration = {}
 
         for dof_name in ["dof2", "dof4"]:
             mode = self.get_parameter(f"{dof_name}.mode").value
@@ -111,6 +132,11 @@ class PatternRunner(Node):
                         f"{dof_name}.sequence_between_range_pause"
                     )
                 )
+                self.sequence_final_pause_duration[dof_name] = float(
+                    self.get_required_parameter_value(
+                        f"{dof_name}.sequence_final_pause_duration"
+                    )
+                )
 
                 if len(self.sequence_modes[dof_name]) != len(self.sequence_cycles[dof_name]):
                     raise ValueError(
@@ -135,6 +161,7 @@ class PatternRunner(Node):
                 self.sequence_between_frequency_pause[dof_name] = 0.0
                 self.sequence_range_factors[dof_name] = []
                 self.sequence_between_range_pause[dof_name] = 0.0
+                self.sequence_final_pause_duration[dof_name] = 0.0
 
         self.sequence_led_active = False
         self.active_sequence_dof = None
@@ -296,7 +323,15 @@ class PatternRunner(Node):
             offset = 0.5 * (max_value + min_value)
             amplitude = 0.5 * (max_value - min_value)
             return offset + amplitude * math.sin(2.0 * math.pi * frequency * t)
+        if mode == "sinusoid_mid":
+            offset = 0.5 * (max_value + min_value)
+            amplitude = 0.5 * (max_value - min_value)
 
+            # Starts at the middle/neutral value.
+            return offset + amplitude * math.sin(
+                2.0 * math.pi * frequency * t
+            )
+            
         if mode == "triangle":
             period = 1.0 / frequency
             phase = (t % period) / period
@@ -344,6 +379,15 @@ class PatternRunner(Node):
 
             # Starts and ends at min_value after each full cycle.
             return offset - amplitude * math.cos(
+                2.0 * math.pi * frequency * t
+            )
+
+        if mode == "sinusoid_mid":
+            offset = 0.5 * (max_value + min_value)
+            amplitude = 0.5 * (max_value - min_value)
+
+            # Starts at the middle/neutral value.
+            return offset + amplitude * math.sin(
                 2.0 * math.pi * frequency * t
             )
 
@@ -472,7 +516,13 @@ class PatternRunner(Node):
                     return value
 
                 elapsed -= pause_duration
+        final_pause_duration = self.sequence_final_pause_duration[dof_name]
 
+        if elapsed <= final_pause_duration:
+            self.sequence_led_active = False
+            return value
+
+        elapsed -= final_pause_duration
         return None
 
     def get_single_frequency_sequence_duration(self, dof_name, frequency):
@@ -516,9 +566,61 @@ class PatternRunner(Node):
 
             if not is_last_range:
                 total_duration += self.sequence_between_range_pause[dof_name]
-
+        total_duration += self.sequence_final_pause_duration[dof_name]
+        
         return total_duration
 
+    def update_dof4_tip_compensation(self, dof4_value):
+        self.get_logger().info(
+            f"dof4={dof4_value:.4f}, "
+            f"prev={self.previous_dof4_value_for_tip_compensation}, "
+            f"offset={self.dof4_tip_compensation_offset_rad:.4f}"
+        )
+
+        if self.dof4_tip_compensation_pulses == 0:
+            return
+
+        if self.previous_dof4_value_for_tip_compensation is None:
+            self.previous_dof4_value_for_tip_compensation = dof4_value
+            return
+
+        delta = dof4_value - self.previous_dof4_value_for_tip_compensation
+        self.previous_dof4_value_for_tip_compensation = dof4_value
+
+        if abs(delta) < 1e-4:
+            return
+
+        direction = 1 if delta > 0 else -1
+        self.get_logger().info(
+            f"delta={delta:.5f}, direction={direction}, previous={self.previous_dof4_direction_for_tip_compensation}"
+        )
+        if self.previous_dof4_direction_for_tip_compensation == 0:
+            self.previous_dof4_direction_for_tip_compensation = direction
+            return
+
+        if direction == self.previous_dof4_direction_for_tip_compensation:
+            return
+
+        self.previous_dof4_direction_for_tip_compensation = direction
+
+        pulses_per_rotation = 903.0
+        compensation_rad = (
+            self.dof4_tip_compensation_pulses
+            * 2.0
+            * math.pi
+            / pulses_per_rotation
+        )
+
+        self.dof4_tip_compensation_offset_rad = (
+            self.dof4_tip_compensation_sign
+            * direction
+            * compensation_rad
+        )
+
+        self.get_logger().info(
+            f"DOF4 tip compensation offset: {self.dof4_tip_compensation_offset_rad:.4f} rad"
+        )
+        
     def timer_callback(self):
         elapsed = time.time() - self.start_time
 
@@ -634,7 +736,7 @@ class PatternRunner(Node):
                 + self.led_pulse_duration
                 + self.motion_after_led_off_wait
             )
-
+            
             # Voor motion_start: instrument stil houden
             if elapsed < motion_start:
                 values = [
@@ -682,21 +784,22 @@ class PatternRunner(Node):
             if self.sequence_enabled.get(dof_name, False):
                 dof_value = self.compute_dof_sequence(dof_name, t)
 
-                led_msg = Bool()
-                led_msg.data = self.sequence_led_active
-                self.led_pub.publish(led_msg)
-
                 if dof_value is None:
                     dof_value = float(self.get_parameter(f"{dof_name}.value").value)
             else:
                 dof_value = self.compute_dof(dof_name, t)
 
             dof_values[dof_name] = dof_value
-
+        led_msg = Bool()
+        led_msg.data = self.sequence_led_active
+        self.led_pub.publish(led_msg)
+            
+        self.update_dof4_tip_compensation(dof_values["dof4"])
         values = [
             dof_values["dof1"],
             dof_values["dof2"],
-            self.dof4_preroll_angle if self.dof4_active else dof_values["dof3"],
+            (self.dof4_preroll_angle if self.dof4_active else dof_values["dof3"])
+            + self.dof4_tip_compensation_offset_rad,
             dof_values["dof4"],
         ]
 

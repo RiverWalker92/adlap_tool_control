@@ -76,19 +76,23 @@ gearbox:
 
       backlash: 
         direction_deadband_pulses: 5
-        lower_motors_play_deg: 0
+        lower_motors_play_deg: 15
 
-        gear_l1_backlash_pulses: 50
-        gear_l1_backlash_deg: 12.0
+        gear_l1_backlash_positive_pulses: 50
+        gear_l1_backlash_negative_pulses: 50
+        # gear_l1_backlash_deg: 12.0
 
-        gear_l2_backlash_pulses: 20
-        gear_l2_backlash_deg: 4.8
+        gear_l2_backlash_positive_pulses: 20
+        gear_l2_backlash_negative_pulses: 20
+        # gear_l2_backlash_deg: 4.8
 
-        gear_r1_backlash_pulses: 60
-        gear_r1_backlash_deg: 24
+        gear_r1_backlash_positive_pulses: 60
+        gear_r1_backlash_negative_pulses: 60
+        # gear_r1_backlash_deg: 24
 
-        gear_r2_backlash_pulses: 40
-        gear_r2_backlash_deg: 15.9
+        gear_r2_backlash_positive_pulses: 40
+        gear_r2_backlash_negative_pulses: 40
+        # gear_r2_backlash_deg: 15.9
 
       gearbox_mapping:
         gear_l1_motor: 3
@@ -129,21 +133,28 @@ gearbox:
         inner_shaft_translation_start_mm: 0.0
         inner_shaft_translation_min_mm: -2.3
         inner_shaft_translation_max_mm: 7.1 
+      
       backlash:
         direction_deadband_pulses: 5
-        lower_motors_play_deg: 0 # dit is niet originele waarde toch? 
+        lower_motors_play_deg: 15 # dit is niet originele waarde toch? 
 
-        gear_l1_backlash_pulses: 50
-        gear_l1_backlash_deg: 12.0
+        gear_l1_backlash_positive_pulses: 52
+        gear_l1_backlash_negative_pulses: 48
 
-        gear_l2_backlash_pulses: 20
-        gear_l2_backlash_deg: 4.8
+        gear_l2_backlash_positive_pulses: 30
+        gear_l2_backlash_negative_pulses: 21
 
-        gear_r1_backlash_pulses: 60
-        gear_r1_backlash_deg: 24.0
+        # gear_r1_backlash_positive_pulses: 55 #57
+        # gear_r1_backlash_negative_pulses: 55 #48
 
-        gear_r2_backlash_pulses: 40
-        gear_r2_backlash_deg: 15.9
+        # gear_r2_backlash_positive_pulses: 50 #50
+        # gear_r2_backlash_negative_pulses: 50 #48
+
+        gear_r1_backlash_positive_pulses: 0
+        gear_r1_backlash_negative_pulses: 0
+
+        gear_r2_backlash_positive_pulses: 0
+        gear_r2_backlash_negative_pulses: 0
 
       #   # Gearbox 2 specific
       # collet_backlash_opening_mm: 0.0

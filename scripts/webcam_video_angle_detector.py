@@ -5,6 +5,7 @@ import numpy as np
 import math
 import json
 from pathlib import Path
+import subprocess
 VIDEO = "/home/leanne/ros2_ws/sequence_DOF4_trial_14.mp4"
 VIDEO_PATH = Path(VIDEO)
 
@@ -47,10 +48,6 @@ LED_ROI    = (1457, 380, 454, 180)
 MARKER_ROI = (537, 331, 554, 448)
 SHAFT_ROI  = (1194, 451, 691, 165)
 
-
-
-
-
 LED_RED_PIXEL_THRESHOLD = 100
 MARKER_MIN_AREA = 60
 SHAFT_MIN_POINTS = 50
@@ -90,6 +87,25 @@ def nan_to_none(value):
         return None
     return float(value)
 
+def start_h264_writer(output_path, fps, width, height):
+    command = [
+        "ffmpeg",
+        "-y",
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "bgr24",
+        "-s", f"{width}x{height}",
+        "-r", str(fps),
+        "-i", "-",
+        "-an",
+        "-vcodec", "libx264",
+        "-preset", "veryfast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        str(output_path),
+    ]
+
+    return subprocess.Popen(command, stdin=subprocess.PIPE)
 
 def detect_led(frame):
     x, y, w, h = LED_ROI
@@ -381,7 +397,7 @@ def main(output_path_override=None, ros_log_path_override=None):
     else:
         output_path = Path(output_path_override)
 
-    debug_video_path = OUTPUT_DIR / f"{video_stem}_{DOF_NAME}_debug.mp4"
+    debug_video_path = OUTPUT_DIR / f"{video_stem}_{DOF_NAME}_h264.mp4"
     debug_frame_path = OUTPUT_DIR / f"{video_stem}_{DOF_NAME}_debug_frame.png"
 
     open_jaws_debug_frame_saved = False
@@ -559,25 +575,18 @@ def main(output_path_override=None, ros_log_path_override=None):
         cv2.putText(display, f"frame: {frame_idx}", (30, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(display, f"LED: {led_on}", (30, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(display, f"red marker: {red_marker_angle:.2f}", (30, 130),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.putText(display, f"measured red marker vs shaft angle: {measured_angle_red_shaft:.2f}", (30, 210),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.putText(display, f"shaft: {shaft_angle:.2f}", (30, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-        cv2.putText(display, f"measured red marker vs shaft angle: {measured_angle_red_shaft:.2f}", (30, 210),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(display, f"yellow marker: {yellow_marker_angle:.2f}", (30, 250),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
         if measured_angle_yellow_shaft is not None:
-            cv2.putText(
-                display,
-                f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}",
-                (30, 290),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 255),
-                2,
-            )
+            cv2.putText(display, f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}", (30, 290),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2,)
         # cv2.putText(display, f"blue marker: {blue_marker_angle:.2f}", (30, 250),
         #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         # cv2.putText(display, f"measured blue marker vs shaft angle: {measured_angle_blue_shaft:.2f}", (30, 290),
@@ -597,15 +606,14 @@ def main(output_path_override=None, ros_log_path_override=None):
 
         if debug_writer is None:
             height, width = small.shape[:2]
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            debug_writer = cv2.VideoWriter(
-                str(debug_video_path),
-                fourcc,
-                fps,
-                (width, height)
+            debug_writer = start_h264_writer(
+                output_path=debug_video_path,
+                fps=fps,
+                width=width,
+                height=height,
             )
 
-        debug_writer.write(small)
+        debug_writer.stdin.write(small.tobytes())
 
         if frame_idx == led_on_frame or frame_idx == 0:
             cv2.imwrite(str(debug_frame_path), small)
@@ -701,7 +709,8 @@ def main(output_path_override=None, ros_log_path_override=None):
     print(f"Yellow closed baseline: {yellow_closed_baseline}")
     # print(f"Blue closed baseline: {blue_closed_baseline}")
     if debug_writer is not None:
-        debug_writer.release()
+        debug_writer.stdin.close()
+        debug_writer.wait()
 
     cap.release()
     cv2.destroyAllWindows()

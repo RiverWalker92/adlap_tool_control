@@ -49,7 +49,21 @@ def generate_launch_description():
     instrument_state_node = Node(
         package="adlap_tool_control",
         executable="instrument_state_node.py",
-        parameters=[str(instrument_params_file)],
+        parameters=[
+            str(instrument_params_file),
+            {
+                "hybrid_bend_enabled": True,
+                "hybrid_bend_model_file": str(
+                    Path.home()
+                    / "ros2_ws"
+                    / "test_data"
+                    / "trained_models"
+                    / "bend_prediction_gearbox_only_no_history"
+                    / "gradient_boosting"
+                    / "gradient_boosting_bend_hybrid_model.joblib"
+                ),
+            },
+        ],
         output="screen",
     )
 

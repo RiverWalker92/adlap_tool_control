@@ -11,14 +11,14 @@ VIDEO_ANGLE_FILE = None #"/home/leanne/ros2_ws/test_data/video_data/sequence_DOF
 
 GEARBOX_LABELS = [
     "inner shaft rotation [deg]",
-    "inner shaft relative rotation [deg]",
+    "collet cam rotation [deg]",
     "inner shaft translation [mm]",
     "middle shaft rotation [deg]",
     "outer shaft rotation [deg]",
     "middle-outer relative rotation [deg]",
 ]
 TRIM_BY_DURATION = True
-TRIM_DURATION = 500
+TRIM_DURATION = 550
 TRIM_MARGIN_AFTER = 0.5
 
 
@@ -61,6 +61,12 @@ TRIM_MARGIN_AFTER = 0.5
 # }
 
 # motor_folders = ["m1", "m2", "m3", "m4"]
+def radians_to_deg_array(values):
+    clean_values = [
+        np.nan if v is None else v
+        for v in values
+    ]
+    return np.degrees(np.array(clean_values, dtype=float))
 
 def load_continuous_file(file_path):
     t = []
@@ -70,6 +76,7 @@ def load_continuous_file(file_path):
     currents = [[], [], [], []]
     gearbox = [[], [], [], [], [], []]
     predicted_angles = [[] for _ in range(8)]
+    hybrid_predicted_angles = [[] for _ in range(8)]
     ros_timestamps = []
 
     with open(file_path, "r") as f:
@@ -82,6 +89,7 @@ def load_continuous_file(file_path):
             cur = data.get("measured_currents")
             gb = data.get("gearbox_state")
             pred_ang = data.get("predicted_instrument_angles")
+            hybrid_pred_ang = data.get("hybrid_predicted_instrument_angles")
 
             if cmd is None or pos is None or cur is None or gb is None or pred_ang is None:
                 continue
@@ -103,6 +111,12 @@ def load_continuous_file(file_path):
                     predicted_angles[i].append(pred_ang[i])
                 else:
                     predicted_angles[i].append(None)
+            
+            for i in range(8):
+                if hybrid_pred_ang is not None and len(hybrid_pred_ang) > i:
+                    hybrid_predicted_angles[i].append(hybrid_pred_ang[i])
+                else:
+                    hybrid_predicted_angles[i].append(None)
 
     motor_ros_t0 = ros_timestamps[0]
     t0 = t[0]
@@ -118,6 +132,13 @@ def load_continuous_file(file_path):
             predicted_angles[i] = [
                 v - first_valid if v is not None else None
                 for v in predicted_angles[i]
+            ]
+    for i in range(8):
+        first_valid = next((v for v in hybrid_predicted_angles[i] if v is not None), None)
+        if first_valid is not None:
+            hybrid_predicted_angles[i] = [
+                v - first_valid if v is not None else None
+                for v in hybrid_predicted_angles[i]
             ]
 
     if TRIM_BY_DURATION:
@@ -141,8 +162,24 @@ def load_continuous_file(file_path):
 
         for k in range(8):
             predicted_angles[k] = [predicted_angles[k][i] for i in keep]
+        
+        for k in range(8):
+            hybrid_predicted_angles[k] = [
+                hybrid_predicted_angles[k][i]
+                for i in keep
+            ]
 
-    return t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0
+    return (
+        t,
+        commanded,
+        current_angles,
+        predicted_angles,
+        hybrid_predicted_angles,
+        motor_pos,
+        currents,
+        gearbox,
+        motor_ros_t0,
+        )
 
 # def get_continuous_files():
 #     files = []
@@ -196,7 +233,7 @@ def load_video_angle_file(file_path, motor_ros_t0):
             measured_jaw_angle = data.get("measured_angle_between_jaws")
 
             if ros_time is None:
-                continueload_vide
+                continue
             
             t_rel = ros_time - motor_ros_t0
 
@@ -503,8 +540,127 @@ def detect_active_dof(commanded, threshold=0.01):
             return i
     return None
 
+def compute_prediction_metrics(video_t, video_angle_deg, prediction_t, prediction_deg):
+    video_t = np.array(video_t, dtype=float)
+    video_angle_deg = np.array(
+        [np.nan if v is None else v for v in video_angle_deg],
+        dtype=float,
+    )
+
+    prediction_t = np.array(prediction_t, dtype=float)
+    prediction_deg = np.array(prediction_deg, dtype=float)
+
+    valid_video = np.isfinite(video_t) & np.isfinite(video_angle_deg)
+    valid_prediction = np.isfinite(prediction_t) & np.isfinite(prediction_deg)
+
+    if np.sum(valid_video) < 2 or np.sum(valid_prediction) < 2:
+        return None
+
+    video_t = video_t[valid_video]
+    video_angle_deg = video_angle_deg[valid_video]
+
+    prediction_t = prediction_t[valid_prediction]
+    prediction_deg = prediction_deg[valid_prediction]
+
+    overlap_start = max(video_t[0], prediction_t[0])
+    overlap_end = min(video_t[-1], prediction_t[-1])
+
+    overlap_mask = (video_t >= overlap_start) & (video_t <= overlap_end)
+
+    if np.sum(overlap_mask) < 2:
+        return None
+
+    video_t_overlap = video_t[overlap_mask]
+    video_angle_overlap = video_angle_deg[overlap_mask]
+
+    prediction_at_video_time = np.interp(
+        video_t_overlap,
+        prediction_t,
+        prediction_deg,
+    )
+
+    error = prediction_at_video_time - video_angle_overlap
+
+    mae = float(np.mean(np.abs(error)))
+    rmse = float(np.sqrt(np.mean(error ** 2)))
+    bias = float(np.mean(error))
+    max_abs_error = float(np.max(np.abs(error)))
+
+    return {
+        "n_samples": int(len(error)),
+        "mae_deg": mae,
+        "rmse_deg": rmse,
+        "bias_deg": bias,
+        "max_abs_error_deg": max_abs_error,
+        "overlap_start_s": float(overlap_start),
+        "overlap_end_s": float(overlap_end),
+    }
+
+
+def write_dof2_prediction_metrics(
+    plot_dir,
+    physics_metrics,
+    hybrid_metrics,
+    used_prediction_name,
+):
+    metrics_path = os.path.join(plot_dir, "dof2_prediction_metrics.txt")
+
+    def write_block(f, title, metrics):
+        f.write(f"{title}\n")
+        f.write("-" * len(title) + "\n")
+
+        if metrics is None:
+            f.write("Not available\n\n")
+            return
+
+        f.write(f"MAE:             {metrics['mae_deg']:.3f} deg\n")
+        f.write(f"RMSE:            {metrics['rmse_deg']:.3f} deg\n")
+        f.write(f"Bias:            {metrics['bias_deg']:.3f} deg\n")
+        f.write(f"Max abs error:   {metrics['max_abs_error_deg']:.3f} deg\n")
+        f.write(f"Samples:         {metrics['n_samples']}\n")
+        f.write(
+            f"Time window:     "
+            f"{metrics['overlap_start_s']:.3f} - "
+            f"{metrics['overlap_end_s']:.3f} s\n\n"
+        )
+
+    with open(metrics_path, "w") as f:
+        f.write("DOF2 prediction metrics\n")
+        f.write("=======================\n\n")
+        f.write("Error definition:\n")
+        f.write("prediction_error = prediction_deg - video_measurement_deg\n\n")
+        f.write(f"Prediction shown in overview plot: {used_prediction_name}\n\n")
+
+        write_block(f, "Physics-based DT", physics_metrics)
+        write_block(f, "Hybrid DT", hybrid_metrics)
+
+    print(f"Saved DOF2 prediction metrics: {metrics_path}")
+    return metrics_path
+
+
+def add_metrics_text_box(ax, model_name, metrics):
+    if metrics is None:
+        return
+
+    text = (
+        f"{model_name}\n"
+        f"MAE = {metrics['mae_deg']:.2f}°\n"
+        f"RMSE = {metrics['rmse_deg']:.2f}°"
+    )
+
+    ax.text(
+        0.01,
+        0.95,
+        text,
+        transform=ax.transAxes,
+        va="top",
+        ha="left",
+        fontsize=8,
+        bbox=dict(boxstyle="round", alpha=0.8),
+    )
+
 def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, params_file=None):
-    t, commanded, current_angles, predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
+    t, commanded, current_angles, predicted_angles, hybrid_predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
     basename = os.path.basename(file_path).replace(".jsonl", "")
     pattern_name = os.path.basename(os.path.dirname(file_path))
 
@@ -580,6 +736,9 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
 
     # Plot 5: OVERVIEW: main plot, general DOF mapping overview
     active_dof = detect_active_dof(commanded)
+    # If DOF4 also clearly moves, prefer DOF4 over the artificial DOF3 compensation.
+    if max(commanded[3]) - min(commanded[3]) > 0.01:
+        active_dof = 3
     active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown_dof"
 
     if video_angle_file is not None:
@@ -613,7 +772,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
                 linestyle="--",
                 label=f"controller output {active_dof_name}",
                 linewidth=1.2,
-                color = "gray"
+                color = "black"
             )
 
     axes[0].set_title("Instrument command")
@@ -645,7 +804,7 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
         )
 
     axes[2].set_title("Measured motor currents")
-    axes[2].set_ylabel("Motor current\n[Pico units]")
+    axes[2].set_ylabel("Motor current\n[mA]")
     axes[2].grid(True)
     axes[2].legend(fontsize=8, ncol=4)
 
@@ -682,28 +841,76 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
 
     # Plot 5. Instrument DT prediction vs video measurement
     if active_dof == 1: # DOF2 
+        predicted_pitch_deg = radians_to_deg_array(predicted_angles[1])
+        predicted_bend_deg = radians_to_deg_array(predicted_angles[4])
+        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[4])
 
-        # commanded_bend_deg = np.degrees(np.array(commanded[1], dtype=float))
-        predicted_pitch_deg = np.degrees(np.array(predicted_angles[1], dtype=float))
-        predicted_bend_deg = np.degrees(np.array(predicted_angles[4], dtype=float))
-        # raw_bend_deg = np.degrees(np.array(predicted_angles[5], dtype=float))
+        has_hybrid_bend = np.isfinite(hybrid_bend_deg).any()
 
-        axes[4].plot(
+        physics_metrics = compute_prediction_metrics(
+            video_t,
+            red_shaft_video_angle,
             t,
             predicted_bend_deg,
-            label="DT predicted bend after instrument backlash [deg]",
-            linewidth=1.5,
-            color = "purple"
         )
 
-        axes[4].plot(
-            t,
-            predicted_pitch_deg,
-            label="DT predicted pitch projection [deg]",
-            linewidth=1.2,
-            linestyle="-.",
-            color = "purple"
+        hybrid_metrics = None
+
+        if has_hybrid_bend:
+            hybrid_metrics = compute_prediction_metrics(
+                video_t,
+                red_shaft_video_angle,
+                t,
+                hybrid_bend_deg,
+            )
+
+            used_prediction_name = "Hybrid DT bend"
+
+            axes[4].plot(
+                t,
+                hybrid_bend_deg,
+                label="Hybrid DT bend [deg]",
+                linewidth=1.5,
+                color="green",
+            )
+
+            add_metrics_text_box(
+                axes[4],
+                "Hybrid DT",
+                hybrid_metrics,
+            )
+
+        else:
+            used_prediction_name = "Physics-based DT bend"
+
+            axes[4].plot(
+                t,
+                predicted_bend_deg,
+                label="Physics-based DT bend [deg]",
+                linewidth=1.5,
+                color="purple",
+            )
+
+            add_metrics_text_box(
+                axes[4],
+                "Physics DT",
+                physics_metrics,
+            )
+
+        write_dof2_prediction_metrics(
+            plot_dir,
+            physics_metrics,
+            hybrid_metrics,
+            used_prediction_name,
         )
+        # axes[4].plot(
+        #     t,
+        #     predicted_pitch_deg,
+        #     label="DT predicted pitch projection [deg]",
+        #     linewidth=1.2,
+        #     linestyle="-.",
+        #     color = "purple"
+        # )
 
         axes[4].plot(
             video_t,
@@ -820,14 +1027,16 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
 
     if active_dof == 1:
         plot_dof2_video_validation(
-            plot_dir,
-            t,
-            commanded,
-            current_angles,
-            motor_pos,
-            video_t,
-            red_shaft_video_angle
-        )
+        plot_dir,
+        t,
+        commanded,
+        current_angles,
+        motor_pos,
+        video_t,
+        red_shaft_video_angle,
+        predicted_angles,
+        hybrid_predicted_angles,
+    )
     if active_dof == 3:
         plot_gripper_video_measurements(
             plot_dir,
@@ -886,7 +1095,7 @@ def plot_gripper_video_measurements(
     fig.savefig(os.path.join(plot_dir, "gripper_video_measurements.png"), dpi=200)
     plt.close(fig)
 
-def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos, video_t, video_angle):
+def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos, video_t, video_angle, predicted_angles=None, hybrid_predicted_angles=None,):
     motor2_minus_motor1 = [
         m2 - m1 for m1, m2 in zip(motor_pos[1], motor_pos[2])
     ]
@@ -931,6 +1140,30 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
         linewidth=2,
         label="video measured angle [deg]"
     )
+    has_hybrid_bend = False
+
+    if hybrid_predicted_angles is not None:
+        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[4])
+        has_hybrid_bend = np.isfinite(hybrid_bend_deg).any()
+
+    if has_hybrid_bend:
+        axes[2].plot(
+            t,
+            hybrid_bend_deg,
+            label="Hybrid DT bend [deg]",
+            linewidth=1.2,
+            color="green",
+        )
+
+    elif predicted_angles is not None:
+        predicted_bend_deg = radians_to_deg_array(predicted_angles[4])
+        axes[2].plot(
+            t,
+            predicted_bend_deg,
+            label="Physics-based DT bend [deg]",
+            linewidth=1.2,
+            color="purple",
+        )
 
     axes[2].set_ylabel("Angle [deg]")
     axes[2].grid(True)
@@ -1343,32 +1576,32 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
 
 #     plt.close(fig)
 
-# if __name__ == "__main__":
-#     import argparse
-#     from pathlib import Path
+if __name__ == "__main__":
+    import argparse
+    from pathlib import Path
 
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument("--file", required=True)
-#     parser.add_argument("--video-angles", default=None)
-#     parser.add_argument("--output-dir", default=None)
-#     parser.add_argument(
-#         "--params-file",
-#         default=str(
-#             Path.home()
-#             / "ros2_ws"
-#             / "src"
-#             / "adlap_tool_control"
-#             / "config"
-#             / "tool_params.yaml"
-#         ),
-#     )
-#     args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file", required=True)
+    parser.add_argument("--video-angles", default=None)
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument(
+        "--params-file",
+        default=str(
+            Path.home()
+            / "ros2_ws"
+            / "src"
+            / "adlap_tool_control"
+            / "config"
+            / "tool_params.yaml"
+        ),
+    )
+    args = parser.parse_args()
 
-#     plot_continuous_file(
-#         file_path=args.file,
-#         video_angle_file=args.video_angles,
-#         output_dir=args.output_dir,
-#         params_file=args.params_file,
-#     )
+    plot_continuous_file(
+        file_path=args.file,
+        video_angle_file=args.video_angles,
+        output_dir=args.output_dir,
+        params_file=args.params_file,
+    )
 
-#     print("All plots saved.")
+    print("All plots saved.")

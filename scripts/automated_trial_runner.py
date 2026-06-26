@@ -5,6 +5,7 @@ import json
 import yaml
 import os
 import shlex
+import shutil
 import subprocess
 import threading
 import time
@@ -368,12 +369,15 @@ def main():
         raise RuntimeError(record_errors[0])
     if not video_path.exists() or video_path.stat().st_size == 0:
         raise RuntimeError(f"Video file was not created correctly: {video_path}")
-    video_path = reencode_video_to_h264(video_path)
+    # video_path = reencode_video_to_h264(video_path)
 
     if pattern_returncode != 0:
         raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
 
     ros_log_path = find_newest_ros_log(test_data_dir, trial_start_time)
+    ros_log_copy_path = output_dir / ros_log_path.name
+    shutil.copy2(ros_log_path, ros_log_copy_path)
+    ros_log_path = ros_log_copy_path
 
     print(f"\nDetected ROS log:\n{ros_log_path}")
     print(f"\nDetected webcam video:\n{video_path}")
@@ -386,6 +390,10 @@ def main():
     )
 
     run_command(detector_cmd, check=True)
+    if original_video_path.exists():
+        original_video_path.unlink()
+        print(f"Removed temporary raw webcam video: {original_video_path}")
+        
 
     plot_cmd = args.plot_cmd.format(
         ros_log=shlex.quote(str(ros_log_path)),
@@ -421,7 +429,7 @@ def main():
         json.dump(metadata, f, indent=2)
 
     print("\nFull automated trial completed.")
-    print(f"Video:      {video_path}")
+    # print(f"Video:      {video_path}")
     print(f"ROS log:    {ros_log_path}")
     print(f"Angles:     {angles_path}")
     print(f"Plots:      {plots_dir}")

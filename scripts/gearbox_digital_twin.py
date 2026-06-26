@@ -84,12 +84,24 @@ class GearboxDigitalTwin:
         self.direction_deadband_pulses = backlash.get("direction_deadband_pulses", 5)
 
         self.gear_backlash_pulses = {
-            "gear_l1": backlash.get("gear_l1_backlash_pulses", 0),
-            "gear_l2": backlash.get("gear_l2_backlash_pulses", 0),
-            "gear_r1": backlash.get("gear_r1_backlash_pulses", 0),
-            "gear_r2": backlash.get("gear_r2_backlash_pulses", 0),
-        }   
-        print("Loaded backlash pulses:", self.gear_backlash_pulses)
+            "gear_l1": {
+                "positive": backlash["gear_l1_backlash_positive_pulses"],
+                "negative": backlash["gear_l1_backlash_negative_pulses"],
+            },
+            "gear_l2": {
+                "positive": backlash["gear_l2_backlash_positive_pulses"],
+                "negative": backlash["gear_l2_backlash_negative_pulses"],
+            },
+            "gear_r1": {
+                "positive": backlash["gear_r1_backlash_positive_pulses"],
+                "negative": backlash["gear_r1_backlash_negative_pulses"],
+            },
+            "gear_r2": {
+                "positive": backlash["gear_r2_backlash_positive_pulses"],
+                "negative": backlash["gear_r2_backlash_negative_pulses"],
+            },
+        }
+        print("Loaded direction-dependent backlash pulses:", self.gear_backlash_pulses)
         print("Config path:", config_path)
         mapping = config["gearbox_mapping"]
         
@@ -176,8 +188,23 @@ class GearboxDigitalTwin:
     # Apply a history-dependent backlash model.
     # After a confirmed direction reversal, part of the motor 
     # motion is lost before the gear output moves again.
+    def get_backlash_pulses(self, gear_name, direction):
+        """
+        Return backlash for the direction in which the motor/gear input is now moving.
 
-    def apply_backlash(self, gear_name, current_pulses, backlash_pulses):
+        direction > 0 uses the positive-direction backlash.
+        direction < 0 uses the negative-direction backlash.
+        """
+        backlash_values = self.gear_backlash_pulses[gear_name]
+
+        if direction > 0:
+            return backlash_values["positive"]
+        elif direction < 0:
+            return backlash_values["negative"]
+        else:
+            return 0.0
+
+    def apply_backlash(self, gear_name, current_pulses):        
         previous_input = self.last_input_pulses[gear_name]
         previous_output = self.last_output_pulses[gear_name]
         previous_direction = self.last_direction[gear_name]
@@ -215,7 +242,9 @@ class GearboxDigitalTwin:
             if reversal_movement < self.direction_deadband_pulses:
                 return previous_output
 
-            # Real reversal confirmed: activate backlash
+            # Real reversal confirmed: activate direction-dependent backlash
+            backlash_pulses = self.get_backlash_pulses(gear_name, direction)
+
             self.remaining_backlash_pulses[gear_name] = backlash_pulses
             self.last_direction[gear_name] = direction
             self.pending_direction[gear_name] = 0
@@ -276,25 +305,21 @@ class GearboxDigitalTwin:
         gear_l1_pulses = self.apply_backlash(
             "gear_l1",
             delta_motor_pulses[self.gear_l1_motor],
-            self.gear_backlash_pulses["gear_l1"]
         )
 
         gear_l2_pulses = self.apply_backlash(
             "gear_l2",
             delta_motor_pulses[self.gear_l2_motor],
-            self.gear_backlash_pulses["gear_l2"]
         )
 
         gear_r1_pulses = self.apply_backlash(
             "gear_r1",
             delta_motor_pulses[self.gear_r1_motor],
-            self.gear_backlash_pulses["gear_r1"]
         )
 
         gear_r2_pulses = self.apply_backlash(
             "gear_r2",
             delta_motor_pulses[self.gear_r2_motor],
-            self.gear_backlash_pulses["gear_r2"]
         )
 
         return {

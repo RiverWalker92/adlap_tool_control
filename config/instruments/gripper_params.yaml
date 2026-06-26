@@ -19,10 +19,10 @@ instrument:
   jaw_opening_backlash_mm: 0.08 #0.08
   jaw_closing_backlash_mm: 0.05 #0.05
 
-  bend_factor: 2.2 # 1.5
+  bend_factor: 5 #2.2 # 1.5
   instrument_bend_offset_deg: 0.0
-  instrument_bend_backlash_positive_deg: 2.5
-  instrument_bend_backlash_negative_deg: 9.0
+  instrument_bend_backlash_positive_deg: 0 #2.5
+  instrument_bend_backlash_negative_deg: 0 #9.0
 
   shaft_roll_sign: 1.0
   bend_sign: -1.0

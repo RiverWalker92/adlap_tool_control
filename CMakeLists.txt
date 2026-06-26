@@ -104,6 +104,7 @@ install(PROGRAMS
   scripts/webcam_video_angle_detector.py
   scripts/automated_trial_runner.py
   scripts/plot_trial.py
+  scripts/train_hybrid_bend_model.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

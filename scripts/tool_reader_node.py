@@ -48,6 +48,7 @@ class ToolReader(Node):
         self.start_time = self.get_clock().now().nanoseconds / 1e9
         self.last_gearbox_state = []
         self.last_predicted_instrument_angles = []
+        self.last_hybrid_predicted_instrument_angles = []
 
         self.control_sub = self.create_subscription(
             String,
@@ -125,8 +126,14 @@ class ToolReader(Node):
             self.predicted_instrument_callback,
             10
         )
+        self.hybrid_predicted_instrument_sub = self.create_subscription(
+            Float64MultiArray,
+            '/right/instrument_digital_twin/hybrid_predicted_instrument_angles',
+            self.hybrid_predicted_instrument_callback,
+            10
+        )
 
-        self.log_rate_hz = 2 #100.0
+        self.log_rate_hz = 100.0
         self.log_timer = self.create_timer(
             1.0 / self.log_rate_hz,
             self.print_and_log_state
@@ -144,12 +151,12 @@ class ToolReader(Node):
 
     def current_callback(self, msg):
         self.last_currents = list(msg.data)
-        self.get_logger().info(f"Got currents: {self.last_currents}")
+        # self.get_logger().info(f"Got currents: {self.last_currents}")
         # self.print_and_log_state()
 
     def position_callback(self, msg):
         self.last_positions = list(msg.data)
-        self.get_logger().info(f"Got positions: {self.last_positions}")
+        # self.get_logger().info(f"Got positions: {self.last_positions}")
         # self.print_and_log_state()
         
     def instrument_command_callback(self, msg):
@@ -184,6 +191,9 @@ class ToolReader(Node):
     def predicted_instrument_callback(self, msg):
         self.last_predicted_instrument_angles = list(msg.data)
 
+    def hybrid_predicted_instrument_callback(self, msg):
+        self.last_hybrid_predicted_instrument_angles = list(msg.data)
+    
     def get_log_file(self, task):
         parts = task.split("|")
 
@@ -236,6 +246,9 @@ class ToolReader(Node):
                 "gearbox_state": self.last_gearbox_state if len(self.last_gearbox_state) == 6 else None,
                 "predicted_instrument_angles": (self.last_predicted_instrument_angles
                     if self.last_predicted_instrument_angles else None),
+                "hybrid_predicted_instrument_angles": (
+                    self.last_hybrid_predicted_instrument_angles
+                    if self.last_hybrid_predicted_instrument_angles else None),
             }
 
             sample["task"] = self.last_task
@@ -257,13 +270,6 @@ class ToolReader(Node):
         for log_file in self.log_files.values():
             log_file.close()
         super().destroy_node()
-
-# add someting for task etc
-#log JSON file 1 whole and 1 divided
-
-#print pas als alle 3 beschikbaar zijn
-
-#heeel vaak gelogd, miss iedere ... ms?
 
 def main(args=None):
     rclpy.init(args=args)

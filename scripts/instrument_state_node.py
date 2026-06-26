@@ -1,10 +1,64 @@
 #!/usr/bin/env python3
 
+import math
+from pathlib import Path
+
+import joblib
+import pandas as pd
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
-from pathlib import Path
+
 from instrument_digital_twin import InstrumentDigitalTwin
+
+class HybridBendResidualModel:
+    """
+    Loads a trained gearbox-only no-history residual model.
+
+    The model predicts:
+        residual_deg = video_angle_deg - physics_DT_pitch_deg
+
+    Forward prediction:
+        hybrid_pitch = physics_DT_pitch + residual
+    """
+
+    def __init__(self, model_path):
+        model_path = Path(model_path).expanduser()
+
+        saved = joblib.load(model_path)
+
+        self.model = saved["model"]
+        self.feature_columns = list(saved["feature_columns"])
+
+        allowed_columns = [f"gearbox_{i}" for i in range(6)]
+
+        unsupported_columns = [
+            col for col in self.feature_columns
+            if col not in allowed_columns
+        ]
+
+        if unsupported_columns:
+            raise RuntimeError(
+                "This online hybrid model currently only supports "
+                "gearbox-only no-history models. Unsupported columns: "
+                f"{unsupported_columns}"
+            )
+
+    def predict_residual_deg(self, gearbox_output):
+        feature_values = {
+            f"gearbox_{i}": float(gearbox_output[i])
+            for i in range(6)
+        }
+
+        row = {
+            col: feature_values[col]
+            for col in self.feature_columns
+        }
+
+        x = pd.DataFrame([row], columns=self.feature_columns)
+        residual_deg = float(self.model.predict(x)[0])
+
+        return residual_deg
 
 class InstrumentStateNode(Node):
     def __init__(self):
@@ -18,10 +72,33 @@ class InstrumentStateNode(Node):
             "predicted_instrument_angles_topic",
             "/right/instrument_digital_twin/predicted_instrument_angles",
         )
+        self.declare_parameter(
+            "hybrid_predicted_instrument_angles_topic",
+            "/right/instrument_digital_twin/hybrid_predicted_instrument_angles",
+        )
+#!!!!!!!!!!!!PAS DIT AAN
+        self.declare_parameter("hybrid_bend_enabled", True) #!!!! hierin aanpassen
+
+        self.declare_parameter(
+            "hybrid_bend_model_file",
+            "",
+        )
 
         self.gearbox_output_topic = self.get_parameter("gearbox_output_topic").value
         self.predicted_topic = self.get_parameter(
             "predicted_instrument_angles_topic"
+        ).value
+
+        self.hybrid_predicted_topic = self.get_parameter(
+            "hybrid_predicted_instrument_angles_topic"
+        ).value
+
+        self.hybrid_bend_enabled = bool(
+            self.get_parameter("hybrid_bend_enabled").value
+        )
+
+        self.hybrid_bend_model_file = self.get_parameter(
+            "hybrid_bend_model_file"
         ).value
 
         self.declare_parameter(
@@ -43,10 +120,31 @@ class InstrumentStateNode(Node):
 
         self.instrument_dt = InstrumentDigitalTwin(config_path=self.instrument_params_file)
 
+        self.hybrid_bend_model = None
+
+        if self.hybrid_bend_enabled:
+            if self.hybrid_bend_model_file == "":
+                raise RuntimeError(
+                    "hybrid_bend_enabled is True, but hybrid_bend_model_file is empty"
+                )
+
+            self.hybrid_bend_model = HybridBendResidualModel(
+                self.hybrid_bend_model_file
+            )
+
+            self.get_logger().info(
+                f"Loaded hybrid bend residual model from {self.hybrid_bend_model_file}"
+            )
 
         self.predicted_pub = self.create_publisher(
             Float64MultiArray,
             self.predicted_topic,
+            10,
+        )
+
+        self.hybrid_predicted_pub = self.create_publisher(
+            Float64MultiArray,
+            self.hybrid_predicted_topic,
             10,
         )
 
@@ -89,6 +187,36 @@ class InstrumentStateNode(Node):
 
         self.predicted_pub.publish(out)
         self.get_logger().info(f"Published predicted angles: {list(out.data)}")
+
+        if self.hybrid_bend_enabled:
+            residual_deg = self.hybrid_bend_model.predict_residual_deg(msg.data)
+            residual_rad = math.radians(residual_deg)
+
+            hybrid_out = Float64MultiArray()
+
+            hybrid_pitch = float(predicted["pitch"]) + residual_rad
+
+            # Voor jouw DOF2 bend model corrigeren we ook bend met dezelfde residual.
+            # De training gebruikte pred_instr_1, dus pitch is de belangrijkste output.
+            hybrid_bend = float(predicted["bend"]) + residual_rad
+
+            hybrid_out.data = [
+                float(predicted["tip_rotation"]),        # 0
+                float(hybrid_pitch),                     # 1 corrected pitch
+                float(predicted["yaw"]),                 # 2
+                float(predicted["articulation"]),        # 3
+                float(hybrid_bend),                      # 4 corrected bend
+                float(predicted["raw_bend"]),            # 5 original raw physics bend
+                float(predicted["shaft_roll"]),          # 6
+                float(predicted["articulation_one_jaw"]) # 7
+            ]
+
+            self.hybrid_predicted_pub.publish(hybrid_out)
+
+            self.get_logger().info(
+                f"Published hybrid predicted angles: {list(hybrid_out.data)}, "
+                f"residual={residual_deg:.3f} deg"
+            )
 
 def main(args=None):
     rclpy.init(args=args)

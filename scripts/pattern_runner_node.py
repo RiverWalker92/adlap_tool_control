@@ -24,7 +24,7 @@ class PatternRunner(Node):
         )
         self.declare_parameter("topic", "/right/tool_control_node/instrument_angles")
         self.declare_parameter("publish_rate", 100.0)
-        self.declare_parameter("duration", 10.0)
+        self.declare_parameter("duration", 11.0)
         self.duration = float(self.get_parameter("duration").value)
 
         for i in range(1, 5):
@@ -34,6 +34,7 @@ class PatternRunner(Node):
             self.declare_parameter(f"{prefix}.min", 0.0)
             self.declare_parameter(f"{prefix}.max", 0.0)
             self.declare_parameter(f"{prefix}.frequency", 0.1)
+            self.declare_parameter(f"{prefix}.velocity", 0.0)
 
         self.declare_parameter("dof4.tip_compensation_pulses", 0)
         self.declare_parameter("dof4.tip_compensation_sign", -1)
@@ -55,7 +56,7 @@ class PatternRunner(Node):
         )
 
         # Generic sequence parameters for DOF2 and DOF4
-        for dof_name in ["dof2", "dof4"]:
+        for dof_name in ["dof2", "dof3", "dof4"]:
             self.declare_parameter(f"{dof_name}.sequence_modes")
             self.declare_parameter(f"{dof_name}.sequence_cycles")
             self.declare_parameter(f"{dof_name}.sequence_pause_duration")
@@ -81,7 +82,7 @@ class PatternRunner(Node):
         self.sequence_between_range_pause = {}
         self.sequence_final_pause_duration = {}
 
-        for dof_name in ["dof2", "dof4"]:
+        for dof_name in ["dof2", "dof3", "dof4"]:
             mode = self.get_parameter(f"{dof_name}.mode").value
             self.sequence_enabled[dof_name] = mode == "sequence"
 
@@ -166,7 +167,7 @@ class PatternRunner(Node):
         self.sequence_led_active = False
         self.active_sequence_dof = None
 
-        for dof_name in ["dof2", "dof4"]:
+        for dof_name in ["dof2", "dof3", "dof4"]:
             if self.sequence_enabled[dof_name]:
                 self.active_sequence_dof = dof_name
                 break
@@ -301,6 +302,7 @@ class PatternRunner(Node):
                     f"_freqx{frequency_text}"
                     f"_rangex{range_text}"
                 )
+            
             elif mode != "constant":
                 active.append(f"dof{i}_{mode}")
 
@@ -318,6 +320,9 @@ class PatternRunner(Node):
 
         if mode == "constant":
             return value
+        if mode == "ramp":
+            velocity = float(self.get_parameter(f"{dof_name}.velocity").value)
+            return value + velocity * t
 
         if mode == "sinusoid":
             offset = 0.5 * (max_value + min_value)

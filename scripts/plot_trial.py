@@ -658,6 +658,173 @@ def add_metrics_text_box(ax, model_name, metrics):
         fontsize=8,
         bbox=dict(boxstyle="round", alpha=0.8),
     )
+def wrap_to_pi(angle_rad):
+    return (angle_rad + np.pi) % (2.0 * np.pi) - np.pi
+
+def plot_dof3_current_vs_wrapped_angle(plot_dir, t, gearbox, currents):
+    angle_deg = np.array(gearbox[0], dtype=float)
+    angle_rad = np.radians(angle_deg)
+    wrapped_rad = wrap_to_pi(angle_rad)
+
+    motor_current = np.array(currents[0], dtype=float)
+
+    t_arr = np.array(t, dtype=float)
+
+    valid = np.isfinite(wrapped_rad) & np.isfinite(motor_current) & np.isfinite(t_arr)
+    wrapped_rad = wrapped_rad[valid]
+    motor_current = motor_current[valid]
+    t_arr = t_arr[valid]
+
+    # Alleen het bewegende deel gebruiken: command/hoek wijkt duidelijk af van 0
+    moving = np.abs(wrapped_rad) > 0.15
+
+    if np.sum(moving) < 10:
+        return
+
+    first = np.where(moving)[0][0]
+    last = np.where(moving)[0][-1] + 1
+
+    wrapped_rad = wrapped_rad[first:last]
+    motor_current = motor_current[first:last]
+    t_arr = t_arr[first:last]
+
+    # frequency = 0.1
+    # cycle_duration = 1.0 / frequency
+
+    # # Eerste en laatste halve/onvolledige cycle wegknippen
+    # t_start = t_arr[0]
+    # t_end = t_arr[-1]
+
+    # first_full_cycle_start = t_start + cycle_duration
+    # last_full_cycle_end = t_end - cycle_duration
+
+    # keep_full = (t_arr >= first_full_cycle_start) & (t_arr <= last_full_cycle_end)
+
+    # wrapped_rad = wrapped_rad[keep_full]
+    # motor_current = motor_current[keep_full]
+    # t_arr = t_arr[keep_full]
+
+    # frequency = 0.1
+    # cycle_duration = 1.0 / frequency
+
+    # t_arr = np.array(t, dtype=float)[valid]
+    # t0 = t_arr[0]
+    # cycle_index = np.floor((t_arr - t0) / cycle_duration).astype(int)
+
+    # cycle_edges = []
+    # for c in sorted(set(cycle_index)):
+    #     indices = np.where(cycle_index == c)[0]
+    #     if len(indices) > 20:
+    #         cycle_edges.append((indices[0], indices[-1] + 1))
+    # Split op echte wrap-jumps: van +pi terug naar -pi of andersom
+    jumps = np.where(np.abs(np.diff(wrapped_rad)) > np.pi)[0] + 1
+    cycle_edges = np.r_[0, jumps, len(wrapped_rad)]
+
+    # Eerste en laatste onvolledige rotatie weggooien
+    cycle_edges = [
+        (start, end)
+        for start, end in zip(cycle_edges[:-1], cycle_edges[1:])
+        if end - start > 20
+    ]
+
+    if len(cycle_edges) > 2:
+        cycle_edges = cycle_edges[1:-1]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    cycle_count = 0
+
+    for start, end in cycle_edges:
+        if end - start < 20:
+            continue
+
+        angle_cycle = wrapped_rad[start:end]
+        current_cycle = motor_current[start:end]
+
+        # Alleen bijna volledige -pi tot pi stukken gebruiken
+        angle_range = np.nanmax(angle_cycle) - np.nanmin(angle_cycle)
+        if angle_range < 0.8 * 2.0 * np.pi:
+            continue
+
+        cycle_count += 1
+
+        ax.plot(
+            angle_cycle,
+            current_cycle,
+            linewidth=1.2,
+            alpha=0.8,
+            label=f"Rotation {cycle_count}",
+        )
+    ax.set_title("DOF3: motor current vs wrapped inner shaft rotation")
+    ax.set_xlabel("Wrapped angle [rad]")
+    ax.set_ylabel("Motor current [mA]")
+    ax.set_xlim(-np.pi, np.pi)
+    ax.set_ylim(0, 250)
+    ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+    ax.set_xticklabels(["-π", "-π/2", "0", "π/2", "π"])
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    plt.tight_layout()
+    fig.savefig(os.path.join(plot_dir, "dof3_current_vs_wrapped_angle.png"), dpi=200)
+    plt.close(fig)
+
+# def plot_dof3_current_vs_wrapped_angle(plot_dir, t, gearbox, currents):
+#     angle_deg = np.array(gearbox[0], dtype=float)
+#     angle_rad = np.radians(angle_deg)
+#     wrapped_rad = wrap_to_pi(angle_rad)
+
+#     motor_current = np.array(currents[0], dtype=float)
+#     t_arr = np.array(t, dtype=float)
+
+#     valid = np.isfinite(wrapped_rad) & np.isfinite(motor_current) & np.isfinite(t_arr)
+#     wrapped_rad = wrapped_rad[valid]
+#     motor_current = motor_current[valid]
+
+#     if len(wrapped_rad) < 20:
+#         return
+
+#     # Split continuous ramp into rotations using wrap jumps.
+#     jumps = np.where(np.abs(np.diff(wrapped_rad)) > np.pi)[0] + 1
+#     cycle_edges = np.r_[0, jumps, len(wrapped_rad)]
+
+#     fig, ax = plt.subplots(figsize=(10, 6))
+
+#     cycle_count = 0
+
+#     for start, end in zip(cycle_edges[:-1], cycle_edges[1:]):
+#         if end - start < 20:
+#             continue
+
+#         angle_cycle = wrapped_rad[start:end]
+#         current_cycle = motor_current[start:end]
+
+#         # alleen volledige stukken van ongeveer -pi tot pi gebruiken
+#         if np.nanmax(angle_cycle) - np.nanmin(angle_cycle) < 0.8 * 2.0 * np.pi:
+#             continue
+
+#         cycle_count += 1
+
+#         ax.plot(
+#             angle_cycle,
+#             current_cycle,
+#             linewidth=1.2,
+#             alpha=0.8,
+#             label=f"Rotation {cycle_count}",
+#         )
+
+#     ax.set_title("DOF3: motor current vs wrapped inner shaft rotation")
+#     ax.set_xlabel("Wrapped angle [rad]")
+#     ax.set_ylabel("Motor current [mA]")
+#     ax.set_xlim(-np.pi, np.pi)
+#     ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+#     ax.set_xticklabels(["-π", "-π/2", "0", "π/2", "π"])
+#     ax.grid(True)
+#     ax.legend(fontsize=8)
+
+#     plt.tight_layout()
+#     fig.savefig(os.path.join(plot_dir, "dof3_current_vs_wrapped_angle.png"), dpi=200)
+#     plt.close(fig)
 
 def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, params_file=None):
     t, commanded, current_angles, predicted_angles, hybrid_predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
@@ -841,10 +1008,9 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
 
     # Plot 5. Instrument DT prediction vs video measurement
     if active_dof == 1: # DOF2 
-        predicted_pitch_deg = radians_to_deg_array(predicted_angles[1])
-        predicted_bend_deg = radians_to_deg_array(predicted_angles[4])
-        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[4])
-
+        predicted_bend_deg = radians_to_deg_array(predicted_angles[1])
+        predicted_pitch_deg = radians_to_deg_array(predicted_angles[4])
+        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[1])
         has_hybrid_bend = np.isfinite(hybrid_bend_deg).any()
 
         physics_metrics = compute_prediction_metrics(
@@ -977,7 +1143,10 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
             label="video measured red marker vs shaft [deg]",
         )
 
-    axes[4].set_title("Instrument output: DT prediction vs video measurement")
+    if video_angle_file is None:
+        axes[4].set_title("Instrument output: DT prediction")
+    else:
+        axes[4].set_title("Instrument output: DT prediction vs video measurement")
     axes[4].set_ylabel("Angle [deg]")
     axes[4].set_xlabel("Time [s]")
     axes[4].grid(True)
@@ -1037,6 +1206,14 @@ def plot_continuous_file(file_path, video_angle_file=None, output_dir=None, para
         predicted_angles,
         hybrid_predicted_angles,
     )
+    if active_dof == 2:
+        plot_dof3_current_vs_wrapped_angle(
+            plot_dir,
+            t,
+            gearbox,
+            currents,
+        )
+
     if active_dof == 3:
         plot_gripper_video_measurements(
             plot_dir,
@@ -1143,7 +1320,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
     has_hybrid_bend = False
 
     if hybrid_predicted_angles is not None:
-        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[4])
+        hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[1])
         has_hybrid_bend = np.isfinite(hybrid_bend_deg).any()
 
     if has_hybrid_bend:
@@ -1156,7 +1333,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
         )
 
     elif predicted_angles is not None:
-        predicted_bend_deg = radians_to_deg_array(predicted_angles[4])
+        predicted_bend_deg = radians_to_deg_array(predicted_angles[1])
         axes[2].plot(
             t,
             predicted_bend_deg,

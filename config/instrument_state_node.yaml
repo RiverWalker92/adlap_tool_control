@@ -3,5 +3,5 @@ instrument_state_node:
     gearbox_output_topic: "/right/tool_control_node/gearbox_state"
     predicted_instrument_angles_topic: "/right/instrument_digital_twin/predicted_instrument_angles"
     instrument_params_file: "/home/leanne/ros2_ws/src/adlap_tool_control/config/instruments/gripper_params.yaml"
-    hybrid_bend_enabled: true
-    hybrid_bend_model_file: "/home/leanne/ros2_ws/test_data/trained_models/bend_prediction_gearbox_only_no_history/gradient_boosting/gradient_boosting_bend_hybrid_model.joblib"
+    hybrid_bend_enabled: false
+    hybrid_bend_model_file: /home/leanne/ros2_ws/test_data/trained_models/bend_prediction_gearbox_only_no_history/random_forest/random_forest_bend_hybrid_model.joblib #"/home/leanne/ros2_ws/test_data/trained_models/bend_prediction_gearbox_only_no_history/gradient_boosting/gradient_boosting_bend_hybrid_model.joblib"

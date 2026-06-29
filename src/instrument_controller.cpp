@@ -47,7 +47,7 @@ void InstrumentController::publish_task(const std::string& task_name)
 void InstrumentController::set_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose)
 {
     // Add to history + compute smoothed values (same helper called 4 times)
-    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, roll, smoothing_factor_, -M_PI, M_PI);
+    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, roll, smoothing_factor_, -INFINITY, INFINITY);
     smoothed_pitch_ = update_history_and_get_mean(pitch_history_, pitch, smoothing_factor_, -M_PI/4, M_PI/4);
     smoothed_yaw_ = update_history_and_get_mean(yaw_history_, yaw, smoothing_factor_, -M_PI/4, M_PI/4);
     smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
@@ -60,7 +60,7 @@ void InstrumentController::set_joint_angles(double shaft_roll, double bend, doub
     // Add to history + compute smoothed values (same helper called 4 times)
     smoothed_shaft_roll_ = update_history_and_get_mean(shaft_roll_history_, shaft_roll, smoothing_factor_, -INFINITY, INFINITY);
     smoothed_bend_ = update_history_and_get_mean(bend_history_, bend, smoothing_factor_, -M_PI/4, M_PI/4);
-    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, tip_rotation, smoothing_factor_, -M_PI, M_PI);
+    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, tip_rotation, smoothing_factor_, -INFINITY, INFINITY);
     smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
     if (verbose) RCLCPP_DEBUG(logger_, "Smoothed angles - shaft_roll: '%f', bend: '%f', tip_rotation: '%f', articulation: '%f'", smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_);
     gearbox.motor_controller.send_motor_positions(calculate_motor_positions_from_joint_angles(smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_, verbose), true);

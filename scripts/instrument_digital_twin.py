@@ -20,7 +20,11 @@ class InstrumentDigitalTwin:
     ]
 
     Output order:
-    [tip_rotation, pitch, yaw, articulation]
+    [   dof1 = shaft_roll, 
+        dof2 = bend, 
+        dof3 = tip_rotation,
+        dof4 = articulation
+    ]
     all in radians
     """
 

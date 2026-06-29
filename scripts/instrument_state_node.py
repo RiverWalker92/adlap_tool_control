@@ -175,14 +175,14 @@ class InstrumentStateNode(Node):
 
         out = Float64MultiArray()
         out.data = [
-            float(predicted["tip_rotation"]),       # 0
-            float(predicted["pitch"]),              # 1
-            float(predicted["yaw"]),                # 2
-            float(predicted["articulation"]),       # 3
-            float(predicted["bend"]),               # 4
-            float(predicted["raw_bend"]),           # 5
-            float(predicted["shaft_roll"]),         # 6
-            float(predicted["articulation_one_jaw"])# 7
+            float(predicted["shaft_roll"]),          # 0 = DOF1
+            float(predicted["bend"]),                # 1 = DOF2
+            float(predicted["tip_rotation"]),        # 2 = DOF3
+            float(predicted["articulation"]),        # 3 = DOF4
+            float(predicted["pitch"]),               # 4 extra
+            float(predicted["yaw"]),                 # 5 extra
+            float(predicted["raw_bend"]),            # 6 extra
+            float(predicted["articulation_one_jaw"]) # 7 extra
         ]
 
         self.predicted_pub.publish(out)
@@ -201,16 +201,15 @@ class InstrumentStateNode(Node):
             hybrid_bend = float(predicted["bend"]) + residual_rad
 
             hybrid_out.data = [
-                float(predicted["tip_rotation"]),        # 0
-                float(hybrid_pitch),                     # 1 corrected pitch
-                float(predicted["yaw"]),                 # 2
-                float(predicted["articulation"]),        # 3
-                float(hybrid_bend),                      # 4 corrected bend
-                float(predicted["raw_bend"]),            # 5 original raw physics bend
-                float(predicted["shaft_roll"]),          # 6
-                float(predicted["articulation_one_jaw"]) # 7
+                float(predicted["shaft_roll"]),          # 0 = DOF1
+                float(hybrid_bend),                      # 1 = DOF2 corrected
+                float(predicted["tip_rotation"]),        # 2 = DOF3
+                float(predicted["articulation"]),        # 3 = DOF4
+                float(hybrid_pitch),                     # 4 extra corrected pitch
+                float(predicted["yaw"]),                 # 5 extra
+                float(predicted["raw_bend"]),            # 6 extra
+                float(predicted["articulation_one_jaw"]) # 7 extra
             ]
-
             self.hybrid_predicted_pub.publish(hybrid_out)
 
             self.get_logger().info(

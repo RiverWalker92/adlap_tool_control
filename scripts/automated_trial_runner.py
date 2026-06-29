@@ -56,7 +56,7 @@ def extract_ros_parameters(config: dict) -> dict:
     return config
 
 
-def infer_active_dof_from_params(params_file: Path) -> int:
+def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
     """
     Infers active DOF from tool_params.yaml.
     Returns 2 or 4, because the current video detector supports DOF2 and DOF4.
@@ -93,7 +93,7 @@ def infer_active_dof_from_params(params_file: Path) -> int:
 
     active_dof = active_dofs[0]
 
-    if active_dof not in [2, 4]:
+    if require_video_supported and active_dof not in [2, 4]:
         raise RuntimeError(
             f"Active DOF is dof{active_dof}, but the video detector currently only supports DOF2 and DOF4."
         )
@@ -245,7 +245,7 @@ def main():
         description="Run full automated AdLap trial: camera settings, video, pattern, angle detection, plotting."
     )
 
-    parser.add_argument("--dof", type=int, choices=[2, 4], default=None)
+    parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
     parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "tool_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
     parser.add_argument("--camera", default="/dev/video0")
@@ -255,6 +255,11 @@ def main():
     parser.add_argument("--width", type=int, default=3840)
     parser.add_argument("--height", type=int, default=2160)
     parser.add_argument("--fps", type=float, default=30.0)
+    parser.add_argument(
+        "--no-camera",
+        action="store_true",
+        help="Run trial without webcam/video detection and plotting.",
+    )
 
     parser.add_argument(
         "--test-data-dir",
@@ -303,10 +308,15 @@ def main():
     params_file = Path(args.params_file).expanduser()
 
     if args.dof is None:
-        args.dof = infer_active_dof_from_params(params_file)
+        args.dof = infer_active_dof_from_params(
+            params_file,
+            require_video_supported=False,
+        )
         print(f"Inferred active DOF from tool_params.yaml: DOF{args.dof}")
     else:
         print(f"Using DOF from terminal argument: DOF{args.dof}")
+
+    use_camera = args.dof in [2, 4]
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     trial_name = f"auto_dof{args.dof}_{timestamp}"
@@ -323,54 +333,59 @@ def main():
 
     test_data_dir = Path(args.test_data_dir).expanduser()
 
-    apply_camera_settings(
-        camera_device=args.camera,
-        focus=args.focus,
-        sharpness=args.sharpness,
-    )
-
-    stop_event = threading.Event()
-    record_errors = []
-
     trial_start_time = time.time()
+    record_errors = []
+    stop_event = None
+    recorder_thread = None
 
-    recorder_thread = threading.Thread(
-        target=record_video,
-        kwargs={
-            "camera_device": args.camera,
-            "output_video": video_path,
-            "width": args.width,
-            "height": args.height,
-            "fps": args.fps,
-            "stop_event": stop_event,
-            "error_holder": record_errors,
-        },
-        daemon=True,
-    )
+    if use_camera:
+        apply_camera_settings(
+            camera_device=args.camera,
+            focus=args.focus,
+            sharpness=args.sharpness,
+        )
+        stop_event = threading.Event()
+        record_errors = []
 
-    recorder_thread.start()
+        trial_start_time = time.time()
 
-    # Give the camera a short moment to actually start before the LED/pattern starts.
-    time.sleep(1.0)
+        recorder_thread = threading.Thread(
+            target=record_video,
+            kwargs={
+                "camera_device": args.camera,
+                "output_video": video_path,
+                "width": args.width,
+                "height": args.height,
+                "fps": args.fps,
+                "stop_event": stop_event,
+                "error_holder": record_errors,
+            },
+            daemon=True,
+        )
 
-    if record_errors:
-        raise RuntimeError(record_errors[0])
+        recorder_thread.start()
+
+        # Give the camera a short moment to actually start before the LED/pattern starts.
+        time.sleep(1.0)
+
+        if record_errors:
+            raise RuntimeError(record_errors[0])
 
     print("\nStarting pattern runner...")
     pattern_returncode = run_command(args.pattern_cmd, check=False)
 
     print(f"\nPattern command finished with return code: {pattern_returncode}")
-    time.sleep(args.extra_video_seconds)
+    if use_camera:
+        time.sleep(args.extra_video_seconds)
 
-    stop_event.set()
-    recorder_thread.join()
+        stop_event.set()
+        recorder_thread.join()
 
-    if record_errors:
-        raise RuntimeError(record_errors[0])
-    if not video_path.exists() or video_path.stat().st_size == 0:
-        raise RuntimeError(f"Video file was not created correctly: {video_path}")
-    # video_path = reencode_video_to_h264(video_path)
+        if record_errors:
+            raise RuntimeError(record_errors[0])
 
+        if not video_path.exists() or video_path.stat().st_size == 0:
+            raise RuntimeError(f"Video file was not created correctly: {video_path}")
     if pattern_returncode != 0:
         raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
 
@@ -380,16 +395,41 @@ def main():
     ros_log_path = ros_log_copy_path
 
     print(f"\nDetected ROS log:\n{ros_log_path}")
-    print(f"\nDetected webcam video:\n{video_path}")
+    if use_camera:
+        print(f"\nDetected webcam video:\n{video_path}")
 
-    detector_cmd = args.detector_cmd.format(
-        video=shlex.quote(str(video_path)),
-        ros_log=shlex.quote(str(ros_log_path)),
-        dof=args.dof,
-        angles=shlex.quote(str(angles_path)),
-    )
+        detector_cmd = args.detector_cmd.format(
+            video=shlex.quote(str(video_path)),
+            ros_log=shlex.quote(str(ros_log_path)),
+            dof=args.dof,
+            angles=shlex.quote(str(angles_path)),
+        )
 
-    run_command(detector_cmd, check=True)
+        run_command(detector_cmd, check=True)
+
+        if original_video_path.exists():
+            original_video_path.unlink()
+            print(f"Removed temporary raw webcam video: {original_video_path}")
+
+        plot_cmd = args.plot_cmd.format(
+            ros_log=shlex.quote(str(ros_log_path)),
+            angles=shlex.quote(str(angles_path)),
+            plot_dir=shlex.quote(str(plots_dir)),
+            dof=args.dof,
+            video=shlex.quote(str(video_path)),
+            params_file=shlex.quote(str(params_file)),
+        )
+
+    else:
+        plot_cmd = (
+            f"ros2 run adlap_tool_control plot_trial.py "
+            f"--file {shlex.quote(str(ros_log_path))} "
+            f"--output-dir {shlex.quote(str(plots_dir))} "
+            f"--params-file {shlex.quote(str(params_file))}"
+        )
+
+    run_command(plot_cmd, check=True)
+
     if original_video_path.exists():
         original_video_path.unlink()
         print(f"Removed temporary raw webcam video: {original_video_path}")
@@ -409,6 +449,7 @@ def main():
     metadata = {
         "trial_name": trial_name,
         "dof": args.dof,
+        "used_camera": use_camera,
         "camera": args.camera,
         "focus_absolute": args.focus,
         "sharpness": args.sharpness,

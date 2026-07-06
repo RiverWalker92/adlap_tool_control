@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from launch import LaunchDescription
-from launch.actions import EmitEvent, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.substitutions import LaunchConfiguration
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch_ros.actions import Node
@@ -26,9 +27,12 @@ def generate_launch_description():
         / "instrument_state_node.yaml"
     )
 
-    pattern_runner_node = Node(
+    output_dir = LaunchConfiguration("output_dir")
+    log_file_name = LaunchConfiguration("log_file_name")
+
+    tool_pattern_runner_node = Node(
         package="adlap_tool_control",
-        executable="pattern_runner_node.py",
+        executable="tool_pattern_runner_node.py",
         name="tool_controller_node",   # belangrijk: moet matchen met tool_params.yaml
         parameters=[str(params_file)],
         output="screen",
@@ -38,6 +42,12 @@ def generate_launch_description():
         package="adlap_tool_control",
         executable="tool_reader_node.py",
         output="screen",
+        parameters=[
+            {
+                "output_dir": output_dir,
+                "log_file_name": log_file_name,
+            }
+        ],
     )
 
     gearbox_state_node = Node(
@@ -69,7 +79,7 @@ def generate_launch_description():
 
     shutdown_when_pattern_is_done = RegisterEventHandler(
         OnProcessExit(
-            target_action=pattern_runner_node,
+            target_action=tool_pattern_runner_node,
             on_exit=[
                 EmitEvent(
                     event=Shutdown(reason="Pattern runner finished")
@@ -79,7 +89,9 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        pattern_runner_node,
+        DeclareLaunchArgument("output_dir"),
+        DeclareLaunchArgument("log_file_name"),
+        tool_pattern_runner_node,
         tool_reader_node,
         gearbox_state_node,
         instrument_state_node,

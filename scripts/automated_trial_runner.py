@@ -3,9 +3,7 @@
 import argparse
 import json
 import yaml
-import os
 import shlex
-import shutil
 import subprocess
 import threading
 import time
@@ -14,6 +12,17 @@ from pathlib import Path
 
 import cv2
 
+def ask_test_mode():
+    while True:
+        mode = input("Select test mode: [t] tool/instrument, [m] motor-only: ").strip().lower()
+
+        if mode in ["t", "tool"]:
+            return "tool"
+
+        if mode in ["m", "motor"]:
+            return "motor"
+
+        print("Invalid choice. Type 't' for tool or 'm' for motor.")
 
 def run_command(cmd: str, check: bool = True):
     print(f"\n$ {cmd}")
@@ -40,8 +49,8 @@ def extract_ros_parameters(config: dict) -> dict:
     preferred_keys = [
         "tool_controller_node",
         "/tool_controller_node",
-        "pattern_runner_node",
-        "/pattern_runner_node",
+        "tool_pattern_runner_node",
+        "/tool_pattern_runner_node",
         "/**",
     ]
 
@@ -188,63 +197,63 @@ def record_video(
         stop_event.set()
 
 
-def find_newest_ros_log(test_data_dir: Path, started_after: float) -> Path:
-    """
-    Finds the newest ROS trial jsonl file created after the trial started.
-    Excludes angle detector outputs.
-    """
-    candidates = []
+# def find_newest_ros_log(test_data_dir: Path, started_after: float) -> Path:
+#     """
+#     Finds the newest ROS trial jsonl file created after the trial started.
+#     Excludes angle detector outputs.
+#     """
+#     candidates = []
 
-    for path in test_data_dir.rglob("*.jsonl"):
-        name = path.name.lower()
+#     for path in test_data_dir.rglob("*.jsonl"):
+#         name = path.name.lower()
 
-        # Exclude video-angle output files
-        if "angle" in name or "debug" in name:
-            continue
+#         # Exclude video-angle output files
+#         if "angle" in name or "debug" in name:
+#             continue
 
-        try:
-            mtime = path.stat().st_mtime
-        except FileNotFoundError:
-            continue
+#         try:
+#             mtime = path.stat().st_mtime
+#         except FileNotFoundError:
+#             continue
 
-        if mtime >= started_after - 2.0:
-            candidates.append(path)
+#         if mtime >= started_after - 2.0:
+#             candidates.append(path)
 
-    if not candidates:
-        raise RuntimeError(
-            f"No ROS trial .jsonl found in {test_data_dir} after start time."
-        )
+#     if not candidates:
+#         raise RuntimeError(
+#             f"No ROS trial .jsonl found in {test_data_dir} after start time."
+#         )
 
-    newest = max(candidates, key=lambda p: p.stat().st_mtime)
-    return newest
+#     newest = max(candidates, key=lambda p: p.stat().st_mtime)
+#     return newest
     
-def reencode_video_to_h264(input_video: Path):
-    """
-    Re-encodes OpenCV-written video to a broadly compatible H.264 MP4.
-    This fixes videos that look black in some players but contain readable frames.
-    """
-    fixed_video = input_video.with_name(input_video.stem + "_h264.mp4")
+# def reencode_video_to_h264(input_video: Path):
+#     """
+#     Re-encodes OpenCV-written video to a broadly compatible H.264 MP4.
+#     This fixes videos that look black in some players but contain readable frames.
+#     """
+#     fixed_video = input_video.with_name(input_video.stem + "_h264.mp4")
 
-    cmd = (
-        f"ffmpeg -y -i {shlex.quote(str(input_video))} "
-        f"-c:v libx264 -pix_fmt yuv420p -movflags +faststart "
-        f"{shlex.quote(str(fixed_video))}"
-    )
+#     cmd = (
+#         f"ffmpeg -y -i {shlex.quote(str(input_video))} "
+#         f"-c:v libx264 -pix_fmt yuv420p -movflags +faststart "
+#         f"{shlex.quote(str(fixed_video))}"
+#     )
 
-    returncode = run_command(cmd, check=False)
+#     returncode = run_command(cmd, check=False)
 
-    if returncode != 0 or not fixed_video.exists() or fixed_video.stat().st_size == 0:
-        print("Warning: H.264 re-encoding failed. Keeping original OpenCV video.")
-        return input_video
+#     if returncode != 0 or not fixed_video.exists() or fixed_video.stat().st_size == 0:
+#         print("Warning: H.264 re-encoding failed. Keeping original OpenCV video.")
+#         return input_video
 
-    print(f"Re-encoded video saved as: {fixed_video}")
-    return fixed_video
+#     print(f"Re-encoded video saved as: {fixed_video}")
+#     return fixed_video
 
 def main():
     parser = argparse.ArgumentParser(
         description="Run full automated AdLap trial: camera settings, video, pattern, angle detection, plotting."
     )
-
+    parser.add_argument("--mode", choices=["ask", "tool", "motor"], default="ask", help="Select trial mode: tool, motor, or ask interactively.")
     parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
     parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "tool_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
@@ -255,10 +264,24 @@ def main():
     parser.add_argument("--width", type=int, default=3840)
     parser.add_argument("--height", type=int, default=2160)
     parser.add_argument("--fps", type=float, default=30.0)
+    
+    
     parser.add_argument(
         "--no-camera",
         action="store_true",
         help="Run trial without webcam/video detection and plotting.",
+    )
+
+    parser.add_argument(
+        "--motor-setup-name",
+        default="setup_01_motors",
+        help="Folder name used for motor-only automated trials.",
+    )
+
+    parser.add_argument(
+        "--tool-setup-name",
+        default="setup_03_motors_gearbox_instrument",
+        help="Folder name used for tool/gearbox/instrument automated trials.",
     )
 
     parser.add_argument(
@@ -307,37 +330,85 @@ def main():
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
 
-    if args.dof is None:
-        args.dof = infer_active_dof_from_params(
-            params_file,
-            require_video_supported=False,
-        )
-        print(f"Inferred active DOF from tool_params.yaml: DOF{args.dof}")
+    if args.mode == "ask":
+        test_mode = ask_test_mode()
     else:
-        print(f"Using DOF from terminal argument: DOF{args.dof}")
+        test_mode = args.mode
+            
+    if test_mode == "motor":
+        dof_label = "motor"
+        print("Motor-only mode selected: no active DOF is inferred from tool_params.yaml.")
 
-    use_camera = args.dof in [2, 4]
+    else:
+        if args.dof is None:
+            args.dof = infer_active_dof_from_params(
+                params_file,
+                require_video_supported=False,
+            )
+            print(f"Inferred active DOF from tool_params.yaml: DOF{args.dof}")
+        else:
+            print(f"Using DOF from terminal argument: DOF{args.dof}")
 
+        dof_label = f"dof{args.dof}"
+
+    if test_mode == "motor":
+        use_camera = False
+    elif args.no_camera:
+        use_camera = False
+    else:
+        use_camera = args.dof in [2, 4]
+
+    # Create output directories and file paths
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    trial_name = f"auto_dof{args.dof}_{timestamp}"
 
-    output_dir = Path(args.output_dir).expanduser() / trial_name
+    if test_mode == "motor":
+        run_name = f"auto_motor_{timestamp}"
+        setup_name = args.motor_setup_name
+    else:
+        run_name = f"auto_{dof_label}_{timestamp}"
+        setup_name = args.tool_setup_name
+
+    root_output_dir = Path(args.output_dir).expanduser()
+    setup_dir = root_output_dir / setup_name
+    output_dir = setup_dir / run_name
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    original_video_path = output_dir / f"{trial_name}_webcam.mp4"
+    ros_log_path = output_dir / f"{run_name}_ros_log.jsonl"
+    original_video_path = output_dir / f"{run_name}_webcam.mp4"
     video_path = original_video_path
-    angles_path = output_dir / f"{trial_name}_webcam_angles.jsonl"
-    metadata_path = output_dir / f"{trial_name}_metadata.json"
+    angles_path = output_dir / f"{run_name}_webcam_angles.jsonl"
+    metadata_path = output_dir / f"{run_name}_metadata.json"
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
 
-    test_data_dir = Path(args.test_data_dir).expanduser()
+    if test_mode == "motor":
+        args.pattern_cmd = (
+            "ros2 launch adlap_tool_control motor_pattern_runner.launch.py "
+            f"output_dir:={shlex.quote(str(output_dir))} "
+            f"log_file_name:={shlex.quote(ros_log_path.name)}"
+        )
+    else:
+        args.pattern_cmd = (
+            "ros2 launch adlap_tool_control pattern_runner.launch.py "
+            f"output_dir:={shlex.quote(str(output_dir))} "
+            f"log_file_name:={shlex.quote(ros_log_path.name)}"
+        )
+
+    print(f"Selected mode: {test_mode}")
+    print(f"Setup folder:  {setup_dir}")
+    print(f"Run folder:    {output_dir}")
+    print(f"ROS log:       {ros_log_path}")
+    print(f"Use camera:    {use_camera}")
+
+    # test_data_dir = Path(args.test_data_dir).expanduser()
 
     trial_start_time = time.time()
     record_errors = []
     stop_event = None
     recorder_thread = None
-
+    detector_cmd = None
+    plot_cmd = None
     if use_camera:
         apply_camera_settings(
             camera_device=args.camera,
@@ -389,13 +460,38 @@ def main():
     if pattern_returncode != 0:
         raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
 
-    ros_log_path = find_newest_ros_log(test_data_dir, trial_start_time)
-    ros_log_copy_path = output_dir / ros_log_path.name
-    shutil.copy2(ros_log_path, ros_log_copy_path)
-    ros_log_path = ros_log_copy_path
+    if not ros_log_path.exists() or ros_log_path.stat().st_size == 0:
+        raise RuntimeError(f"ROS log was not created correctly: {ros_log_path}")
 
-    print(f"\nDetected ROS log:\n{ros_log_path}")
-    if use_camera:
+    print(f"\nROS log saved at:\n{ros_log_path}")
+
+    motor_dt_replay_path = None
+    motor_dt_replay_cmd = None
+
+    if test_mode == "motor":
+        motor_dt_replay_path = output_dir / f"{run_name}_motor_dt_replay.jsonl"
+
+        motor_dt_replay_cmd = (
+            f"ros2 run adlap_tool_control motor_digital_twin.py "
+            f"--file {shlex.quote(str(ros_log_path))}"
+        )
+
+        run_command(motor_dt_replay_cmd, check=True)
+
+        if not motor_dt_replay_path.exists() or motor_dt_replay_path.stat().st_size == 0:
+            raise RuntimeError(
+                f"Motor DT replay file was not created correctly: {motor_dt_replay_path}"
+            )
+
+        print(f"\nOffline Motor DT replay saved at:\n{motor_dt_replay_path}")
+
+        plot_cmd = (
+            f"ros2 run adlap_tool_control plot_motor_trial.py "
+            f"--file {shlex.quote(str(ros_log_path))} "
+            f"--output-dir {shlex.quote(str(plots_dir))}"
+        )
+        
+    elif use_camera:
         print(f"\nDetected webcam video:\n{video_path}")
 
         detector_cmd = args.detector_cmd.format(
@@ -428,26 +524,15 @@ def main():
             f"--params-file {shlex.quote(str(params_file))}"
         )
 
-    run_command(plot_cmd, check=True)
-
-    if original_video_path.exists():
-        original_video_path.unlink()
-        print(f"Removed temporary raw webcam video: {original_video_path}")
-        
-
-    plot_cmd = args.plot_cmd.format(
-        ros_log=shlex.quote(str(ros_log_path)),
-        angles=shlex.quote(str(angles_path)),
-        plot_dir=shlex.quote(str(plots_dir)),
-        dof=args.dof,
-        video=shlex.quote(str(video_path)),
-        params_file=shlex.quote(str(params_file)),
-    )
-
-    run_command(plot_cmd, check=True)
+    if plot_cmd is not None:
+        run_command(plot_cmd, check=True)
 
     metadata = {
-        "trial_name": trial_name,
+        "mode": test_mode,
+        "setup_name": setup_name,
+        "setup_dir": str(setup_dir),
+        "run_name": run_name,
+        "trial_name": run_name,
         "dof": args.dof,
         "used_camera": use_camera,
         "camera": args.camera,
@@ -456,10 +541,12 @@ def main():
         "requested_width": args.width,
         "requested_height": args.height,
         "requested_fps": args.fps,
-        "video_path": str(video_path),
-        "original_video_path": str(original_video_path),
+        "video_path": str(video_path) if use_camera else None,
+        "original_video_path": str(original_video_path) if use_camera else None,
+        "angles_path": str(angles_path) if use_camera else None,
         "ros_log_path": str(ros_log_path),
-        "angles_path": str(angles_path),
+        "motor_dt_replay_path": str(motor_dt_replay_path) if motor_dt_replay_path is not None else None,
+        "motor_dt_replay_cmd": motor_dt_replay_cmd,
         "plots_dir": str(plots_dir),
         "pattern_cmd": args.pattern_cmd,
         "detector_cmd": detector_cmd,
@@ -472,9 +559,17 @@ def main():
     print("\nFull automated trial completed.")
     # print(f"Video:      {video_path}")
     print(f"ROS log:    {ros_log_path}")
-    print(f"Angles:     {angles_path}")
-    print(f"Plots:      {plots_dir}")
+    
+    if use_camera:
+        print(f"Angles:     {angles_path}")
+
+    if plot_cmd is not None:
+        print(f"Plots:      {plots_dir}")
+    
     print(f"Metadata:   {metadata_path}")
+
+    if motor_dt_replay_path is not None:
+        print(f"Motor DT replay: {motor_dt_replay_path}")
 
 
 if __name__ == "__main__":

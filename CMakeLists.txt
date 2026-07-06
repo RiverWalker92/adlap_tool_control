@@ -95,16 +95,21 @@ target_include_directories(controller PUBLIC
 # Python script install
 install(PROGRAMS
   scripts/tool_reader_node.py
-  scripts/setup_test_runner_node.py
-  scripts/pattern_runner_node.py
+  scripts/motor_pattern_runner_node.py
+  scripts/tool_pattern_runner_node.py
+  scripts/motor_digital_twin.py
   scripts/gearbox_state_node.py
+  scripts/gearbox_digital_twin.py
   scripts/instrument_state_node.py
   scripts/instrument_digital_twin.py
   scripts/video_angle_detector.py
   scripts/webcam_video_angle_detector.py
   scripts/automated_trial_runner.py
   scripts/plot_trial.py
+  scripts/plot_motor_trial.py
   scripts/train_hybrid_bend_model.py
+  scripts/motor_state_node.py
+  scripts/train_motor_digital_twin.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -138,13 +143,5 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(PROGRAMS
-  scripts/tool_reader_node.py
-  scripts/setup_test_runner_node.py
-  scripts/plot_trial.py
-  scripts/gearbox_digital_twin.py
-  scripts/gearbox_state_node.py
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 ament_package()

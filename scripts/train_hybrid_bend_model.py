@@ -47,7 +47,9 @@ def build_ros_dataframe(ros_log: Path):
     # df = expand_list_column(df, "measured_currents", "current_", 4)
     df = expand_list_column(df, "commanded_motor_positions", "motor_cmd_", 4)
     df = expand_list_column(df, "commanded_instrument_angles", "cmd_instr_", 4)
-    df = expand_list_column(df, "current_instrument_angles", "cur_instr_", 4)
+    if "measured_instrument_angles" not in df.columns and "current_instrument_angles" in df.columns:
+        df["measured_instrument_angles"] = df["current_instrument_angles"]
+    df = expand_list_column(df, "measured_instrument_angles", "meas_instr_", 4)
     df = expand_list_column(df, "gearbox_state", "gearbox_", 6)
     df = expand_list_column(df, "predicted_instrument_angles", "pred_instr_", 4)
 

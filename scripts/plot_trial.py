@@ -84,7 +84,9 @@ def load_continuous_file(file_path):
             data = json.loads(line)
 
             cmd = data.get("commanded_instrument_angles")
-            cur_ang = data.get("current_instrument_angles")
+            cur_ang = data.get("measured_instrument_angles")
+            if cur_ang is None:
+                cur_ang = data.get("current_instrument_angles")
             pos = data.get("measured_motor_positions")
             cur = data.get("measured_currents")
             gb = data.get("gearbox_state")
@@ -317,8 +319,8 @@ def extract_ros_parameters(config: dict) -> dict:
     preferred_keys = [
         "tool_controller_node",
         "/tool_controller_node",
-        "pattern_runner_node",
-        "/pattern_runner_node",
+        "tool_pattern_runner_node",
+        "/tool_pattern_runner_node",
         "/**",
     ]
 

@@ -25,7 +25,21 @@ class GearboxStateNode(Node):
             / "gearbox_params.yaml"
         )
 
-        self.dt = GearboxDigitalTwin(config_path=config_path)
+        self.declare_parameter("gearbox_variant", "")
+        gearbox_variant = (
+            self.get_parameter("gearbox_variant")
+            .get_parameter_value()
+            .string_value
+        )
+
+        if gearbox_variant == "":
+            gearbox_variant = None
+        self.get_logger().info(f"Gearbox variant from launch parameter: {gearbox_variant}")
+
+        self.dt = GearboxDigitalTwin(
+            config_path=config_path,
+            active_variant=gearbox_variant,
+        )
         self.start_positions = None # Start positions will be set at the first callback, so that we can calculate deltas from there
 
         # Subscribe to motor positions and publish gearbox state

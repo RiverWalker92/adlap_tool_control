@@ -60,13 +60,51 @@ class HybridBendResidualModel:
 
         return residual_deg
 
+def resolve_instrument_params_file(instrument_config: str, fallback_path: Path) -> Path:
+    """
+    Converts a detected instrument config name to the corresponding parameter file.
+    If no instrument_config is provided, the fallback instrument_params_file is used.
+    """
+    instruments_dir = (
+        Path.home()
+        / "ros2_ws"
+        / "src"
+        / "adlap_tool_control"
+        / "config"
+        / "instruments"
+    )
+
+    if instrument_config == "":
+        return fallback_path
+
+    mapping = {
+        "gripper": instruments_dir / "gripper_params.yaml",
+        "scissors": instruments_dir / "scissors_params.yaml",
+    }
+
+    if instrument_config not in mapping:
+        available = list(mapping.keys())
+        raise RuntimeError(
+            f"Unknown instrument_config '{instrument_config}'. "
+            f"Available options are: {available}"
+        )
+
+    selected_path = mapping[instrument_config]
+
+    if not selected_path.exists():
+        raise RuntimeError(
+            f"Instrument config '{instrument_config}' maps to missing file: {selected_path}"
+        )
+
+    return selected_path
+
 class InstrumentStateNode(Node):
     def __init__(self):
         super().__init__("instrument_state_node")
 
         self.declare_parameter(
             "gearbox_output_topic",
-            "/right/gearbox_digital_twin/gearbox_state",
+            "/right/tool_control_node/gearbox_state",
         )
         self.declare_parameter(
             "predicted_instrument_angles_topic",
@@ -101,6 +139,8 @@ class InstrumentStateNode(Node):
             "hybrid_bend_model_file"
         ).value
 
+        self.declare_parameter("instrument_config", "")
+
         self.declare_parameter(
             "instrument_params_file",
             str(
@@ -114,12 +154,27 @@ class InstrumentStateNode(Node):
             ),
         )
 
-        self.instrument_params_file = Path(
+        instrument_config = self.get_parameter("instrument_config").value
+
+        fallback_instrument_params_file = Path(
             self.get_parameter("instrument_params_file").value
         )
 
-        self.instrument_dt = InstrumentDigitalTwin(config_path=self.instrument_params_file)
+        self.instrument_params_file = resolve_instrument_params_file(
+            instrument_config=instrument_config,
+            fallback_path=fallback_instrument_params_file,
+        )
 
+        self.get_logger().info(
+            f"Instrument config from launch parameter: {instrument_config}"
+        )
+        self.get_logger().info(
+            f"Resolved instrument params file: {self.instrument_params_file}"
+        )
+
+        self.instrument_dt = InstrumentDigitalTwin(
+            config_path=self.instrument_params_file
+        )
         self.hybrid_bend_model = None
 
         if self.hybrid_bend_enabled:
@@ -220,9 +275,14 @@ class InstrumentStateNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = InstrumentStateNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":

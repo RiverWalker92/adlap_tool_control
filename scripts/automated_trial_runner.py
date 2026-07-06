@@ -12,102 +12,17 @@ from pathlib import Path
 
 import cv2
 
-def ask_test_mode():
-    while True:
-        mode = input("Select test mode: [t] tool/instrument, [m] motor-only: ").strip().lower()
+# def ask_test_mode():
+#     while True:
+#         mode = input("Select test mode: [t] tool/instrument, [m] motor-only: ").strip().lower()
 
-        if mode in ["t", "tool"]:
-            return "tool"
+#         if mode in ["t", "tool"]:
+#             return "tool"
 
-        if mode in ["m", "motor"]:
-            return "motor"
+#         if mode in ["m", "motor"]:
+#             return "motor"
 
-        print("Invalid choice. Type 't' for tool or 'm' for motor.")
-
-def run_command(cmd: str, check: bool = True):
-    print(f"\n$ {cmd}")
-    result = subprocess.run(cmd, shell=True)
-    if check and result.returncode != 0:
-        raise RuntimeError(f"Command failed with return code {result.returncode}: {cmd}")
-    return result.returncode
-
-def extract_ros_parameters(config: dict) -> dict:
-    """
-    Extracts ros__parameters from a ROS2 yaml file.
-    Supports:
-    - tool_controller_node:
-        ros__parameters:
-    - /tool_controller_node:
-        ros__parameters:
-    - /**:
-        ros__parameters:
-    - direct parameter dictionary as fallback
-    """
-    if not isinstance(config, dict):
-        raise RuntimeError("YAML config is empty or invalid.")
-
-    preferred_keys = [
-        "tool_controller_node",
-        "/tool_controller_node",
-        "tool_pattern_runner_node",
-        "/tool_pattern_runner_node",
-        "/**",
-    ]
-
-    for key in preferred_keys:
-        if key in config and isinstance(config[key], dict):
-            if "ros__parameters" in config[key]:
-                return config[key]["ros__parameters"]
-
-    if "ros__parameters" in config:
-        return config["ros__parameters"]
-
-    return config
-
-
-def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
-    """
-    Infers active DOF from tool_params.yaml.
-    Returns 2 or 4, because the current video detector supports DOF2 and DOF4.
-    """
-    with open(params_file, "r") as f:
-        config = yaml.safe_load(f)
-
-    params = extract_ros_parameters(config)
-
-    active_dofs = []
-
-    for i in range(1, 5):
-        dof_key = f"dof{i}"
-
-        if dof_key in params and isinstance(params[dof_key], dict):
-            mode = params[dof_key].get("mode", "constant")
-        else:
-            mode = params.get(f"{dof_key}.mode", "constant")
-
-        if mode != "constant":
-            active_dofs.append(i)
-
-    if not active_dofs:
-        raise RuntimeError(
-            f"No active DOF found in {params_file}. "
-            "All dof*.mode values appear to be constant."
-        )
-
-    if len(active_dofs) > 1:
-        raise RuntimeError(
-            f"Multiple active DOFs found in {params_file}: {active_dofs}. "
-            "Automatic video detection expects one active DOF."
-        )
-
-    active_dof = active_dofs[0]
-
-    if require_video_supported and active_dof not in [2, 4]:
-        raise RuntimeError(
-            f"Active DOF is dof{active_dof}, but the video detector currently only supports DOF2 and DOF4."
-        )
-
-    return active_dof
+#         print("Invalid choice. Type 't' for tool or 'm' for motor.")
 
 def apply_camera_settings(camera_device: str, focus: int, sharpness: int):
     """
@@ -196,64 +111,196 @@ def record_video(
         error_holder.append(exc)
         stop_event.set()
 
+def run_command(cmd: str, check: bool = True):
+    print(f"\n$ {cmd}")
+    result = subprocess.run(cmd, shell=True)
+    if check and result.returncode != 0:
+        raise RuntimeError(f"Command failed with return code {result.returncode}: {cmd}")
+    return result.returncode
 
-# def find_newest_ros_log(test_data_dir: Path, started_after: float) -> Path:
-#     """
-#     Finds the newest ROS trial jsonl file created after the trial started.
-#     Excludes angle detector outputs.
-#     """
-#     candidates = []
+def extract_ros_parameters(config: dict) -> dict:
+    """
+    Extracts ros__parameters from a ROS2 yaml file.
+    Supports:
+    - tool_controller_node:
+        ros__parameters:
+    - /tool_controller_node:
+        ros__parameters:
+    - /**:
+        ros__parameters:
+    - direct parameter dictionary as fallback
+    """
+    if not isinstance(config, dict):
+        raise RuntimeError("YAML config is empty or invalid.")
 
-#     for path in test_data_dir.rglob("*.jsonl"):
-#         name = path.name.lower()
+    preferred_keys = [
+        "tool_controller_node",
+        "/tool_controller_node",
+        "tool_pattern_runner_node",
+        "/tool_pattern_runner_node",
+        "/**",
+    ]
 
-#         # Exclude video-angle output files
-#         if "angle" in name or "debug" in name:
-#             continue
+    for key in preferred_keys:
+        if key in config and isinstance(config[key], dict):
+            if "ros__parameters" in config[key]:
+                return config[key]["ros__parameters"]
 
-#         try:
-#             mtime = path.stat().st_mtime
-#         except FileNotFoundError:
-#             continue
+    if "ros__parameters" in config:
+        return config["ros__parameters"]
 
-#         if mtime >= started_after - 2.0:
-#             candidates.append(path)
+    return config
 
-#     if not candidates:
-#         raise RuntimeError(
-#             f"No ROS trial .jsonl found in {test_data_dir} after start time."
-#         )
+def run_marker_detection(args, output_path: Path) -> dict:
+    """
+    Runs marker_detector.py before the trial starts.
+    The marker detector opens the webcam, detects hardware, writes JSON,
+    and closes the webcam again.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-#     newest = max(candidates, key=lambda p: p.stat().st_mtime)
-#     return newest
-    
-# def reencode_video_to_h264(input_video: Path):
-#     """
-#     Re-encodes OpenCV-written video to a broadly compatible H.264 MP4.
-#     This fixes videos that look black in some players but contain readable frames.
-#     """
-#     fixed_video = input_video.with_name(input_video.stem + "_h264.mp4")
+    apply_camera_settings(
+        camera_device=args.camera,
+        focus=args.focus,
+        sharpness=args.sharpness,
+    )
 
-#     cmd = (
-#         f"ffmpeg -y -i {shlex.quote(str(input_video))} "
-#         f"-c:v libx264 -pix_fmt yuv420p -movflags +faststart "
-#         f"{shlex.quote(str(fixed_video))}"
-#     )
+    marker_detector_path = (
+        Path.home()
+        / "ros2_ws"
+        / "src"
+        / "adlap_tool_control"
+        / "scripts"
+        / "marker_detector.py"
+    )
 
-#     returncode = run_command(cmd, check=False)
+    marker_cmd = (
+        f"python3 {shlex.quote(str(marker_detector_path))} "
+        f"--config {shlex.quote(str(Path(args.marker_config).expanduser()))} "
+        f"--camera {shlex.quote(str(args.camera))} "
+        f"--width {args.width} "
+        f"--height {args.height} "
+        f"--fps {args.fps} "
+        f"--output {shlex.quote(str(output_path))}"
+    )
 
-#     if returncode != 0 or not fixed_video.exists() or fixed_video.stat().st_size == 0:
-#         print("Warning: H.264 re-encoding failed. Keeping original OpenCV video.")
-#         return input_video
+    run_command(marker_cmd, check=True)
 
-#     print(f"Re-encoded video saved as: {fixed_video}")
-#     return fixed_video
+    if not output_path.exists() or output_path.stat().st_size == 0:
+        raise RuntimeError(f"Marker detection output was not created: {output_path}")
 
+    with open(output_path, "r") as f:
+        detected_hardware = json.load(f)
+
+    return detected_hardware
+
+def test_mode_from_detected_hardware(detected_hardware: dict) -> str:
+    detected_mode = detected_hardware.get("mode")
+
+    if detected_mode == "motor_only":
+        return "motor"
+
+    if detected_mode == "full_setup":
+        return "tool"
+
+    if detected_mode == "gearbox_only":
+        raise RuntimeError(
+            "Gearbox-only setup was detected, but gearbox-only automated trial mode "
+            "is not implemented yet."
+        )
+
+    raise RuntimeError(f"Unknown detected hardware mode: {detected_mode}")
+
+def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
+    """
+    Infers active DOF from tool_params.yaml.
+    Returns 2 or 4, because the current video detector supports DOF2 and DOF4.
+    """
+    with open(params_file, "r") as f:
+        config = yaml.safe_load(f)
+
+    params = extract_ros_parameters(config)
+
+    active_dofs = []
+
+    for i in range(1, 5):
+        dof_key = f"dof{i}"
+
+        if dof_key in params and isinstance(params[dof_key], dict):
+            mode = params[dof_key].get("mode", "constant")
+        else:
+            mode = params.get(f"{dof_key}.mode", "constant")
+
+        if mode != "constant":
+            active_dofs.append(i)
+
+    if not active_dofs:
+        raise RuntimeError(
+            f"No active DOF found in {params_file}. "
+            "All dof*.mode values appear to be constant."
+        )
+
+    if len(active_dofs) > 1:
+        raise RuntimeError(
+            f"Multiple active DOFs found in {params_file}: {active_dofs}. "
+            "Automatic video detection expects one active DOF."
+        )
+
+    active_dof = active_dofs[0]
+
+    if require_video_supported and active_dof not in [2, 4]:
+        raise RuntimeError(
+            f"Active DOF is dof{active_dof}, but the video detector currently only supports DOF2 and DOF4."
+        )
+
+    return active_dof
+
+def wait_for_hardware_ready(test_mode: str, detected_hardware: dict | None):
+    """
+    Pauses the automated trial after marker detection.
+    This gives the user time to physically couple the detected hardware and
+    update the starting positions before the actual trial starts.
+    """
+    if detected_hardware is None:
+        return
+
+    detected_mode = detected_hardware.get("mode")
+
+    # Motor-only trials do not require mechanical coupling or start-position update.
+    if detected_mode == "motor_only":
+        return
+
+    print("\nHardware markers detected:")
+    print(f"  detected setup: {detected_mode}")
+    print(f"  selected mode:  {test_mode}")
+
+    gearbox = detected_hardware.get("gearbox")
+    instrument = detected_hardware.get("instrument")
+
+    if gearbox is not None:
+        print(f"  gearbox:        {gearbox.get('name')}")
+
+    if instrument is not None:
+        print(f"  instrument:     {instrument.get('name')}")
+
+    print("\nThe automated trial is now paused.")
+    print("Do NOT press Enter yet.")
+    print("")
+    print("Next steps:")
+    print("  1. Go back to the main launch/control terminal.")
+    print("  2. Physically couple the detected gearbox/instrument setup.")
+    print("  3. Initialize the hardware if needed.")
+    print("  4. Update the starting positions.")
+    print("  5. Check that the setup is mechanically ready.")
+    print("  6. Return to this terminal.")
+    print("")
+    input("Press Enter here only when coupling + initialization + start-position update are done...")
 def main():
     parser = argparse.ArgumentParser(
         description="Run full automated AdLap trial: camera settings, video, pattern, angle detection, plotting."
     )
-    parser.add_argument("--mode", choices=["ask", "tool", "motor"], default="ask", help="Select trial mode: tool, motor, or ask interactively.")
+    # parser.add_argument("--mode", choices=["ask", "tool", "motor"], default="ask", help="Select trial mode: tool, motor, or ask interactively.")
+    parser.add_argument("--mode", choices=["auto", "tool", "motor"], default="auto", help="Select trial mode: auto, tool or motor")
     parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
     parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "tool_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
@@ -264,8 +311,18 @@ def main():
     parser.add_argument("--width", type=int, default=3840)
     parser.add_argument("--height", type=int, default=2160)
     parser.add_argument("--fps", type=float, default=30.0)
-    
-    
+
+    parser.add_argument(
+        "--marker-config",
+        default=str(Path.home() / "ros2_ws" / "src" / "adlap_tool_control" / "config" / "marker_detection.yaml"),
+        help="YAML file that maps ArUco marker IDs to hardware.",
+    )
+    parser.add_argument(
+        "--skip-marker-scan",
+        action="store_true",
+        help="Skip ArUco marker detection and use the active/default configuration.",
+    )
+
     parser.add_argument(
         "--no-camera",
         action="store_true",
@@ -330,8 +387,53 @@ def main():
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
 
-    if args.mode == "ask":
-        test_mode = ask_test_mode()
+    detected_hardware = None
+    gearbox_variant = None
+    instrument_config = None
+
+    if args.skip_marker_scan:
+        print("")
+        print("Skipping ArUco marker detection.")
+        print("Using active/default configuration.")
+        print("")
+
+        if args.mode == "auto":
+            test_mode = "tool"
+        else:
+            test_mode = args.mode
+
+    elif args.mode == "auto":
+        marker_output_path = (
+            Path(args.output_dir).expanduser()
+            / "_latest_detected_hardware.json"
+        )
+
+        detected_hardware = run_marker_detection(
+            args=args,
+            output_path=marker_output_path,
+        )
+
+        test_mode = test_mode_from_detected_hardware(detected_hardware)
+
+        if detected_hardware is not None:
+            gearbox = detected_hardware.get("gearbox")
+            instrument = detected_hardware.get("instrument")
+
+            if gearbox is not None:
+                gearbox_variant = gearbox.get("gearbox_variant")
+
+            if instrument is not None:
+                instrument_config = instrument.get("instrument_config")
+                
+        print("\nAutomatically selected trial mode from markers:")
+        print(f"  marker_detector mode: {detected_hardware.get('mode')}")
+        print(f"  automated trial mode: {test_mode}")
+
+        wait_for_hardware_ready(
+            test_mode=test_mode,
+            detected_hardware=detected_hardware,
+        )
+
     else:
         test_mode = args.mode
             
@@ -394,6 +496,12 @@ def main():
             f"output_dir:={shlex.quote(str(output_dir))} "
             f"log_file_name:={shlex.quote(ros_log_path.name)}"
         )
+
+        if gearbox_variant is not None:
+            args.pattern_cmd += f" gearbox_variant:={shlex.quote(gearbox_variant)}"
+
+        if instrument_config is not None:
+            args.pattern_cmd += f" instrument_config:={shlex.quote(instrument_config)}"
 
     print(f"Selected mode: {test_mode}")
     print(f"Setup folder:  {setup_dir}")
@@ -529,6 +637,7 @@ def main():
 
     metadata = {
         "mode": test_mode,
+        "detected_hardware": detected_hardware,
         "setup_name": setup_name,
         "setup_dir": str(setup_dir),
         "run_name": run_name,

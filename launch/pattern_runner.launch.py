@@ -30,6 +30,9 @@ def generate_launch_description():
     output_dir = LaunchConfiguration("output_dir")
     log_file_name = LaunchConfiguration("log_file_name")
 
+    gearbox_variant = LaunchConfiguration("gearbox_variant")
+    instrument_config = LaunchConfiguration("instrument_config")
+
     tool_pattern_runner_node = Node(
         package="adlap_tool_control",
         executable="tool_pattern_runner_node.py",
@@ -54,6 +57,11 @@ def generate_launch_description():
         package="adlap_tool_control",
         executable="gearbox_state_node.py",
         output="screen",
+        parameters=[
+            {
+                "gearbox_variant": gearbox_variant,
+            }
+        ],
     )
 
     instrument_state_node = Node(
@@ -62,6 +70,7 @@ def generate_launch_description():
         parameters=[
             str(instrument_params_file),
             {
+                "instrument_config": instrument_config,
                 "hybrid_bend_enabled": True,
                 "hybrid_bend_model_file": str(
                     Path.home()
@@ -76,7 +85,6 @@ def generate_launch_description():
         ],
         output="screen",
     )
-
     shutdown_when_pattern_is_done = RegisterEventHandler(
         OnProcessExit(
             target_action=tool_pattern_runner_node,
@@ -91,6 +99,19 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("output_dir"),
         DeclareLaunchArgument("log_file_name"),
+
+        DeclareLaunchArgument(
+            "gearbox_variant",
+            default_value="",
+            description="Gearbox variant selected by marker detection, e.g. gearbox_1 or gearbox_2.",
+        ),
+
+        DeclareLaunchArgument(
+            "instrument_config",
+            default_value="",
+            description="Instrument config selected by marker detection, e.g. gripper.",
+        ),
+
         tool_pattern_runner_node,
         tool_reader_node,
         gearbox_state_node,

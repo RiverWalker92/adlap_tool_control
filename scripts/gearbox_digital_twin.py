@@ -6,7 +6,7 @@ from pathlib import Path
 # which can be used to predict the state of the output shaft 
 # based on the raw motor encoder readings. 
 # This is a preliminary model and can be refined with physical calibration
-def load_active_gearbox_config(config_path):
+def load_active_gearbox_config(config_path, active_variant_override=None):
     """
     Load the active gearbox variant from the gearbox YAML file.
 
@@ -34,7 +34,7 @@ def load_active_gearbox_config(config_path):
 
     # New format: gearbox -> active_variant -> variants
     if "variants" in gearbox_root:
-        active_variant = gearbox_root.get("active_variant")
+        active_variant = active_variant_override or gearbox_root.get("active_variant")
 
         if active_variant is None:
             raise ValueError(
@@ -62,9 +62,12 @@ def load_active_gearbox_config(config_path):
 
 
 class GearboxDigitalTwin:
-    def __init__(self, config_path="config/gearbox_params.yaml"):
+    def __init__(self, config_path="config/gearbox_params.yaml", active_variant=None):
         # Load configuration from gearbox selection of YAML file
-        config = load_active_gearbox_config(config_path)
+        config = load_active_gearbox_config(
+            config_path,
+            active_variant_override=active_variant,
+        )
 
         self.active_variant = config.get("active_variant", "unknown")
         self.version = config.get("version", None)

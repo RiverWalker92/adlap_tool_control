@@ -1,0 +1,38 @@
+{
+  "timestamp": 1783334910.3501782,
+  "detected_marker_ids": [
+    20,
+    11
+  ],
+  "detected_markers": [
+    {
+      "type": "instrument",
+      "name": "gripper",
+      "instrument_config": "gripper",
+      "description": "Gripper instrument",
+      "id": 20
+    },
+    {
+      "type": "gearbox",
+      "name": "gearbox_2_long_collet",
+      "gearbox_variant": "gearbox_2",
+      "description": "Long collet gearbox",
+      "id": 11
+    }
+  ],
+  "mode": "full_setup",
+  "gearbox": {
+    "type": "gearbox",
+    "name": "gearbox_2_long_collet",
+    "gearbox_variant": "gearbox_2",
+    "description": "Long collet gearbox",
+    "id": 11
+  },
+  "instrument": {
+    "type": "instrument",
+    "name": "gripper",
+    "instrument_config": "gripper",
+    "description": "Gripper instrument",
+    "id": 20
+  }
+}

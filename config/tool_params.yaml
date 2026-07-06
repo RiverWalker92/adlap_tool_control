@@ -48,7 +48,7 @@ tool_controller_node:
 
       sequence_modes: ["sinusoid"]
       sequence_cycles: [1]
-      sequence_frequency_factors: [1.0]
+      sequence_frequency_factors: [1.0] #0.5
       sequence_range_factors: [1.0]
       sequence_pause_duration: 0.0
       sequence_between_frequency_pause: 0.0

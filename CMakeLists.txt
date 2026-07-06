@@ -94,22 +94,28 @@ target_include_directories(controller PUBLIC
 )
 # Python script install
 install(PROGRAMS
-  scripts/tool_reader_node.py
-  scripts/motor_pattern_runner_node.py
-  scripts/tool_pattern_runner_node.py
-  scripts/motor_digital_twin.py
-  scripts/gearbox_state_node.py
-  scripts/gearbox_digital_twin.py
-  scripts/instrument_state_node.py
-  scripts/instrument_digital_twin.py
-  scripts/video_angle_detector.py
+  scripts/runners/automated_trial_runner.py
+  scripts/runners/motor_pattern_runner_node.py
+  scripts/runners/tool_pattern_runner_node.py
+  
+  scripts/nodes/tool_reader_node.py
+  scripts/nodes/instrument_state_node.py
+  scripts/nodes/gearbox_state_node.py
+  scripts/nodes/motor_state_node.py
+  
+  scripts/digital_twins/motor_digital_twin.py
+  scripts/digital_twins/gearbox_digital_twin.py
+  scripts/digital_twins/instrument_digital_twin.py
+
   scripts/webcam_video_angle_detector.py
-  scripts/automated_trial_runner.py
-  scripts/plot_trial.py
-  scripts/plot_motor_trial.py
-  scripts/train_hybrid_bend_model.py
-  scripts/motor_state_node.py
-  scripts/train_motor_digital_twin.py
+
+  scripts/plotters/plot_trial.py
+  scripts/plotters/plot_motor_trial.py
+
+  scripts/training/train_hybrid_bend_model.py
+  scripts/training/train_motor_digital_twin.py
+
+  scripts/rest/video_angle_detector.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

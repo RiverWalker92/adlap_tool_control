@@ -2,6 +2,20 @@
 
 import math
 from pathlib import Path
+import sys
+
+# Make imports work after moving files into scripts/nodes and scripts/digital_twins.
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+IMPORT_DIRS = [
+    SCRIPT_DIR,                         # install folder
+    SCRIPT_DIR / "digital_twins",       # install folder if subfolder is preserved
+    SCRIPT_DIR.parent / "digital_twins" # source folder: scripts/nodes -> scripts/digital_twins
+]
+
+for import_dir in IMPORT_DIRS:
+    if import_dir.exists() and str(import_dir) not in sys.path:
+        sys.path.insert(0, str(import_dir))
 
 import joblib
 import pandas as pd

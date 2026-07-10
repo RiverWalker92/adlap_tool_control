@@ -12,72 +12,86 @@ tool_controller_node:
 
     dof1:
       mode: "constant"
-      min: -3.14 #3.14
-      max: 3.14 #3.14
+      value: 0.0
+      min: -12.566 #-3.14
+      max: 12.566 #3.14
       frequency: 0.1
-      value: 0.0   
 
+      sequence_modes: ["sinusoid_mid", "triangle_mid"]
+      sequence_cycles: [3, 3]
+      sequence_frequency_factors: [0.5, 1.0]
+      sequence_between_frequency_pause: 2.0 # 2 maken? 
+
+      sequence_range_factors: [1.0]
+      sequence_between_range_pause: 0.0
+
+      sequence_pause_duration: 5.0
+      sequence_pause_led_start: 1.0
+      sequence_pause_led_duration: 2.0 #2? 
+      sequence_final_pause_duration: 2.0
 
     dof2:
       mode: "constant"
       value: 0.0
       min: -0.4
       max: 0.4
-      frequency: 0.5
-
-      sequence_frequency_factors: [0.5, 1.0, 2.0] #0.5
-      sequence_between_frequency_pause: 5.0
-
-      sequence_range_factors:  [0.25, 0.5, 1.0] 
-      sequence_between_range_pause: 5.0
+      frequency: 1.0
 
       sequence_modes: ["sinusoid_mid", "triangle_mid"]
       sequence_cycles: [3, 3]
+      sequence_frequency_factors: [0.5, 1.0, 2.0] #0.5
+      sequence_between_frequency_pause: 2.0
+
+      sequence_range_factors:  [0.25, 0.5, 1.0] 
+      sequence_between_range_pause: 2.0
+  
       sequence_pause_duration: 5.0
       sequence_pause_led_start: 1.0
       sequence_pause_led_duration: 2.0
-      sequence_final_pause_duration: 5.0
-
+      sequence_final_pause_duration: 2.0 
+ 
     dof3:
-      mode: "sinusoid"
+      mode: "constant"
       value: 0.0
-      velocity: 1.0 #1.0   # rad/s
+      velocity: 1.0
       min: -12.566
       max: 12.566
       frequency: 0.1
 
-      sequence_modes: ["sinusoid"]
-      sequence_cycles: [1]
-      sequence_frequency_factors: [1.0] #0.5
+      sequence_modes: ["sinusoid_mid", "triangle_mid"]
+      sequence_cycles: [3, 3]
+      sequence_frequency_factors: [0.5, 1.0] 
+      sequence_between_frequency_pause: 2.0 #2?
+
       sequence_range_factors: [1.0]
-      sequence_pause_duration: 0.0
-      sequence_between_frequency_pause: 0.0
       sequence_between_range_pause: 0.0
 
+      sequence_pause_duration: 5.0
       sequence_pause_led_start: 1.0
-      sequence_pause_led_duration: 1.0
-      sequence_final_pause_duration: 0.0
+      sequence_pause_led_duration: 2.0 # 2 maken
+      sequence_final_pause_duration: 2.0
     
 
     dof4:
-      mode: "constant"
+      mode: "sequence"
       value: 0.0
       min: 0.0
       max: 0.4
-
-      frequency: 0.1
-      # sequence_frequency_factors: [0.5, 1.0, 2.0]
-      sequence_frequency_factors: [2.0, 1.0] #, 0.5]
-      sequence_between_frequency_pause: 5.0
-      sequence_range_factors: [0.5] #voor laatste test nieuw gb > grotere opening/ 
-      sequence_between_range_pause: 5.0
+      frequency: 0.25 #kleiner gemaakt
 
       sequence_modes: ["sinusoid", "triangle"]
       sequence_cycles: [3, 3]
+      sequence_frequency_factors: [0.5, 1.0, 2.0] 
+      sequence_between_frequency_pause: 2.0 #maak 3
+
+      sequence_range_factors: [0.5] #voor laatste test nieuw gb > grotere opening/ 
+      sequence_between_range_pause: 2.0 #maak 3
+
       sequence_pause_duration: 5.0
       sequence_pause_led_start: 1.0
       sequence_pause_led_duration: 2.0
+      sequence_final_pause_duration: 2.0 #2 maken
 
-      # Temporary test: relative M0 compensation at DOF4 direction changes
+      # Relative M0 compensation at DOF4 direction changes
       tip_compensation_pulses: 15
       tip_compensation_sign: 1

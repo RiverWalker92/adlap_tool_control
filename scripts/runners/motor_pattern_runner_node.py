@@ -161,7 +161,7 @@ class MotorPatternRunner(Node):
         self.get_logger().info("Starting motor-only pattern tests...")
         time.sleep(1.0)
 
-        number_of_trials = 1
+        number_of_trials = 3
         pause_between_trials = 0.5
         pause_between_tests = 0.5
 
@@ -173,7 +173,7 @@ class MotorPatternRunner(Node):
             "sequence": make_idle_test(duration=3.0),
         })
 
-        for motor_index in range(1):
+        for motor_index in range(4):
             motor_name = f"m{motor_index}"
 
             tests.extend([

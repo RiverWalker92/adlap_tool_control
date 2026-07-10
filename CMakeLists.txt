@@ -106,6 +106,7 @@ install(PROGRAMS
   scripts/digital_twins/motor_digital_twin.py
   scripts/digital_twins/gearbox_digital_twin.py
   scripts/digital_twins/instrument_digital_twin.py
+  scripts/digital_twins/instrument_current_digital_twin.py
 
   scripts/webcam_video_angle_detector.py
 
@@ -114,6 +115,7 @@ install(PROGRAMS
 
   scripts/training/train_hybrid_bend_model.py
   scripts/training/train_motor_digital_twin.py
+  scripts/training/train_instrument_current_model.py
 
   scripts/rest/video_angle_detector.py
   DESTINATION lib/${PROJECT_NAME}

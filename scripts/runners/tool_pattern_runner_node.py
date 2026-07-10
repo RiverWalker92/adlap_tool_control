@@ -55,8 +55,8 @@ class PatternRunner(Node):
             f"sign={self.dof4_tip_compensation_sign}"
         )
 
-        # Generic sequence parameters for DOF2 and DOF4
-        for dof_name in ["dof2", "dof3", "dof4"]:
+       # Generic sequence parameters for all DOFs
+        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
             self.declare_parameter(f"{dof_name}.sequence_modes")
             self.declare_parameter(f"{dof_name}.sequence_cycles")
             self.declare_parameter(f"{dof_name}.sequence_pause_duration")
@@ -82,7 +82,7 @@ class PatternRunner(Node):
         self.sequence_between_range_pause = {}
         self.sequence_final_pause_duration = {}
 
-        for dof_name in ["dof2", "dof3", "dof4"]:
+        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
             mode = self.get_parameter(f"{dof_name}.mode").value
             self.sequence_enabled[dof_name] = mode == "sequence"
 
@@ -167,7 +167,7 @@ class PatternRunner(Node):
         self.sequence_led_active = False
         self.active_sequence_dof = None
 
-        for dof_name in ["dof2", "dof3", "dof4"]:
+        for dof_name in ["dof1","dof2", "dof3", "dof4"]:
             if self.sequence_enabled[dof_name]:
                 self.active_sequence_dof = dof_name
                 break
@@ -194,11 +194,11 @@ class PatternRunner(Node):
             self.dof4_sequence_enabled
             or self.dof4_mode != "constant"
         )
-        self.dof4_preroll_angle = 1.7 #90.0
-        print("### USING PREROLL ANGLE =", self.dof4_preroll_angle, "###", flush=True)
-        self.get_logger().info(f"DOF4 preroll angle: {self.dof4_preroll_angle}")
-        self.dof4_preroll_wait = 2.0  # seconden wachten na draaien
-        self.dof4_sync_wait = 2.0  # extra wachten na synchronisatie voordat patroon begint
+        self.dof4_preroll_angle = 0.0 #1.7 
+        # print("### USING PREROLL ANGLE =", self.dof4_preroll_angle, "###", flush=True)
+        # self.get_logger().info(f"DOF4 preroll angle: {self.dof4_preroll_angle}")
+        self.dof4_preroll_wait = 0.0  # seconden wachten na draaien
+        self.dof4_sync_wait = 0.0  # extra wachten na synchronisatie voordat patroon begint
 
         self.pub = self.create_publisher(Float64MultiArray, self.topic, 10)
         self.task_pub = self.create_publisher(
@@ -629,55 +629,140 @@ class PatternRunner(Node):
     def timer_callback(self):
         elapsed = time.time() - self.start_time
 
-        if self.dof4_active:
-            preroll_end = self.dof4_preroll_wait
-            motion_start = self.dof4_preroll_wait + self.dof4_sync_wait
+        # Same pre-motion LED sync for all DOFs, including DOF4.
+        led_should_be_on = (
+            self.led_pulse_start_delay
+            <= elapsed
+            <
+            self.led_pulse_start_delay + self.led_pulse_duration
+        )
 
-            # Fase 1 + 2: preroll en daarna stil wachten
-            if elapsed < motion_start:
-                values = [0.0, 0.0, self.dof4_preroll_angle, 0.0]
+        led_msg = Bool()
+        led_msg.data = led_should_be_on
+        self.led_pub.publish(led_msg)
 
-                # LED aan tijdens de wachttijd NA preroll
-                led_should_be_on = (
-                    preroll_end
-                    <= elapsed
-                    <
-                    preroll_end + self.led_pulse_duration
-                )
+        if led_should_be_on and not self.led_on_sent:
+            self.led_on_sent = True
+            self.get_logger().info("LED ON")
 
-                led_msg = Bool()
-                led_msg.data = led_should_be_on
-                self.led_pub.publish(led_msg)
+        if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
+            self.led_off_sent = True
+            self.get_logger().info("LED OFF")
 
-                if led_should_be_on and not self.led_on_sent:
-                    self.led_on_sent = True
-                    self.get_logger().info("LED ON")
+        motion_start = (
+            self.led_pulse_start_delay
+            + self.led_pulse_duration
+            + self.motion_after_led_off_wait
+        )
 
-                if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
-                    self.led_off_sent = True
-                    self.get_logger().info("LED OFF")
+        # Before motion_start: keep all DOFs at their neutral/start value.
+        if elapsed < motion_start:
+            values = [
+                float(self.get_parameter("dof1.value").value),
+                float(self.get_parameter("dof2.value").value),
+                float(self.get_parameter("dof3.value").value),
+                float(self.get_parameter("dof4.value").value),
+            ]
 
-                msg = Float64MultiArray()
-                msg.data = values
-                self.pub.publish(msg)
-                return
+            msg = Float64MultiArray()
+            msg.data = values
+            self.pub.publish(msg)
+            return
 
-            # Fase 3: echte continuous test begint hier pas
-            t = elapsed - motion_start
-            if not self.dof4_motion_started:
-                self.dof4_motion_started = True
+        # Real continuous test starts only after LED off + small wait.
+        t = elapsed - motion_start
 
-                led_msg = Bool()
-                led_msg.data = False
-                for _ in range(5):
-                    self.led_pub.publish(led_msg)
+        # if self.dof4_active:
+        #     preroll_end = self.dof4_preroll_wait
+        #     motion_start = self.dof4_preroll_wait + self.dof4_sync_wait
 
-                self.get_logger().info("DOF4 motion started after preroll/sync wait")
+        #     # Fase 1 + 2: preroll en daarna stil wachten
+        #     if elapsed < motion_start:
+        #         values = [0.0, 0.0, self.dof4_preroll_angle, 0.0]
+
+        #         # LED aan tijdens de wachttijd NA preroll
+        #         led_should_be_on = (
+        #             preroll_end
+        #             <= elapsed
+        #             <
+        #             preroll_end + self.led_pulse_duration
+        #         )
+
+        #         led_msg = Bool()
+        #         led_msg.data = led_should_be_on
+        #         self.led_pub.publish(led_msg)
+
+        #         if led_should_be_on and not self.led_on_sent:
+        #             self.led_on_sent = True
+        #             self.get_logger().info("LED ON")
+
+        #         if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
+        #             self.led_off_sent = True
+        #             self.get_logger().info("LED OFF")
+
+        #         msg = Float64MultiArray()
+        #         msg.data = values
+        #         self.pub.publish(msg)
+        #         return
+
+        #     # Fase 3: echte continuous test begint hier pas
+        #     t = elapsed - motion_start
+        #     if not self.dof4_motion_started:
+        #         self.dof4_motion_started = True
+
+        #         led_msg = Bool()
+        #         led_msg.data = False
+        #         for _ in range(5):
+        #             self.led_pub.publish(led_msg)
+
+        #         self.get_logger().info("DOF4 motion started after preroll/sync wait")
+        # # else:
+        # #     t = elapsed
+        # #     led_should_be_on = (
+        # #         self.led_pulse_start_delay
+        # #         <= t
+        # #         <
+        # #         self.led_pulse_start_delay + self.led_pulse_duration
+        # #     )
+
+        # #     led_msg = Bool()
+        # #     led_msg.data = led_should_be_on
+        # #     self.led_pub.publish(led_msg)
+
+        # #     if led_should_be_on and not self.led_on_sent:
+        # #         self.led_on_sent = True
+        # #         self.get_logger().info("LED ON")
+
+        # #     if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
+        # #         self.led_off_sent = True
+        # #         self.get_logger().info("LED OFF")
+
+        # # if t > self.duration:
+        # #     led_msg = Bool()
+        # #     led_msg.data = False
+
+        # #     for _ in range(5):
+        # #         self.led_pub.publish(led_msg)
+
+        # #     self.get_logger().info("LED OFF at pattern end")
+        # #     self.get_logger().info("Pattern finished")
+        # #     self.destroy_timer(self.timer)
+        # #     return
+
+        # # values = [
+        # #     self.compute_dof("dof1", t),
+        # #     self.compute_dof("dof2", t),
+        # #     self.dof4_preroll_angle if self.dof4_active else self.compute_dof("dof3", t),
+        # #     self.compute_dof("dof4", t),
+        # # ]
+
+        # # msg = Float64MultiArray()
+        # # msg.data = values
+        # # self.pub.publish(msg)
         # else:
-        #     t = elapsed
         #     led_should_be_on = (
         #         self.led_pulse_start_delay
-        #         <= t
+        #         <= elapsed
         #         <
         #         self.led_pulse_start_delay + self.led_pulse_duration
         #     )
@@ -694,70 +779,28 @@ class PatternRunner(Node):
         #         self.led_off_sent = True
         #         self.get_logger().info("LED OFF")
 
-        # if t > self.duration:
-        #     led_msg = Bool()
-        #     led_msg.data = False
-
-        #     for _ in range(5):
-        #         self.led_pub.publish(led_msg)
-
-        #     self.get_logger().info("LED OFF at pattern end")
-        #     self.get_logger().info("Pattern finished")
-        #     self.destroy_timer(self.timer)
-        #     return
-
-        # values = [
-        #     self.compute_dof("dof1", t),
-        #     self.compute_dof("dof2", t),
-        #     self.dof4_preroll_angle if self.dof4_active else self.compute_dof("dof3", t),
-        #     self.compute_dof("dof4", t),
-        # ]
-
-        # msg = Float64MultiArray()
-        # msg.data = values
-        # self.pub.publish(msg)
-        else:
-            led_should_be_on = (
-                self.led_pulse_start_delay
-                <= elapsed
-                <
-                self.led_pulse_start_delay + self.led_pulse_duration
-            )
-
-            led_msg = Bool()
-            led_msg.data = led_should_be_on
-            self.led_pub.publish(led_msg)
-
-            if led_should_be_on and not self.led_on_sent:
-                self.led_on_sent = True
-                self.get_logger().info("LED ON")
-
-            if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
-                self.led_off_sent = True
-                self.get_logger().info("LED OFF")
-
-            motion_start = (
-                self.led_pulse_start_delay
-                + self.led_pulse_duration
-                + self.motion_after_led_off_wait
-            )
+        #     motion_start = (
+        #         self.led_pulse_start_delay
+        #         + self.led_pulse_duration
+        #         + self.motion_after_led_off_wait
+        #     )
             
-            # Voor motion_start: instrument stil houden
-            if elapsed < motion_start:
-                values = [
-                    float(self.get_parameter("dof1.value").value),
-                    float(self.get_parameter("dof2.value").value),
-                    float(self.get_parameter("dof3.value").value),
-                    float(self.get_parameter("dof4.value").value),
-                ]
+        #     # Voor motion_start: instrument stil houden
+        #     if elapsed < motion_start:
+        #         values = [
+        #             float(self.get_parameter("dof1.value").value),
+        #             float(self.get_parameter("dof2.value").value),
+        #             float(self.get_parameter("dof3.value").value),
+        #             float(self.get_parameter("dof4.value").value),
+        #         ]
 
-                msg = Float64MultiArray()
-                msg.data = values
-                self.pub.publish(msg)
-                return
+        #         msg = Float64MultiArray()
+        #         msg.data = values
+        #         self.pub.publish(msg)
+        #         return
 
-            # Echte continuous test begint pas na LED uit
-            t = elapsed - motion_start
+        #     # Echte continuous test begint pas na LED uit
+        #     t = elapsed - motion_start
 
         if self.active_sequence_dof is not None:
             pattern_duration = self.get_sequence_duration(self.active_sequence_dof)
@@ -803,11 +846,9 @@ class PatternRunner(Node):
         values = [
             dof_values["dof1"],
             dof_values["dof2"],
-            (self.dof4_preroll_angle if self.dof4_active else dof_values["dof3"])
-            + self.dof4_tip_compensation_offset_rad,
+            dof_values["dof3"] + self.dof4_tip_compensation_offset_rad,
             dof_values["dof4"],
         ]
-
         msg = Float64MultiArray()
         msg.data = values
         self.pub.publish(msg)

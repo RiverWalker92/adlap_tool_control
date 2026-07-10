@@ -472,7 +472,13 @@ def main():
 
     root_output_dir = Path(args.output_dir).expanduser()
     setup_dir = root_output_dir / setup_name
-    output_dir = setup_dir / run_name
+
+    if test_mode == "motor":
+        dof_dir = setup_dir / "motor"
+    else:
+        dof_dir = setup_dir / dof_label
+
+    output_dir = dof_dir / run_name
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -505,6 +511,7 @@ def main():
 
     print(f"Selected mode: {test_mode}")
     print(f"Setup folder:  {setup_dir}")
+    print(f"DOF folder:    {dof_dir}")
     print(f"Run folder:    {output_dir}")
     print(f"ROS log:       {ros_log_path}")
     print(f"Use camera:    {use_camera}")
@@ -575,6 +582,8 @@ def main():
 
     motor_dt_replay_path = None
     motor_dt_replay_cmd = None
+    instrument_current_dt_replay_path = None
+    instrument_current_dt_replay_cmd = None
 
     if test_mode == "motor":
         motor_dt_replay_path = output_dir / f"{run_name}_motor_dt_replay.jsonl"
@@ -598,39 +607,80 @@ def main():
             f"--file {shlex.quote(str(ros_log_path))} "
             f"--output-dir {shlex.quote(str(plots_dir))}"
         )
-        
-    elif use_camera:
-        print(f"\nDetected webcam video:\n{video_path}")
-
-        detector_cmd = args.detector_cmd.format(
-            video=shlex.quote(str(video_path)),
-            ros_log=shlex.quote(str(ros_log_path)),
-            dof=args.dof,
-            angles=shlex.quote(str(angles_path)),
-        )
-
-        run_command(detector_cmd, check=True)
-
-        if original_video_path.exists():
-            original_video_path.unlink()
-            print(f"Removed temporary raw webcam video: {original_video_path}")
-
-        plot_cmd = args.plot_cmd.format(
-            ros_log=shlex.quote(str(ros_log_path)),
-            angles=shlex.quote(str(angles_path)),
-            plot_dir=shlex.quote(str(plots_dir)),
-            dof=args.dof,
-            video=shlex.quote(str(video_path)),
-            params_file=shlex.quote(str(params_file)),
-        )
 
     else:
-        plot_cmd = (
-            f"ros2 run adlap_tool_control plot_trial.py "
-            f"--file {shlex.quote(str(ros_log_path))} "
-            f"--output-dir {shlex.quote(str(plots_dir))} "
-            f"--params-file {shlex.quote(str(params_file))}"
+        instrument_current_dt_replay_path = (
+            output_dir / f"{run_name}_instrument_current_dt_replay.jsonl"
         )
+
+        instrument_current_model_path = (
+            Path.home()
+            / "ros2_ws"
+            / "test_data"
+            / "automated_trials"
+            / "trainings data"
+            / "instrument_current_dt_results"
+            / f"dof{args.dof}"
+            / "models"
+            / f"instrument_current_dt_dof{args.dof}_all_motors.pkl"
+        )
+
+        instrument_current_dt_replay_cmd = (
+            f"ros2 run adlap_tool_control instrument_current_digital_twin.py "
+            f"--file {shlex.quote(str(ros_log_path))} "
+            f"--model-file {shlex.quote(str(instrument_current_model_path))} "
+            f"--output-file {shlex.quote(str(instrument_current_dt_replay_path))} "
+            f"--dof {args.dof}"
+        )
+
+        run_command(instrument_current_dt_replay_cmd, check=True)
+
+        if (
+            not instrument_current_dt_replay_path.exists()
+            or instrument_current_dt_replay_path.stat().st_size == 0
+        ):
+            raise RuntimeError(
+                "Instrument Current DT replay file was not created correctly: "
+                f"{instrument_current_dt_replay_path}"
+            )
+
+        print(
+            "\nOffline Instrument Current DT replay saved at:\n"
+            f"{instrument_current_dt_replay_path}"
+        )
+
+        if use_camera:
+            print(f"\nDetected webcam video:\n{video_path}")
+
+            detector_cmd = args.detector_cmd.format(
+                video=shlex.quote(str(video_path)),
+                ros_log=shlex.quote(str(ros_log_path)),
+                dof=args.dof,
+                angles=shlex.quote(str(angles_path)),
+            )
+
+            run_command(detector_cmd, check=True)
+
+            if original_video_path.exists():
+                original_video_path.unlink()
+                print(f"Removed temporary raw webcam video: {original_video_path}")
+
+            plot_cmd = args.plot_cmd.format(
+                ros_log=shlex.quote(str(ros_log_path)),
+                angles=shlex.quote(str(angles_path)),
+                plot_dir=shlex.quote(str(plots_dir)),
+                dof=args.dof,
+                video=shlex.quote(str(video_path)),
+                params_file=shlex.quote(str(params_file)),
+            )
+
+        else:
+            plot_cmd = (
+                f"ros2 run adlap_tool_control plot_trial.py "
+                f"--file {shlex.quote(str(ros_log_path))} "
+                f"--output-dir {shlex.quote(str(plots_dir))} "
+                f"--params-file {shlex.quote(str(params_file))}"
+            )
 
     if plot_cmd is not None:
         run_command(plot_cmd, check=True)
@@ -640,6 +690,7 @@ def main():
         "detected_hardware": detected_hardware,
         "setup_name": setup_name,
         "setup_dir": str(setup_dir),
+        "dof_dir": str(dof_dir),
         "run_name": run_name,
         "trial_name": run_name,
         "dof": args.dof,
@@ -656,6 +707,8 @@ def main():
         "ros_log_path": str(ros_log_path),
         "motor_dt_replay_path": str(motor_dt_replay_path) if motor_dt_replay_path is not None else None,
         "motor_dt_replay_cmd": motor_dt_replay_cmd,
+        "instrument_current_dt_replay_path": (str(instrument_current_dt_replay_path) if instrument_current_dt_replay_path is not None else None),
+        "instrument_current_dt_replay_cmd": instrument_current_dt_replay_cmd,
         "plots_dir": str(plots_dir),
         "pattern_cmd": args.pattern_cmd,
         "detector_cmd": detector_cmd,

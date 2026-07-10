@@ -76,8 +76,10 @@ def generate_launch_description():
                     Path.home()
                     / "ros2_ws"
                     / "test_data"
-                    / "trained_models"
-                    / "bend_prediction_gearbox_only_no_history"
+                    / "automated_trials"
+                    / "trainings data V2"
+                    / "hybrid_bend_dt_results"
+                    / "dof2"
                     / "gradient_boosting"
                     / "gradient_boosting_bend_hybrid_model.joblib"
                 ),

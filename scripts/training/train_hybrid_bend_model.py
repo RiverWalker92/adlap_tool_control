@@ -123,18 +123,42 @@ def add_history_features(df, feature_columns):
         df[f"{col}_direction"] = np.sign(df[f"{col}_delta"])
     return df
 
+def find_ros_video_pairs(search_dir: Path):
+    pairs = []
 
-def build_trial_table(trial_dir: Path):
-    ros_logs = sorted(trial_dir.glob("trial_*.jsonl"))
-    video_logs = sorted(trial_dir.glob("*webcam_angles.jsonl"))
+    # New automated-trial naming:
+    # auto_dof2_..._ros_log.jsonl
+    # auto_dof2_..._webcam_angles.jsonl
+    for ros_log in sorted(search_dir.glob("*_ros_log.jsonl")):
+        video_log = ros_log.with_name(
+            ros_log.name.replace("_ros_log.jsonl", "_webcam_angles.jsonl")
+        )
 
-    if not ros_logs or not video_logs:
-        print(f"Skipping {trial_dir}: missing trial_*.jsonl or *webcam_angles.jsonl")
-        return None
+        if video_log.exists():
+            pairs.append((ros_log, video_log))
 
-    ros_log = ros_logs[0]
-    video_log = video_logs[0]
+    # Old naming:
+    # trial_01.jsonl + *_webcam_angles.jsonl
+    for ros_log in sorted(search_dir.glob("trial_*.jsonl")):
+        video_logs = sorted(search_dir.glob("*webcam_angles.jsonl"))
 
+        if video_logs:
+            pairs.append((ros_log, video_logs[0]))
+
+    # Remove duplicate pairs
+    unique_pairs = []
+    seen = set()
+
+    for ros_log, video_log in pairs:
+        key = (str(ros_log), str(video_log))
+
+        if key not in seen:
+            unique_pairs.append((ros_log, video_log))
+            seen.add(key)
+
+    return unique_pairs
+
+def build_trial_table_from_files(ros_log: Path, video_log: Path, trial_id: str):
     ros_df = build_ros_dataframe(ros_log)
     video_df = build_video_dataframe(video_log)
 
@@ -144,7 +168,9 @@ def build_trial_table(trial_dir: Path):
     ros_time_zero = ros_df["merge_time"].iloc[0] - ros_df["time"].iloc[0]
 
     merged = pd.merge_asof(
-        video_df[["merge_time", target_col]].rename(columns={target_col: "video_angle"}),
+        video_df[["merge_time", target_col]].rename(
+            columns={target_col: "video_angle"}
+        ),
         ros_df,
         on="merge_time",
         direction="nearest",
@@ -153,30 +179,27 @@ def build_trial_table(trial_dir: Path):
 
     # Use continuous ROS-relative time for plotting.
     merged["time"] = merged["merge_time"] - ros_time_zero
-    merged = merged.dropna(subset=["video_angle", dt_pred_col]).reset_index(drop=True)
+    merged = merged.dropna(
+        subset=["video_angle", dt_pred_col]
+    ).reset_index(drop=True)
 
     if len(merged) == 0:
-        print(f"Loaded {trial_dir.name}: 0 rows after time matching")
+        print(f"Loaded {trial_id}: 0 rows after time matching")
         return None
 
     merged = filter_video_angle(merged)
 
-    merged["trial_id"] = trial_dir.name
+    merged["trial_id"] = trial_id
 
     # pred_instr_1 is in rad, video_angle is in deg
     merged["dt_prediction"] = np.rad2deg(merged[dt_pred_col])
-    merged["dt_prediction"] = merged["dt_prediction"] - merged["dt_prediction"].iloc[0]
-    merged["prediction_error"] = merged["video_angle"] - merged["dt_prediction"]
+    merged["dt_prediction"] = (
+        merged["dt_prediction"] - merged["dt_prediction"].iloc[0]
+    )
 
-    # history_cols = [
-    #     "motor_pos_0", "motor_pos_1", "motor_pos_2", "motor_pos_3",
-    #     "gearbox_0", "gearbox_1", "gearbox_2",
-    #     "gearbox_3", "gearbox_4", "gearbox_5",
-    #     "dt_prediction",
-    # ]
-
-    # history_cols = [col for col in history_cols if col in merged.columns]
-    # merged = add_history_features(merged, history_cols)
+    merged["prediction_error"] = (
+        merged["video_angle"] - merged["dt_prediction"]
+    )
 
     feature_cols = select_feature_columns(merged)
 
@@ -188,7 +211,7 @@ def build_trial_table(trial_dir: Path):
 
     merged = merged.dropna(subset=required_cols).reset_index(drop=True)
 
-    print(f"Loaded {trial_dir.name}: {len(merged)} rows")
+    print(f"Loaded {trial_id}: {len(merged)} rows")
     print(f"  ROS log:   {ros_log.name}")
     print(f"  Video log: {video_log.name}")
     print(f"  Video target: {target_col}")
@@ -196,12 +219,51 @@ def build_trial_table(trial_dir: Path):
 
     return merged
 
+
+def build_trial_table(trial_dir: Path):
+    pairs = find_ros_video_pairs(trial_dir)
+
+    if not pairs:
+        print(
+            f"Skipping {trial_dir}: missing *_ros_log.jsonl + "
+            f"*_webcam_angles.jsonl pair"
+        )
+        return None
+
+    trial_tables = []
+
+    for ros_log, video_log in pairs:
+        trial_id = ros_log.name.replace("_ros_log.jsonl", "")
+
+        table = build_trial_table_from_files(
+            ros_log=ros_log,
+            video_log=video_log,
+            trial_id=trial_id,
+        )
+
+        if table is not None and len(table) > 0:
+            trial_tables.append(table)
+
+    if not trial_tables:
+        return None
+
+    return pd.concat(trial_tables, ignore_index=True)
+
 def build_dataset(data_dir: Path):
     trial_tables = []
 
+    # First: support flat folder structure, where the files are directly
+    # inside DOF 2.
+    root_table = build_trial_table(data_dir)
+
+    if root_table is not None and len(root_table) > 0:
+        trial_tables.append(root_table)
+
+    # Second: support old structure, where each trial has its own subfolder.
     for trial_dir in sorted(data_dir.iterdir()):
         if trial_dir.is_dir():
             table = build_trial_table(trial_dir)
+
             if table is not None and len(table) > 0:
                 trial_tables.append(table)
 
@@ -209,7 +271,7 @@ def build_dataset(data_dir: Path):
         raise RuntimeError(f"No usable trials found in {data_dir}")
 
     return pd.concat(trial_tables, ignore_index=True)
-
+    
 def select_feature_columns(df):
     allowed_columns = [
         "gearbox_0",

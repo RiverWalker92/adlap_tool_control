@@ -664,7 +664,7 @@ def plot_instrument_angles(plot_dir, t, commanded, measured_instrument_angles):
         axes[dof_index].plot(
             t,
             measured_instrument_angles[dof_index],
-            linestyle="--",
+            linestyle="-",
             label=f"measured/controller dof{dof_index + 1}",
         )
 
@@ -728,6 +728,7 @@ def plot_gearbox_state(plot_dir, t, gearbox):
         axes[gearbox_index].plot(
             t,
             gearbox[gearbox_index],
+            linestyle="--",
             label=GEARBOX_LABELS[gearbox_index],
         )
 
@@ -754,8 +755,8 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
     fig.suptitle("DOF2 validation: command, motor difference, and video angle", fontsize=16)
 
-    axes[0].plot(t, commanded[1], label="commanded dof2 / pitch [rad]")
-    axes[0].plot(t, current_angles[1], linestyle="--", label="current dof2 / pitch from motors [rad]")
+    axes[0].plot(t, commanded[1], linestyle="-", label="commanded dof2 / pitch [rad]")
+    axes[0].plot(t, current_angles[1], linestyle="-", label="current dof2 / pitch from motors [rad]")
     axes[0].set_ylabel("Pitch [rad]")
     axes[0].grid(True)
     axes[0].legend(fontsize=8)
@@ -787,7 +788,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
     axes[2].plot(
         video_t,
         video_angle,
-        "--",
+        linestyle="-",
         linewidth=2,
         label="video measured angle [deg]"
     )
@@ -802,6 +803,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
             t,
             hybrid_bend_deg,
             label="Hybrid DT bend [deg]",
+            linestyle="--",
             linewidth=1.2,
             color="green",
         )
@@ -812,6 +814,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
             t,
             predicted_bend_deg,
             label="Physics-based DT bend [deg]",
+            linestyle="--",
             linewidth=1.2,
             color="purple",
         )
@@ -1028,7 +1031,7 @@ def plot_gripper_video_measurements(
     axes[0].plot(
         video_t,
         jaw_video_angle,
-        "--",
+        linestyle="-",
         linewidth=2,
         label="measured jaw angle: yellow vs red [deg]",
     )
@@ -1039,7 +1042,7 @@ def plot_gripper_video_measurements(
     axes[1].plot(
         video_t,
         yellow_shaft_video_angle, #yellow_shaft_video_angle,
-        "--",
+        linestyle="-",
         linewidth=2,
         label="measured yellow marker vs shaft [deg]",
     )
@@ -1050,7 +1053,7 @@ def plot_gripper_video_measurements(
     axes[2].plot(
         video_t,
         red_shaft_video_angle,
-        "--",
+        linestyle="-",
         linewidth=2,
         label="measured red marker vs shaft [deg]",
     )
@@ -1102,7 +1105,7 @@ def plot_active_command_axis(
         ax.plot(
             t,
             measured_angle,
-            linestyle="--",
+            linestyle="-",
             label=f"controller output {active_dof_name}",
             linewidth=1.2,
             color="black",
@@ -1343,7 +1346,7 @@ def plot_instrument_current_prediction_per_motor(
             text = (
                 f"MAE = {metrics['mae_mA']:.2f} mA\n"
                 f"RMSE = {metrics['rmse_mA']:.2f} mA\n"
-                f"Bias = {metrics['bias_mA']:.2f} mA"
+                # f"Bias = {metrics['bias_mA']:.2f} mA"
             )
 
             axes[motor_index, 1].text(
@@ -1393,7 +1396,7 @@ def plot_instrument_current_prediction_per_motor(
 
             f.write(f"MAE:             {metrics['mae_mA']:.3f} mA\n")
             f.write(f"RMSE:            {metrics['rmse_mA']:.3f} mA\n")
-            f.write(f"Bias:            {metrics['bias_mA']:.3f} mA\n")
+            # f.write(f"Bias:            {metrics['bias_mA']:.3f} mA\n")
             f.write(f"Max abs error:   {metrics['max_abs_error_mA']:.3f} mA\n")
             f.write(f"Samples:         {metrics['n_samples']}\n\n")
 
@@ -1425,7 +1428,7 @@ def plot_video_instrument_measurement_axis(
         ax.plot(
             video_t,
             jaw_video_angle,
-            ".",
+            linestyle="-",
             markersize=3,
             color="orange",
             label="video measured jaw angle [deg]",
@@ -1435,7 +1438,7 @@ def plot_video_instrument_measurement_axis(
         ax.plot(
             video_t,
             red_shaft_video_angle,
-            "--",
+            linestyle="-",
             linewidth=2,
             color="orange",
             label="video measured red marker vs shaft [deg]",
@@ -1452,6 +1455,7 @@ def plot_relevant_gearbox_axis(ax, t, gearbox, active_dof):
         ax.plot(
             t,
             gearbox[2],
+            linestyle="--",
             label="Gearbox DT: inner shaft translation [mm]",
             color="blue",
         )
@@ -1462,6 +1466,7 @@ def plot_relevant_gearbox_axis(ax, t, gearbox, active_dof):
         ax.plot(
             t,
             gearbox[0],
+            linestyle="--",
             label="Gearbox DT: inner shaft rotation [deg]",
             color="blue",
         )
@@ -1472,16 +1477,19 @@ def plot_relevant_gearbox_axis(ax, t, gearbox, active_dof):
         ax.plot(
             t,
             gearbox[3],
+            linestyle="--",
             label="Gearbox DT: middle shaft rotation [deg]",
         )
         ax.plot(
             t,
             gearbox[4],
+            linestyle="--",
             label="Gearbox DT: outer shaft rotation [deg]",
         )
         ax.plot(
             t,
             gearbox[5],
+            linestyle="--",
             label="Gearbox DT: middle-outer relative rotation [deg]",
             color="blue",
         )
@@ -1518,7 +1526,7 @@ def get_video_prediction_setup(
                 "name": "Physics-based DT bend",
                 "values_deg": predicted_bend_deg,
                 "color": "purple",
-                "linestyle": "-",
+                "linestyle": "--",
             }
         ]
 
@@ -1528,7 +1536,7 @@ def get_video_prediction_setup(
                     "name": "Hybrid DT bend",
                     "values_deg": hybrid_bend_deg,
                     "color": "green",
-                    "linestyle": "-",
+                    "linestyle": "--",
                 }
             )
 
@@ -1537,7 +1545,7 @@ def get_video_prediction_setup(
             "video_values_deg": red_shaft_video_angle,
             "video_label": "video measured red marker vs shaft [deg]",
             "video_signal_name": "red marker vs shaft angle [deg]",
-            "video_marker_style": "--",
+            "video_marker_style": "-",
             "prediction_blocks": prediction_blocks,
         }
 
@@ -1550,13 +1558,13 @@ def get_video_prediction_setup(
             "video_values_deg": jaw_video_angle,
             "video_label": "video measured angle between jaws [deg]",
             "video_signal_name": "jaw angle [deg]",
-            "video_marker_style": ".",
+            "video_marker_style": "-",
             "prediction_blocks": [
                 {
                     "name": "Instrument DT gripper/articulation",
                     "values_deg": predicted_jaw_deg,
                     "color": "purple",
-                    "linestyle": "-",
+                    "linestyle": "--",
                 }
             ],
         }
@@ -1570,13 +1578,13 @@ def get_video_prediction_setup(
             "video_values_deg": red_shaft_video_angle,
             "video_label": "video measured red marker vs shaft [deg]",
             "video_signal_name": "red marker vs shaft angle [deg]",
-            "video_marker_style": "--",
+            "video_marker_style": "-",
             "prediction_blocks": [
                 {
                     "name": f"Instrument DT dof{active_dof + 1}",
                     "values_deg": predicted_deg,
                     "color": "purple",
-                    "linestyle": "-",
+                    "linestyle": "--",
                 }
             ],
         }
@@ -1657,11 +1665,11 @@ def plot_instrument_prediction_axis(
     )
 
     if len(setup["video_t"]) > 0:
-        if setup["video_marker_style"] == ".":
+        if setup["video_marker_style"] == "-":
             ax.plot(
                 setup["video_t"],
                 setup["video_values_deg"],
-                ".",
+                "-",
                 markersize=3,
                 color="orange",
                 label=setup["video_label"],
@@ -1670,7 +1678,7 @@ def plot_instrument_prediction_axis(
             ax.plot(
                 setup["video_t"],
                 setup["video_values_deg"],
-                "--",
+                "-",
                 linewidth=2,
                 color="orange",
                 label=setup["video_label"],
@@ -1713,6 +1721,167 @@ def plot_instrument_prediction_axis(
     ax.set_xlabel("Time [s]")
     ax.grid(True)
     ax.legend(fontsize=8)
+
+def plot_instrument_position_prediction_residual(
+    plot_dir,
+    t,
+    active_dof,
+    predicted_angles,
+    hybrid_predicted_angles,
+    video_t,
+    red_shaft_video_angle,
+    jaw_video_angle,
+):
+    setup = get_video_prediction_setup(
+        active_dof=active_dof,
+        predicted_angles=predicted_angles,
+        hybrid_predicted_angles=hybrid_predicted_angles,
+        video_t=video_t,
+        red_shaft_video_angle=red_shaft_video_angle,
+        jaw_video_angle=jaw_video_angle,
+    )
+
+    if setup is None or len(setup["video_t"]) < 2:
+        return
+
+    prediction_t = clean_numeric_array(t)
+    video_time = clean_numeric_array(setup["video_t"])
+    video_values = clean_numeric_array(setup["video_values_deg"])
+
+    valid_video = np.isfinite(video_time) & np.isfinite(video_values)
+
+    if np.sum(valid_video) < 2:
+        return
+
+    video_time = video_time[valid_video]
+    video_values = video_values[valid_video]
+
+    valid_rows = []
+
+    for block in setup["prediction_blocks"]:
+        prediction = clean_numeric_array(block["values_deg"])
+        valid_prediction = (
+            np.isfinite(prediction_t)
+            & np.isfinite(prediction)
+        )
+
+        if np.sum(valid_prediction) < 2:
+            continue
+
+        prediction_time_valid = prediction_t[valid_prediction]
+        prediction_valid = prediction[valid_prediction]
+
+        overlap = (
+            (video_time >= prediction_time_valid[0])
+            & (video_time <= prediction_time_valid[-1])
+        )
+
+        if np.sum(overlap) < 2:
+            continue
+
+        comparison_time = video_time[overlap]
+        measured = video_values[overlap]
+
+        predicted = np.interp(
+            comparison_time,
+            prediction_time_valid,
+            prediction_valid,
+        )
+
+        # Positive residual means that the measurement is larger.
+        residual = measured - predicted
+
+        valid_rows.append(
+            (block, comparison_time, measured, predicted, residual)
+        )
+
+    if not valid_rows:
+        return
+
+    fig, axes = plt.subplots(
+        len(valid_rows),
+        2,
+        figsize=(16, 4 * len(valid_rows)),
+        squeeze=False,
+        sharex="col",
+    )
+
+    for row_index, row in enumerate(valid_rows):
+        block, time_values, measured, predicted, residual = row
+
+        axes[row_index, 0].plot(
+            time_values,
+            measured,
+            linestyle="-",
+            linewidth=2,
+            color="orange",
+            label=setup["video_label"],
+        )
+
+        axes[row_index, 0].plot(
+            time_values,
+            predicted,
+            linestyle="--",
+            linewidth=1.5,
+            color=block["color"],
+            label=f"{block['name']} [deg]",
+        )
+
+        axes[row_index, 0].set_ylabel("Angle [deg]")
+        axes[row_index, 0].set_title(
+            f"{block['name']} vs video measurement"
+        )
+        axes[row_index, 0].grid(True)
+        axes[row_index, 0].legend(fontsize=8)
+
+        mae = np.mean(np.abs(residual))
+        rmse = np.sqrt(np.mean(residual ** 2))
+
+        axes[row_index, 1].plot(
+            time_values,
+            residual,
+            color=block["color"],
+            linewidth=1.2,
+            label="position residual",
+        )
+
+        axes[row_index, 1].axhline(
+            0.0,
+            color="black",
+            linewidth=1.0,
+        )
+
+        axes[row_index, 1].set_ylabel("Residual [deg]")
+        axes[row_index, 1].set_title(
+            "Residual = video measurement - prediction"
+        )
+        axes[row_index, 1].grid(True)
+        axes[row_index, 1].legend(fontsize=8)
+
+        axes[row_index, 1].text(
+            0.01,
+            0.95,
+            f"MAE = {mae:.2f}°\nRMSE = {rmse:.2f}°",
+            transform=axes[row_index, 1].transAxes,
+            va="top",
+            fontsize=8,
+            bbox=dict(boxstyle="round", alpha=0.8),
+        )
+
+    axes[-1, 0].set_xlabel("Time [s]")
+    axes[-1, 1].set_xlabel("Time [s]")
+
+    plt.tight_layout()
+
+    plot_path = os.path.join(
+        plot_dir,
+        "instrument_position_prediction_residual.png",
+    )
+
+    fig.savefig(plot_path, dpi=200)
+    plt.close(fig)
+
+    print(f"Saved position prediction residual plot: {plot_path}")
 
 def plot_overview_inputs_outputs(
     plot_dir,
@@ -2078,6 +2247,17 @@ def plot_continuous_file(
         instrument_current_dt=instrument_current_dt,
         active_dof_name=active_dof_name,
     )
+    plot_instrument_position_prediction_residual(
+        plot_dir=plot_dir,
+        t=t,
+        active_dof=active_dof,
+        predicted_angles=predicted_angles,
+        hybrid_predicted_angles=hybrid_predicted_angles,
+        video_t=video_t,
+        red_shaft_video_angle=red_shaft_video_angle,
+        jaw_video_angle=jaw_video_angle,
+    )
+
 
     if active_dof == 1:
         plot_dof2_video_validation(

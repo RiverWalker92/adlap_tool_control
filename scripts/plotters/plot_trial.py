@@ -1268,6 +1268,7 @@ def plot_instrument_current_prediction_per_motor(
         2,
         figsize=(16, 12),
         sharex=True,
+        sharey="col",
     )
 
     fig.suptitle(
@@ -1302,6 +1303,7 @@ def plot_instrument_current_prediction_per_motor(
             t,
             filtered_current,
             linewidth=1.2,
+            color = "orange",
             label=f"M{motor_index} filtered measured",
         )
 
@@ -1309,7 +1311,8 @@ def plot_instrument_current_prediction_per_motor(
             t,
             predicted_current,
             linestyle="--",
-            linewidth=1.3,
+            linewidth=1.2,
+            color = "tab:purple",
             label=f"M{motor_index} predicted",
         )
 
@@ -1325,7 +1328,7 @@ def plot_instrument_current_prediction_per_motor(
             t,
             residual,
             linewidth=1.1,
-            color = "green",
+            color = "#4C78A8",
             label=f"M{motor_index} residual",
         )
 
@@ -1345,7 +1348,7 @@ def plot_instrument_current_prediction_per_motor(
         if metrics is not None:
             text = (
                 f"MAE = {metrics['mae_mA']:.2f} mA\n"
-                f"RMSE = {metrics['rmse_mA']:.2f} mA\n"
+                f"RMSE = {metrics['rmse_mA']:.2f} mA"
                 # f"Bias = {metrics['bias_mA']:.2f} mA"
             )
 
@@ -1525,7 +1528,7 @@ def get_video_prediction_setup(
             {
                 "name": "Physics-based DT bend",
                 "values_deg": predicted_bend_deg,
-                "color": "purple",
+                "color": "#8064A2",
                 "linestyle": "--",
             }
         ]
@@ -1563,7 +1566,7 @@ def get_video_prediction_setup(
                 {
                     "name": "Instrument DT gripper/articulation",
                     "values_deg": predicted_jaw_deg,
-                    "color": "purple",
+                    "color": "#8064A2",
                     "linestyle": "--",
                 }
             ],
@@ -1583,7 +1586,7 @@ def get_video_prediction_setup(
                 {
                     "name": f"Instrument DT dof{active_dof + 1}",
                     "values_deg": predicted_deg,
-                    "color": "purple",
+                    "color": "#8064A2",
                     "linestyle": "--",
                 }
             ],
@@ -1732,6 +1735,11 @@ def plot_instrument_position_prediction_residual(
     red_shaft_video_angle,
     jaw_video_angle,
 ):
+    # active_dof uses zero-based indexing:
+    # 1 = DOF2 bending, 3 = DOF4 gripper.
+    if active_dof not in (1, 3):
+        return
+        
     setup = get_video_prediction_setup(
         active_dof=active_dof,
         predicted_angles=predicted_angles,
@@ -1804,6 +1812,7 @@ def plot_instrument_position_prediction_residual(
         figsize=(16, 4 * len(valid_rows)),
         squeeze=False,
         sharex="col",
+        sharey="col"
     )
 
     for row_index, row in enumerate(valid_rows):
@@ -1814,7 +1823,7 @@ def plot_instrument_position_prediction_residual(
             measured,
             linestyle="-",
             linewidth=2,
-            color="orange",
+            color="#6BAED6",
             label=setup["video_label"],
         )
 
@@ -1840,7 +1849,7 @@ def plot_instrument_position_prediction_residual(
         axes[row_index, 1].plot(
             time_values,
             residual,
-            color=block["color"],
+            color="#4C78A8",
             linewidth=1.2,
             label="position residual",
         )

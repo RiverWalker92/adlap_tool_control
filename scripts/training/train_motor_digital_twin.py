@@ -29,6 +29,7 @@ DEFAULT_TRAINING_DATA_DIR = (
     / "setup_01_motors"
     / "training motor data NEW"
 )
+RUN_SPLIT_SEED = 42
 
 MOTOR_COLORS = {
     0: "tab:blue",
@@ -692,6 +693,8 @@ def build_samples_from_segment(segment, motor_index):
         "motor_name": segment["info"]["motor_name"],
         "trial": segment["info"]["trial"],
         "motor_index": motor_index,
+        "source_file": segment["source_file"],
+        "dataset_split": segment["dataset_split"],
         "time": t,
         "target": target,
         "raw_command": raw_command,
@@ -736,17 +739,12 @@ def split_train_test(samples):
     test_samples = []
 
     for sample in samples:
-        _, _, _, _, metadata = sample
-        trial = metadata["trial"]
+        metadata = sample[4]
 
-        if trial == "trial_03":
+        if metadata["dataset_split"] == "test":
             test_samples.append(sample)
         else:
             train_samples.append(sample)
-
-    if not test_samples and len(samples) > 1:
-        test_samples = [samples[-1]]
-        train_samples = samples[:-1]
 
     if not train_samples:
         raise RuntimeError("No training samples available.")
@@ -755,7 +753,6 @@ def split_train_test(samples):
         raise RuntimeError("No test samples available.")
 
     return train_samples, test_samples
-
 
 def stack_samples(samples):
     X_encoder_list = []
@@ -1009,10 +1006,12 @@ def train_motor_models(samples_by_motor, output_dir):
                 )
             )
 
-        best_current_model_name = min(
-            current_model_results,
-            key=lambda name: current_model_selection_score(current_model_results[name]),
-        )
+        # best_current_model_name = min(
+        #     current_model_results,
+        #     key=lambda name: current_model_selection_score(current_model_results[name]),
+        # )
+
+        best_current_model_name = "random_forest"
 
         current_model = current_model_results[best_current_model_name]["model"]
         current_pred = current_model_results[best_current_model_name]["prediction"]
@@ -1134,8 +1133,9 @@ def plot_predictions(samples_by_motor, trained_models, output_dir):
                 t,
                 encoder_pred,
                 linewidth=1.5,
+                linestyle="--",
                 color="tab:purple",
-                label="predicted encoder response",
+                label="predicted position",
             )
 
             axes[0].set_ylabel("Relative pulse count [pulses]")
@@ -1154,6 +1154,7 @@ def plot_predictions(samples_by_motor, trained_models, output_dir):
                 t,
                 current_pred,
                 linewidth=1.4,
+                linestyle="--",
                 color="tab:purple",
                 label="predicted current",
             )
@@ -1185,7 +1186,44 @@ def train_motor_digital_twin(file_paths, output_dir):
     if isinstance(file_paths, (str, Path)):
         file_paths = [file_paths]
 
+    # Eerst sorteren: noodzakelijk om met dezelfde seed
+    # altijd dezelfde run te selecteren.
+    file_paths = sorted(
+        Path(file_path).expanduser().resolve()
+        for file_path in file_paths
+    )
+
+    if len(file_paths) < 2:
+        raise RuntimeError(
+            "At least two complete runs are needed for a train/test split."
+        )
+
+    rng = np.random.default_rng(RUN_SPLIT_SEED)
+    test_file_index = int(rng.integers(0, len(file_paths)))
+    test_file = file_paths[test_file_index]
+
+    train_files = [
+        file_path
+        for file_path in file_paths
+        if file_path != test_file
+    ]
+
+    print("\nComplete-run train/test split:")
+    print(f"  Test run: {test_file.name}")
+    print("  Training runs:")
+
+    for train_file in train_files:
+        print(f"    - {train_file.name}")
+
     segments = load_segments_from_files(file_paths)
+
+    for segment in segments:
+        source_file = Path(segment["source_file"]).resolve()
+
+        if source_file == test_file:
+            segment["dataset_split"] = "test"
+        else:
+            segment["dataset_split"] = "train"
 
     print(f"\nTotal valid segments: {len(segments)}")
 

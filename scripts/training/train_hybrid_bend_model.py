@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import Ridge
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -447,6 +447,7 @@ def plot_sequence_blocks(df, output_dir: Path):
 
         plt.savefig(block_dir / filename, dpi=200)
         plt.close()
+        
 def make_models():
     models = {
         "ridge": make_pipeline(
@@ -471,6 +472,13 @@ def make_models():
             learning_rate=0.03,
             max_depth=3,
             min_samples_leaf=5,
+            random_state=42,
+        ),
+
+        "hist_gradient_boosting": HistGradientBoostingRegressor(
+            max_iter=300,
+            learning_rate=0.05,
+            max_leaf_nodes=31,
             random_state=42,
         ),
     }

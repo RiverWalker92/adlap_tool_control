@@ -741,9 +741,9 @@ def plot_segment(segment, output_dir, replay_by_task_label=None):
         axes[0].plot(
             t_pos,
             positions[idx],
-            color="blue",
+            color="#6BAED6",
             linewidth=1.5,
-            label=f"motor {idx} measured encoder response",
+            label=f"motor {idx} measured encoder position",
         )
 
         if replay_arrays is not None:
@@ -753,7 +753,7 @@ def plot_segment(segment, output_dir, replay_by_task_label=None):
                 color="tab:purple",
                 linestyle="--",
                 linewidth=1.5,
-                label=f"motor {idx} offline predicted encoder",
+                label=f"motor {idx} offline predicted position",
             )
         elif np.isfinite(predicted_positions[idx]).any():
             axes[0].plot(
@@ -762,7 +762,7 @@ def plot_segment(segment, output_dir, replay_by_task_label=None):
                 color="tab:purple",
                 linestyle="--",
                 linewidth=1.5,
-                label=f"motor {idx} online predicted encoder",
+                label=f"motor {idx} online predicted position",
             )
 
     axes[0].set_title("Commanded target vs encoder response")
@@ -810,6 +810,7 @@ def plot_segment(segment, output_dir, replay_by_task_label=None):
     axes[1].set_title("Motor current")
     axes[1].set_ylabel("Current [mA]")
     axes[1].set_xlabel("Time [s]")
+    axes[1].set_xlim(left=0)
     axes[1].grid(True)
     axes[1].legend(fontsize=8)
 
@@ -1157,7 +1158,7 @@ def plot_test_type_grid(segments, output_dir, replay_by_task_label=None):
             ax_pos.plot(
                 t_pos,
                 positions[motor_index],
-                color="blue",
+                color="#6BAED6",
                 linewidth=1.5,
                 label="encoder response",
             )
@@ -1385,6 +1386,473 @@ def write_motor_metrics(segments, output_dir, replay_by_task_label=None):
 
     print(f"Saved metrics: {metrics_path}")
 
+def plot_motor_position_prediction_residuals(
+    segments,
+    output_dir,
+    replay_by_task_label=None,
+):
+    if replay_by_task_label is None:
+        return
+
+    grouped = {}
+
+    for segment in segments:
+        key = "full_run"
+        grouped.setdefault(key, []).append(segment)
+
+    for test_type, group_segments in grouped.items():
+        motor_data = {}
+
+        group_segments = sorted(
+            group_segments,
+            key=lambda segment: segment["rows"][0]["time"],
+        )
+
+        for segment in group_segments:
+            motor_index = get_active_motor_index(segment)
+
+            if motor_index is None:
+                continue
+
+            replay_arrays = get_replay_arrays_for_segment(
+                segment,
+                replay_by_task_label,
+            )
+
+            if replay_arrays is None:
+                continue
+
+            (
+                t_replay,
+                replay_commanded_target,
+                replay_predicted_positions,
+                replay_predicted_currents,
+                replay_filtered_currents,
+                replay_encoder_deviation,
+                replay_current_deviation,
+            ) = replay_arrays
+
+            predicted_position = np.asarray(
+                replay_predicted_positions[motor_index],
+                dtype=float,
+            )
+
+            position_residual = np.asarray(
+                replay_encoder_deviation[motor_index],
+                dtype=float,
+            )
+
+            # encoder_deviation = measured - predicted
+            measured_position = (
+                predicted_position + position_residual
+            )
+
+            t_local = np.asarray(t_replay, dtype=float)
+
+            if len(t_local) < 2:
+                continue
+
+            t_local = t_local - t_local[0]
+
+            data = motor_data.setdefault(
+                motor_index,
+                {
+                    "time": [],
+                    "measured": [],
+                    "predicted": [],
+                    "residual": [],
+                    "end_time": 0.0,
+                },
+            )
+
+            if data["time"]:
+                positive_dt = np.diff(t_local)
+                positive_dt = positive_dt[positive_dt > 0]
+
+                dt = (
+                    np.median(positive_dt)
+                    if len(positive_dt) > 0
+                    else 0.01
+                )
+
+                t_local = t_local + data["end_time"] + dt
+
+            data["time"].extend(t_local)
+            data["measured"].extend(measured_position)
+            data["predicted"].extend(predicted_position)
+            data["residual"].extend(position_residual)
+            data["end_time"] = t_local[-1]
+
+            data["time"].append(np.nan)
+            data["measured"].append(np.nan)
+            data["predicted"].append(np.nan)
+            data["residual"].append(np.nan)
+
+        if not motor_data:
+            continue
+
+        sorted_motor_data = sorted(motor_data.items())
+
+        fig, axes = plt.subplots(
+            len(sorted_motor_data),
+            2,
+            figsize=(16, 12),
+            sharex=True,
+            sharey="col",
+            squeeze=False,
+        )
+
+        fig.suptitle(
+            f"Motor position prediction and residual: "
+            f"{test_type}",
+            fontsize=16,
+        )
+
+        for row_index, (motor_index, data) in enumerate(
+            sorted_motor_data
+        ):
+            t = np.asarray(data["time"], dtype=float)
+            measured = np.asarray(data["measured"], dtype=float)
+            predicted = np.asarray(data["predicted"], dtype=float)
+            residual = np.asarray(data["residual"], dtype=float)
+
+            valid = (
+                np.isfinite(t)
+                & np.isfinite(measured)
+                & np.isfinite(predicted)
+                & np.isfinite(residual)
+            )
+
+            if np.sum(valid) < 2:
+                continue
+
+            mae = np.mean(np.abs(residual[valid]))
+            rmse = np.sqrt(np.mean(residual[valid] ** 2))
+
+            # Left: measured and predicted position
+            axes[row_index, 0].plot(
+                t,
+                measured,
+                linestyle="-",
+                linewidth=1.3,
+                color="#6BAED6",
+                label="Measured encoder position",
+            )
+
+            axes[row_index, 0].plot(
+                t,
+                predicted,
+                linestyle="--",
+                linewidth=1.3,
+                color="#8064A2",
+                label="Predicted position",
+            )
+
+            axes[row_index, 0].set_title(
+                f"Motor {motor_index}: measured vs predicted"
+            )
+            axes[row_index, 0].set_ylabel(
+                "Relative position [pulses]"
+            )
+            axes[row_index, 0].grid(True)
+            axes[row_index, 0].legend(fontsize=8)
+
+            # Right: position residual
+            axes[row_index, 1].plot(
+                t,
+                residual,
+                linestyle="-",
+                linewidth=1.2,
+                color="#4C78A8",
+                label="Position residual",
+            )
+
+            axes[row_index, 1].axhline(
+                0.0,
+                color="black",
+                linewidth=1.0,
+            )
+
+            axes[row_index, 1].set_title(
+                f"Motor {motor_index}: "
+                "residual = measured - predicted"
+            )
+            axes[row_index, 1].set_ylabel(
+                "Residual [pulses]"
+            )
+            axes[row_index, 1].grid(True)
+            axes[row_index, 1].legend(fontsize=8)
+
+            axes[row_index, 1].text(
+                0.01,
+                0.95,
+                f"MAE = {mae:.2f} pulses\n"
+                f"RMSE = {rmse:.2f} pulses",
+                transform=axes[row_index, 1].transAxes,
+                va="top",
+                ha="left",
+                fontsize=8,
+                bbox=dict(boxstyle="round", alpha=0.8),
+            )
+
+        axes[-1, 0].set_xlabel("Elapsed time per motor [s]")
+        axes[-1, 1].set_xlabel("Elapsed time per motor [s]")
+        axes[-1, 0].set_xlim(left=0.0)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.94])
+
+        plot_path = (
+            Path(output_dir)
+            / "prediction_residuals"
+            / (
+                "motor_position_prediction_residual.png"
+            )
+        )
+
+        plot_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        fig.savefig(plot_path, dpi=200)
+        plt.close(fig)
+
+        print(
+            f"Saved Motor DT position residual plot: {plot_path}"
+        )
+
+def plot_motor_current_prediction_residuals(
+    segments,
+    output_dir,
+    replay_by_task_label=None,
+):
+    if replay_by_task_label is None:
+        return
+
+    grouped = {}
+
+    for segment in segments:
+        key = "full_run"
+        grouped.setdefault(key, []).append(segment) 
+
+    for test_type, group_segments in grouped.items():
+        motor_data = {}
+
+        group_segments = sorted(
+            group_segments,
+            key=lambda segment: segment["rows"][0]["time"],
+        )
+
+        for segment in group_segments:
+            motor_index = get_active_motor_index(segment)
+
+            if motor_index is None:
+                continue
+
+            replay_arrays = get_replay_arrays_for_segment(
+                segment,
+                replay_by_task_label,
+            )
+
+            if replay_arrays is None:
+                continue
+
+            (
+                t_replay,
+                replay_commanded_target,
+                replay_predicted_positions,
+                replay_predicted_currents,
+                replay_filtered_currents,
+                replay_encoder_deviation,
+                replay_current_deviation,
+            ) = replay_arrays
+
+            measured_current = np.asarray(
+                replay_filtered_currents[motor_index],
+                dtype=float,
+            )
+
+            predicted_current = np.asarray(
+                replay_predicted_currents[motor_index],
+                dtype=float,
+            )
+
+            current_residual = np.asarray(
+                replay_current_deviation[motor_index],
+                dtype=float,
+            )
+
+            t_local = np.asarray(t_replay, dtype=float)
+            if len(t_local) < 2:
+                continue
+
+            t_local = t_local - t_local[0]
+
+            data = motor_data.setdefault(
+                motor_index,
+                {
+                    "time": [],
+                    "measured": [],
+                    "predicted": [],
+                    "residual": [],
+                    "end_time": 0.0,
+                },
+            )
+
+            if data["time"]:
+                positive_dt = np.diff(t_local)
+                positive_dt = positive_dt[positive_dt > 0]
+
+                dt = (
+                    np.median(positive_dt)
+                    if len(positive_dt) > 0
+                    else 0.01
+                )
+
+                t_local = t_local + data["end_time"] + dt
+
+            data["time"].extend(t_local)
+            data["measured"].extend(measured_current)
+            data["predicted"].extend(predicted_current)
+            data["residual"].extend(current_residual)
+            data["end_time"] = t_local[-1]
+
+            # Onderbreking zodat trials niet met een rechte lijn worden verbonden.
+            data["time"].append(np.nan)
+            data["measured"].append(np.nan)
+            data["predicted"].append(np.nan)
+            data["residual"].append(np.nan)
+
+        if not motor_data:
+            continue
+
+        sorted_motor_data = sorted(motor_data.items())
+
+        fig, axes = plt.subplots(
+            len(sorted_motor_data),
+            2,
+            figsize=(16, 12),
+            sharex=True,
+            sharey="col",
+            squeeze=False,
+        )
+
+        fig.suptitle(
+            f"Motor current prediction and residual: "
+            f"{test_type}",
+            fontsize=16,
+        )
+
+        for row_index, (motor_index, data) in enumerate(
+            sorted_motor_data
+        ):
+            t = np.asarray(data["time"], dtype=float)
+            measured = np.asarray(data["measured"], dtype=float)
+            predicted = np.asarray(data["predicted"], dtype=float)
+            residual = np.asarray(data["residual"], dtype=float)
+
+            valid = (
+                np.isfinite(t)
+                & np.isfinite(measured)
+                & np.isfinite(predicted)
+                & np.isfinite(residual)
+            )
+
+            if np.sum(valid) < 2:
+                continue
+
+            mae = np.mean(np.abs(residual[valid]))
+            rmse = np.sqrt(np.mean(residual[valid] ** 2))
+
+            # Left: measured and predicted current
+            axes[row_index, 0].plot(
+                t,
+                measured,
+                linestyle="-",
+                linewidth=1.3,
+                color="orange",
+                label="Filtered measured current",
+            )
+
+            axes[row_index, 0].plot(
+                t,
+                predicted,
+                linestyle="--",
+                linewidth=1.3,
+                color="tab:purple",
+                label="Predicted current",
+            )
+
+            axes[row_index, 0].set_title(
+                f"Motor {motor_index}: measured vs predicted"
+            )
+            axes[row_index, 0].set_ylabel("Current [mA]")
+            axes[row_index, 0].grid(True)
+            axes[row_index, 0].legend(fontsize=8)
+
+            # Right: current residual
+            axes[row_index, 1].plot(
+                t,
+                residual,
+                linestyle="-",
+                linewidth=1.2,
+                color="#4C78A8",
+                label="Current residual",
+            )
+
+            axes[row_index, 1].axhline(
+                0.0,
+                color="black",
+                linewidth=1.0,
+            )
+
+            axes[row_index, 1].set_title(
+                f"Motor {motor_index}: "
+                "residual = measured - predicted"
+            )
+            axes[row_index, 1].set_ylabel(
+                "Residual [mA]"
+            )
+            axes[row_index, 1].grid(True)
+            axes[row_index, 1].legend(fontsize=8)
+
+            axes[row_index, 1].text(
+                0.01,
+                0.95,
+                f"MAE = {mae:.2f} mA\n"
+                f"RMSE = {rmse:.2f} mA",
+                transform=axes[row_index, 1].transAxes,
+                va="top",
+                ha="left",
+                fontsize=8,
+                bbox=dict(boxstyle="round", alpha=0.8),
+            )
+
+        axes[-1, 0].set_xlabel("Elapsed time per motor [s]")
+        axes[-1, 1].set_xlabel("Elapsed time per motor [s]")
+        axes[-1, 0].set_xlim(left=0.0)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.94])
+
+        plot_path = (
+            Path(output_dir)
+            / "prediction_residuals"
+            / (
+                "motor_current_prediction_residual.png"
+            )
+        )
+
+        plot_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        fig.savefig(plot_path, dpi=200)
+        plt.close(fig)
+
+        print(
+            f"Saved Motor DT current residual plot: {plot_path}"
+        )
 
 def plot_motor_trial(file_path, output_dir, replay_file=None):
     output_dir = Path(output_dir)
@@ -1418,6 +1886,19 @@ def plot_motor_trial(file_path, output_dir, replay_file=None):
         segments,
         output_dir,
         replay_by_task_label=replay_by_task_label)
+
+    plot_motor_position_prediction_residuals(
+        segments=segments,
+        output_dir=output_dir,
+        replay_by_task_label=replay_by_task_label,
+    )
+
+    plot_motor_current_prediction_residuals(
+        segments=segments,
+        output_dir=output_dir,
+        replay_by_task_label=replay_by_task_label,
+    )
+
     write_motor_metrics(
         segments, 
         output_dir, 

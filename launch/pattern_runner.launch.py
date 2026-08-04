@@ -69,6 +69,21 @@ def generate_launch_description():
         executable="instrument_state_node.py",
         parameters=[
             str(instrument_params_file),
+            # {
+            #     "instrument_config": instrument_config,
+            #     "hybrid_bend_enabled": True,
+            #     "hybrid_bend_model_file": str(
+            #         Path.home()
+            #         / "ros2_ws"
+            #         / "test_data"
+            #         / "automated_trials"
+            #         / "trainings data V2"
+            #         / "hybrid_bend_dt_results"
+            #         / "dof2"
+            #         / "gradient_boosting"
+            #         / "gradient_boosting_bend_hybrid_model.joblib"
+            #     ),
+            # },
             {
                 "instrument_config": instrument_config,
                 "hybrid_bend_enabled": True,
@@ -77,13 +92,13 @@ def generate_launch_description():
                     / "ros2_ws"
                     / "test_data"
                     / "automated_trials"
-                    / "trainings data V2"
+                    / "trainings data V3"
                     / "hybrid_bend_dt_results"
-                    / "dof2"
-                    / "gradient_boosting"
-                    / "gradient_boosting_bend_hybrid_model.joblib"
+                    / "random_forest"
+                    / "random_forest_bend_hybrid_model.joblib"
                 ),
-            },
+            }
+
         ],
         output="screen",
     )

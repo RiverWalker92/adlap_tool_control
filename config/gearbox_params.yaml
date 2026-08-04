@@ -138,17 +138,17 @@ gearbox:
         direction_deadband_pulses: 5
         lower_motors_play_deg: 15 # dit is niet originele waarde toch? 
 
-        gear_l1_backlash_positive_pulses: 52
-        gear_l1_backlash_negative_pulses: 48
+        gear_l1_backlash_positive_pulses: 50 #52
+        gear_l1_backlash_negative_pulses: 50 #48
 
-        gear_l2_backlash_positive_pulses: 30
-        gear_l2_backlash_negative_pulses: 21
+        gear_l2_backlash_positive_pulses: 25 #30
+        gear_l2_backlash_negative_pulses: 25 #21
 
-        gear_r1_backlash_positive_pulses: 57
-        gear_r1_backlash_negative_pulses: 48
+        gear_r1_backlash_positive_pulses: 53 #57
+        gear_r1_backlash_negative_pulses: 53 #48
 
-        gear_r2_backlash_positive_pulses: 50
-        gear_r2_backlash_negative_pulses: 48
+        gear_r2_backlash_positive_pulses: 49 #50
+        gear_r2_backlash_negative_pulses: 49 #48
 
         # gear_r1_backlash_positive_pulses: 0
         # gear_r1_backlash_negative_pulses: 0

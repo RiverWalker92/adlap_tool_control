@@ -78,6 +78,7 @@ def build_video_dataframe(video_angles: Path):
 
 def choose_video_target_column(video_df):
     candidates = [
+        "measured_angle_red_shaft_zeroed_filtered",
         "measured_angle_red_shaft_zeroed",
         "measured_angle_red_shaft",
         "shaft_angle_deg",
@@ -187,7 +188,12 @@ def build_trial_table_from_files(ros_log: Path, video_log: Path, trial_id: str):
         print(f"Loaded {trial_id}: 0 rows after time matching")
         return None
 
-    merged = filter_video_angle(merged)
+    # merged = filter_video_angle(merged)
+
+    # The selected video target was already median-filtered by the
+    # offline webcam angle detector.
+    merged["video_angle_raw"] = merged["video_angle"]
+    merged["video_angle_filtered"] = merged["video_angle"]
 
     merged["trial_id"] = trial_id
 

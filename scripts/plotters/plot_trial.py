@@ -226,29 +226,63 @@ def load_video_angle_file(file_path, motor_ros_t0):
     t_video = []
     red_shaft_angle = []
     jaw_angle = []
-    yellow_shaft_angle = []
+    # yellow_shaft_angle = []
+    green_shaft_angle = []
+
+    detected_dof = None
 
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
 
+            if detected_dof is None:
+                detected_dof = data.get("active_dof")
+
             ros_time = data.get("ros_time_s")
 
-            red_angle = data.get("measured_angle_red_shaft_zeroed")
-            if red_angle is None:
-                red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
-            raw_red_shaft = data.get("measured_angle_red_shaft")
+            # red_angle = data.get("measured_angle_red_shaft_zeroed")
+            # if red_angle is None:
+            #     red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
+            # raw_red_shaft = data.get("measured_angle_red_shaft")
 
-            yellow_angle = data.get("measured_angle_yellow_shaft_zeroed")
-            if yellow_angle is None:
-                yellow_angle = data.get("yellow_relative_angle_zeroed_deg")
-            raw_yellow_shaft = data.get("measured_angle_yellow_shaft")
+            # yellow_angle = data.get("measured_angle_yellow_shaft_zeroed")
+            # if yellow_angle is None:
+            #     yellow_angle = data.get("yellow_relative_angle_zeroed_deg")
+            # raw_yellow_shaft = data.get("measured_angle_yellow_shaft")
 
-            measured_jaw_angle = data.get("measured_angle_between_jaws")
+            # measured_jaw_angle = data.get("measured_angle_between_jaws")
+            # Use only the filtered video measurements for validation,
+            
+            # Filtered DOF2 video reference
+            red_angle = data.get(
+                "measured_angle_red_shaft_zeroed_filtered"
+            )
+
+            # Filtered additional DOF4 diagnostic signal
+            # yellow_angle = data.get(
+            #     "measured_angle_yellow_shaft_zeroed_filtered"
+            # )
+
+            # Nieuwe groene veldnaam
+            green_angle = data.get(
+                "measured_angle_green_shaft_zeroed_filtered"
+            )
+
+            # Ondersteun ook oudere bestanden waarin de groene marker
+            # nog onder de legacy yellow-veldnaam werd opgeslagen.
+            if green_angle is None:
+                green_angle = data.get(
+                    "measured_angle_yellow_shaft_zeroed_filtered"
+                )
+
+            # Filtered DOF4 validation reference
+            measured_jaw_angle = data.get(
+                "measured_angle_between_jaws_filtered"
+            )
 
             if ros_time is None:
                 continue
-            
+
             t_rel = ros_time - motor_ros_t0
 
             if t_rel < -1.0 or t_rel > TRIM_DURATION + 1.0:
@@ -257,13 +291,51 @@ def load_video_angle_file(file_path, motor_ros_t0):
             t_video.append(t_rel)
             red_shaft_angle.append(red_angle)
             jaw_angle.append(measured_jaw_angle)
-            yellow_shaft_angle.append(yellow_angle)
-            # blue_shaft_angle.append(blue_angle)
+            # yellow_shaft_angle.append(yellow_angle)
+            green_shaft_angle.append(green_angle)
+
+    if detected_dof == 4:
+        valid_filtered = sum(
+            value is not None
+            for value in jaw_angle
+        )
+
+        if valid_filtered == 0:
+            raise RuntimeError(
+                "No filtered DOF4 jaw-angle measurements found in "
+                f"{file_path}. Re-run the webcam angle detector."
+            )
+
+    if detected_dof == 2:
+        valid_filtered = sum(
+            value is not None
+            for value in red_shaft_angle
+        )
+
+        if valid_filtered == 0:
+            raise RuntimeError(
+                "No filtered DOF2 video-angle measurements found in "
+                f"{file_path}. Re-run the webcam angle detector."
+            )
 
     print("video samples:", len(t_video))
-    print("valid red shaft angles:", sum(v is not None for v in red_shaft_angle))
-    print("valid jaw angles:", sum(v is not None for v in jaw_angle))
-    return t_video, red_shaft_angle, jaw_angle, yellow_shaft_angle
+    print(
+        "valid filtered red-shaft angles:",
+        sum(value is not None for value in red_shaft_angle),
+    )
+    print(
+        "valid filtered jaw angles:",
+        sum(value is not None for value in jaw_angle),
+    )
+
+    return (
+        t_video,
+        red_shaft_angle,
+        jaw_angle,
+        # yellow_shaft_angle,
+        green_shaft_angle,
+    )
+
 
 # Instrument Current DT replay data loading
 # -----------------------------------------
@@ -480,22 +552,274 @@ def get_frequency_segments_from_params(params_file, active_dof, t, commanded):
 
     return segments
 
+def get_sequence_evaluation_window(
+    params_file,
+    active_dof,
+    t,
+    commanded,
+):
+    """
+    Bepaal het primaire evaluatievenster van een instrumentsequence.
+
+    Start:
+    eerste daadwerkelijke afwijking van de neutrale commandowaarde.
+
+    Einde:
+    start + volledige sequence-duur uit de YAML, inclusief:
+    - alle waveform-stages;
+    - pauzes tussen waveform-stages;
+    - pauzes tussen frequenties;
+    - pauzes tussen ranges;
+    - laatste settlingpauze.
+    """
+    if params_file is None or active_dof is None:
+        return None
+
+    with open(params_file, "r") as f:
+        config = yaml.safe_load(f)
+
+    params = extract_ros_parameters(config)
+
+    dof_name = f"dof{active_dof + 1}"
+
+    if dof_name not in params:
+        return None
+
+    dof_params = params[dof_name]
+
+    if dof_params.get("mode", "constant") != "sequence":
+        return None
+
+    tt = np.asarray(t, dtype=float)
+    command = clean_numeric_array(commanded[active_dof])
+
+    if len(tt) < 2:
+        return None
+
+    neutral_value = float(
+        dof_params.get("value", 0.0)
+    )
+
+    moving_indices = np.where(
+        np.isfinite(command)
+        & (np.abs(command - neutral_value) > 1e-4)
+    )[0]
+
+    if len(moving_indices) == 0:
+        print(
+            f"Warning: no movement detected for {dof_name}; "
+            "metrics will not be calculated."
+        )
+        return None
+
+    # Twee samples terug om de eerste commandostijging volledig mee te nemen.
+    first_index = max(
+        0,
+        int(moving_indices[0]) - 2,
+    )
+
+    evaluation_start = float(tt[first_index])
+
+    base_frequency = float(
+        dof_params.get("frequency", 0.1)
+    )
+
+    frequency_factors = [
+        float(value)
+        for value in dof_params.get(
+            "sequence_frequency_factors",
+            [1.0],
+        )
+    ]
+
+    range_factors = [
+        float(value)
+        for value in dof_params.get(
+            "sequence_range_factors",
+            [1.0],
+        )
+    ]
+
+    modes = list(
+        dof_params.get(
+            "sequence_modes",
+            ["sinusoid", "triangle"],
+        )
+    )
+
+    cycles = [
+        float(value)
+        for value in dof_params.get(
+            "sequence_cycles",
+            [3, 3],
+        )
+    ]
+
+    if len(modes) != len(cycles):
+        raise ValueError(
+            f"{dof_name}: sequence_modes and sequence_cycles "
+            "must have the same length."
+        )
+
+    stage_pause = float(
+        dof_params.get(
+            "sequence_pause_duration",
+            0.0,
+        )
+    )
+
+    between_frequency_pause = float(
+        dof_params.get(
+            "sequence_between_frequency_pause",
+            0.0,
+        )
+    )
+
+    between_range_pause = float(
+        dof_params.get(
+            "sequence_between_range_pause",
+            0.0,
+        )
+    )
+
+    final_pause = float(
+        dof_params.get(
+            "sequence_final_pause_duration",
+            0.0,
+        )
+    )
+
+    total_duration = 0.0
+
+    for range_index, _range_factor in enumerate(
+        range_factors
+    ):
+        for frequency_index, frequency_factor in enumerate(
+            frequency_factors
+        ):
+            frequency = (
+                base_frequency
+                * frequency_factor
+            )
+
+            motion_duration = sum(
+                cycle_count / frequency
+                for cycle_count in cycles
+            )
+
+            number_of_stage_pauses = max(
+                0,
+                len(modes) - 1,
+            )
+
+            block_duration = (
+                motion_duration
+                + number_of_stage_pauses
+                * stage_pause
+            )
+
+            total_duration += block_duration
+
+            is_last_frequency = (
+                frequency_index
+                == len(frequency_factors) - 1
+            )
+
+            if not is_last_frequency:
+                total_duration += (
+                    between_frequency_pause
+                )
+
+        is_last_range = (
+            range_index
+            == len(range_factors) - 1
+        )
+
+        if not is_last_range:
+            total_duration += between_range_pause
+
+    total_duration += final_pause
+
+    requested_end = (
+        evaluation_start
+        + total_duration
+    )
+
+    available_end = float(tt[-1])
+    tolerance_s = 0.2
+
+    if requested_end > available_end + tolerance_s:
+        print(
+            f"Warning: log shorter than expected sequence for "
+            f"{dof_name}: required until "
+            f"{requested_end:.3f} s, available until "
+            f"{available_end:.3f} s."
+        )
+
+        return None
+
+    evaluation_end = min(
+        requested_end,
+        available_end,
+    )
+
+    return {
+        "start_s": evaluation_start,
+        "end_s": evaluation_end,
+        "duration_s": (
+            evaluation_end
+            - evaluation_start
+        ),
+        "source": "command_start_plus_yaml_sequence_duration",
+        "active_dof": dof_name,
+        "base_frequency_hz": base_frequency,
+        "frequency_factors": frequency_factors,
+        "range_factors": range_factors,
+    }
+
 # Prediction metrics computation
 # -----------------------------------------
-def compute_prediction_metrics(video_t, video_angle_deg, prediction_t, prediction_deg):
-    video_t = np.array(video_t, dtype=float)
-    video_angle_deg = np.array(
-        [np.nan if v is None else v for v in video_angle_deg],
+def compute_prediction_metrics(
+    video_t,
+    video_angle_deg,
+    prediction_t,
+    prediction_deg,
+    evaluation_window=None,
+):
+    video_t = np.asarray(video_t, dtype=float)
+
+    video_angle_deg = np.asarray(
+        [
+            np.nan if value is None else value
+            for value in video_angle_deg
+        ],
         dtype=float,
     )
 
-    prediction_t = np.array(prediction_t, dtype=float)
-    prediction_deg = np.array(prediction_deg, dtype=float)
+    prediction_t = np.asarray(
+        prediction_t,
+        dtype=float,
+    )
 
-    valid_video = np.isfinite(video_t) & np.isfinite(video_angle_deg)
-    valid_prediction = np.isfinite(prediction_t) & np.isfinite(prediction_deg)
+    prediction_deg = np.asarray(
+        prediction_deg,
+        dtype=float,
+    )
 
-    if np.sum(valid_video) < 2 or np.sum(valid_prediction) < 2:
+    valid_video = (
+        np.isfinite(video_t)
+        & np.isfinite(video_angle_deg)
+    )
+
+    valid_prediction = (
+        np.isfinite(prediction_t)
+        & np.isfinite(prediction_deg)
+    )
+
+    if np.sum(valid_video) < 2:
+        return None
+
+    if np.sum(valid_prediction) < 2:
         return None
 
     video_t = video_t[valid_video]
@@ -504,10 +828,34 @@ def compute_prediction_metrics(video_t, video_angle_deg, prediction_t, predictio
     prediction_t = prediction_t[valid_prediction]
     prediction_deg = prediction_deg[valid_prediction]
 
-    overlap_start = max(video_t[0], prediction_t[0])
-    overlap_end = min(video_t[-1], prediction_t[-1])
+    overlap_start = max(
+        video_t[0],
+        prediction_t[0],
+    )
 
-    overlap_mask = (video_t >= overlap_start) & (video_t <= overlap_end)
+    overlap_end = min(
+        video_t[-1],
+        prediction_t[-1],
+    )
+
+    if evaluation_window is not None:
+        overlap_start = max(
+            overlap_start,
+            evaluation_window["start_s"],
+        )
+
+        overlap_end = min(
+            overlap_end,
+            evaluation_window["end_s"],
+        )
+
+    if overlap_end <= overlap_start:
+        return None
+
+    overlap_mask = (
+        (video_t >= overlap_start)
+        & (video_t <= overlap_end)
+    )
 
     if np.sum(overlap_mask) < 2:
         return None
@@ -521,23 +869,33 @@ def compute_prediction_metrics(video_t, video_angle_deg, prediction_t, predictio
         prediction_deg,
     )
 
-    error = prediction_at_video_time - video_angle_overlap
-
-    mae = float(np.mean(np.abs(error)))
-    rmse = float(np.sqrt(np.mean(error ** 2)))
-    bias = float(np.mean(error))
-    max_abs_error = float(np.max(np.abs(error)))
+    # residual = measurement - prediction
+    error = (
+        video_angle_overlap
+        - prediction_at_video_time
+    )
 
     return {
         "n_samples": int(len(error)),
-        "mae_deg": mae,
-        "rmse_deg": rmse,
-        "bias_deg": bias,
-        "max_abs_error_deg": max_abs_error,
-        "overlap_start_s": float(overlap_start),
-        "overlap_end_s": float(overlap_end),
+        "mae_deg": float(
+            np.mean(np.abs(error))
+        ),
+        "rmse_deg": float(
+            np.sqrt(np.mean(error ** 2))
+        ),
+        "bias_deg": float(
+            np.mean(error)
+        ),
+        "max_abs_error_deg": float(
+            np.max(np.abs(error))
+        ),
+        "overlap_start_s": float(
+            video_t_overlap[0]
+        ),
+        "overlap_end_s": float(
+            video_t_overlap[-1]
+        ),
     }
-
 
 # def write_dof2_prediction_metrics(
 #     plot_dir,
@@ -614,9 +972,15 @@ def write_video_prediction_metrics(
         f.write("===================================\n\n")
         f.write(f"DOF:          {active_dof_name}\n")
         f.write(f"Video signal: {video_signal_name}\n\n")
-        f.write("Error definition:\n")
-        f.write("prediction_error = prediction_deg - video_measurement_deg\n\n")
+        f.write("Video preprocessing:\n")
+        f.write("centred median filter, window = 5 frames\n")
+        f.write("offline centred window; no fixed causal filter delay\n\n")
 
+        f.write("Residual definition:\n")
+        f.write(
+            "residual = median_filtered_video_measurement_deg "
+            "- prediction_deg\n\n"
+        )
         for title, metrics in prediction_blocks:
             write_block(f, title, metrics)
 
@@ -1022,7 +1386,7 @@ def plot_gripper_video_measurements(
     plot_dir,
     video_t,
     jaw_video_angle,
-    yellow_shaft_video_angle, #yellow_shaft_video_angle,
+    green_shaft_video_angle, #yellow_shaft_video_angle,
     red_shaft_video_angle,
 ):
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
@@ -1033,7 +1397,7 @@ def plot_gripper_video_measurements(
         jaw_video_angle,
         linestyle="-",
         linewidth=2,
-        label="measured jaw angle: yellow vs red [deg]",
+        label="measured jaw angle: green vs red [deg]",
     )
     axes[0].set_ylabel("Jaw angle [deg]")
     axes[0].grid(True)
@@ -1041,12 +1405,12 @@ def plot_gripper_video_measurements(
 
     axes[1].plot(
         video_t,
-        yellow_shaft_video_angle, #yellow_shaft_video_angle,
+        green_shaft_video_angle, #yellow_shaft_video_angle,
         linestyle="-",
         linewidth=2,
-        label="measured yellow marker vs shaft [deg]",
+        label="measured green marker vs shaft [deg]",
     )
-    axes[1].set_ylabel("Yellow-shaft [deg]")
+    axes[1].set_ylabel("Green-shaft [deg]")
     axes[1].grid(True)
     axes[1].legend(fontsize=8)
 
@@ -1227,26 +1591,72 @@ def plot_motor_currents_axis(
     ax.grid(True)
     ax.legend(fontsize=8, ncol=2)
 
-def compute_current_prediction_metrics(filtered_current, predicted_current):
-    filtered_current = np.array(filtered_current, dtype=float)
-    predicted_current = np.array(predicted_current, dtype=float)
+def compute_current_prediction_metrics(
+    time_values,
+    filtered_current,
+    predicted_current,
+    evaluation_window=None,
+):
+    time_values = np.asarray(
+        time_values,
+        dtype=float,
+    )
+
+    filtered_current = np.asarray(
+        filtered_current,
+        dtype=float,
+    )
+
+    predicted_current = np.asarray(
+        predicted_current,
+        dtype=float,
+    )
 
     valid = (
-        np.isfinite(filtered_current)
+        np.isfinite(time_values)
+        & np.isfinite(filtered_current)
         & np.isfinite(predicted_current)
     )
+
+    if evaluation_window is not None:
+        valid &= (
+            time_values
+            >= evaluation_window["start_s"]
+        )
+
+        valid &= (
+            time_values
+            <= evaluation_window["end_s"]
+        )
 
     if np.sum(valid) < 2:
         return None
 
-    error = filtered_current[valid] - predicted_current[valid]
+    error = (
+        filtered_current[valid]
+        - predicted_current[valid]
+    )
 
     return {
         "n_samples": int(len(error)),
-        "mae_mA": float(np.mean(np.abs(error))),
-        "rmse_mA": float(np.sqrt(np.mean(error ** 2))),
-        "bias_mA": float(np.mean(error)),
-        "max_abs_error_mA": float(np.max(np.abs(error))),
+        "mae_mA": float(
+            np.mean(np.abs(error))
+        ),
+        "rmse_mA": float(
+            np.sqrt(np.mean(error ** 2))
+        ),
+        "bias_mA": float(
+            np.mean(error)
+        ),
+        "max_abs_error_mA": float(
+            np.max(np.abs(error))
+        ),
+        "evaluation_start_s": float(
+            time_values[valid][0]
+        ),
+        "evaluation_end_s": float(
+            time_values[valid][-1]
+        ),
     }
 
 
@@ -1254,6 +1664,7 @@ def plot_instrument_current_prediction_per_motor(
     plot_dir,
     instrument_current_dt,
     active_dof_name,
+    evaluation_window=None
 ):
     if instrument_current_dt is None:
         return
@@ -1292,8 +1703,10 @@ def plot_instrument_current_prediction_per_motor(
         )
 
         metrics = compute_current_prediction_metrics(
-            filtered_current,
-            predicted_current,
+            time_values=t,
+            filtered_current=filtered_current,
+            predicted_current=predicted_current,
+            evaluation_window=evaluation_window,
         )
 
         metrics_by_motor[motor_index] = metrics
@@ -1386,6 +1799,19 @@ def plot_instrument_current_prediction_per_motor(
         f.write("========================================\n\n")
         f.write("Error definition:\n")
         f.write("residual = filtered_measured_current - predicted_current\n\n")
+        if evaluation_window is not None:
+            f.write("Evaluation window:\n")
+            f.write(
+                f"{evaluation_window['start_s']:.3f} - "
+                f"{evaluation_window['end_s']:.3f} s\n"
+            )
+            f.write(
+                f"Duration: "
+                f"{evaluation_window['duration_s']:.3f} s\n"
+            )
+            f.write(
+                "Source: command start + YAML sequence duration\n\n"
+            )
 
         for motor_index in range(4):
             metrics = metrics_by_motor[motor_index]
@@ -1401,7 +1827,8 @@ def plot_instrument_current_prediction_per_motor(
             f.write(f"RMSE:            {metrics['rmse_mA']:.3f} mA\n")
             # f.write(f"Bias:            {metrics['bias_mA']:.3f} mA\n")
             f.write(f"Max abs error:   {metrics['max_abs_error_mA']:.3f} mA\n")
-            f.write(f"Samples:         {metrics['n_samples']}\n\n")
+            f.write(f"Samples:         "f"{metrics['n_samples']}\n")
+            f.write(f"Time window:     "f"{metrics['evaluation_start_s']:.3f} - "f"{metrics['evaluation_end_s']:.3f} s\n")
 
     print(f"Saved Instrument Current DT plot: {plot_path}")
     print(f"Saved Instrument Current DT metrics: {metrics_path}")
@@ -1546,8 +1973,8 @@ def get_video_prediction_setup(
         return {
             "video_t": video_t,
             "video_values_deg": red_shaft_video_angle,
-            "video_label": "video measured red marker vs shaft [deg]",
-            "video_signal_name": "red marker vs shaft angle [deg]",
+            "video_label": "median-filtered video red marker vs shaft [deg]",
+            "video_signal_name": "median-filtered red marker vs shaft angle [deg]",
             "video_marker_style": "-",
             "prediction_blocks": prediction_blocks,
         }
@@ -1559,8 +1986,8 @@ def get_video_prediction_setup(
         return {
             "video_t": video_t,
             "video_values_deg": jaw_video_angle,
-            "video_label": "video measured angle between jaws [deg]",
-            "video_signal_name": "jaw angle [deg]",
+            "video_label": "median-filtered video angle between jaws [deg]",
+            "video_signal_name": "median-filtered jaw angle [deg]",
             "video_marker_style": "-",
             "prediction_blocks": [
                 {
@@ -1579,8 +2006,8 @@ def get_video_prediction_setup(
         return {
             "video_t": video_t,
             "video_values_deg": red_shaft_video_angle,
-            "video_label": "video measured red marker vs shaft [deg]",
-            "video_signal_name": "red marker vs shaft angle [deg]",
+            "video_label": "median-filtered video red marker vs shaft [deg]",
+            "video_signal_name": "median-filtered red marker vs shaft angle [deg]",
             "video_marker_style": "-",
             "prediction_blocks": [
                 {
@@ -1593,6 +2020,7 @@ def get_video_prediction_setup(
         }
 
     return None
+
 def plot_instrument_prediction_axis(
     ax,
     plot_dir,
@@ -1604,6 +2032,7 @@ def plot_instrument_prediction_axis(
     video_t,
     red_shaft_video_angle,
     jaw_video_angle,
+    evaluation_window=None,
 ):
     setup = get_video_prediction_setup(
         active_dof=active_dof,
@@ -1635,10 +2064,11 @@ def plot_instrument_prediction_axis(
         prediction_values_deg = block["values_deg"]
 
         metrics = compute_prediction_metrics(
-            setup["video_t"],
-            setup["video_values_deg"],
-            t,
-            prediction_values_deg,
+            video_t=setup["video_t"],
+            video_angle_deg=setup["video_values_deg"],
+            prediction_t=t,
+            prediction_deg=prediction_values_deg,
+            evaluation_window=evaluation_window,
         )
 
         prediction_metric_blocks.append(
@@ -1734,6 +2164,7 @@ def plot_instrument_position_prediction_residual(
     video_t,
     red_shaft_video_angle,
     jaw_video_angle,
+    evaluation_window=None
 ):
     # active_dof uses zero-based indexing:
     # 1 = DOF2 bending, 3 = DOF4 gripper.
@@ -1779,9 +2210,23 @@ def plot_instrument_position_prediction_residual(
         prediction_time_valid = prediction_t[valid_prediction]
         prediction_valid = prediction[valid_prediction]
 
+        overlap_start = prediction_time_valid[0]
+        overlap_end = prediction_time_valid[-1]
+
+        if evaluation_window is not None:
+            overlap_start = max(
+                overlap_start,
+                evaluation_window["start_s"],
+            )
+
+            overlap_end = min(
+                overlap_end,
+                evaluation_window["end_s"],
+            )
+
         overlap = (
-            (video_time >= prediction_time_valid[0])
-            & (video_time <= prediction_time_valid[-1])
+            (video_time >= overlap_start)
+            & (video_time <= overlap_end)
         )
 
         if np.sum(overlap) < 2:
@@ -1796,7 +2241,8 @@ def plot_instrument_position_prediction_residual(
             prediction_valid,
         )
 
-        # Positive residual means that the measurement is larger.
+        # Positive residual means that the filtered video measurement
+        # is larger than the Digital Twin prediction.
         residual = measured - predicted
 
         valid_rows.append(
@@ -1862,7 +2308,7 @@ def plot_instrument_position_prediction_residual(
 
         axes[row_index, 1].set_ylabel("Residual [deg]")
         axes[row_index, 1].set_title(
-            "Residual = video measurement - prediction"
+            "Residual = filtered video measurement - prediction"
         )
         axes[row_index, 1].grid(True)
         axes[row_index, 1].legend(fontsize=8)
@@ -2023,6 +2469,7 @@ def plot_overview_prediction(
     jaw_video_angle,
     active_dof,
     params_file=None,
+    evaluation_window=None
 ):
     """
     Plot the DT prediction overview.
@@ -2082,6 +2529,7 @@ def plot_overview_prediction(
         video_t,
         red_shaft_video_angle,
         jaw_video_angle,
+        evaluation_window=evaluation_window
     )
 
     plt.tight_layout(rect=[0, 0, 1, 0.91])
@@ -2171,12 +2619,32 @@ def plot_continuous_file(
     active_dof = detect_active_dof(commanded)
     active_dof_name = f"dof{active_dof + 1}" if active_dof is not None else "unknown_dof"
 
+    evaluation_window = get_sequence_evaluation_window(
+        params_file=params_file,
+        active_dof=active_dof,
+        t=t,
+        commanded=commanded,
+    )
+
+    if evaluation_window is None:
+        print(
+            "No valid sequence evaluation window found."
+        )
+    else:
+        print(
+            "Sequence evaluation window: "
+            f"{evaluation_window['start_s']:.3f} - "
+            f"{evaluation_window['end_s']:.3f} s "
+            f"({evaluation_window['duration_s']:.3f} s)"
+        )
+
     if video_angle_file is not None:
         (
             video_t,
             red_shaft_video_angle,
             jaw_video_angle,
-            yellow_shaft_video_angle,
+            # yellow_shaft_video_angle,
+            green_shaft_video_angle,
         ) = load_video_angle_file(
             video_angle_file,
             motor_ros_t0,
@@ -2185,7 +2653,8 @@ def plot_continuous_file(
         video_t = []
         red_shaft_video_angle = []
         jaw_video_angle = []
-        yellow_shaft_video_angle = []
+        # yellow_shaft_video_angle = []
+        green_shaft_video_angle = []
 
     # Separate diagnostic plots
     plot_instrument_angles(
@@ -2249,13 +2718,16 @@ def plot_continuous_file(
         jaw_video_angle=jaw_video_angle,
         active_dof=active_dof,
         params_file=params_file,
+        evaluation_window=evaluation_window
     )
 
     plot_instrument_current_prediction_per_motor(
         plot_dir=plot_dir,
         instrument_current_dt=instrument_current_dt,
         active_dof_name=active_dof_name,
+        evaluation_window=evaluation_window,
     )
+
     plot_instrument_position_prediction_residual(
         plot_dir=plot_dir,
         t=t,
@@ -2265,6 +2737,7 @@ def plot_continuous_file(
         video_t=video_t,
         red_shaft_video_angle=red_shaft_video_angle,
         jaw_video_angle=jaw_video_angle,
+        evaluation_window=evaluation_window
     )
 
 
@@ -2314,7 +2787,7 @@ def plot_continuous_file(
             plot_dir,
             video_t,
             jaw_video_angle,
-            yellow_shaft_video_angle, #yellow_shaft_video_angle,
+            green_shaft_video_angle, #yellow_shaft_video_angle,
             red_shaft_video_angle,
         )    
     print(f"Saved plots in: {plot_dir}")

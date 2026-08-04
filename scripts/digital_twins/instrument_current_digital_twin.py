@@ -13,7 +13,7 @@ DEFAULT_MODEL_ROOT = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V2"
+    / "trainings data V3"
     / "instrument_current_dt_results"
 )
 

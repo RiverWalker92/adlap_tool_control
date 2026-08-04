@@ -18,9 +18,11 @@ ACTIVE_DOF = 4  # 1, 2, 3, 4
 DOF_NAME = f"dof{ACTIVE_DOF}"
 
 USE_RED_MARKER = True
-USE_YELLOW_MARKER = True
+# USE_YELLOW_MARKER = True
+USE_GREEN_MARKER = True
 USE_BLUE_MARKER = False
 USE_SHAFT = True
+VIDEO_MEDIAN_WINDOW = 5
 
 OUTPUT_DIR = (
     Path.home()
@@ -86,6 +88,52 @@ def nan_to_none(value):
     if value is None or np.isnan(value):
         return None
     return float(value)
+
+def centered_median_filter(values, window_size=5):
+    """
+    Offline centred median filter.
+
+    For sample i, a five-frame window uses:
+        i-2, i-1, i, i+1, i+2
+
+    The raw value remains invalid when the marker was not detected in the
+    centre frame. The filter therefore does not invent measurements.
+    """
+    if window_size < 1 or window_size % 2 == 0:
+        raise ValueError(
+            "Median filter window must be a positive odd number."
+        )
+
+    values = np.asarray(
+        [
+            np.nan if value is None else float(value)
+            for value in values
+        ],
+        dtype=float,
+    )
+
+    filtered = np.full_like(values, np.nan)
+    half_window = window_size // 2
+
+    for index in range(len(values)):
+        # Keep missing centre measurements missing.
+        if not np.isfinite(values[index]):
+            continue
+
+        start = max(0, index - half_window)
+        end = min(len(values), index + half_window + 1)
+
+        window = values[start:end]
+        valid_window = window[np.isfinite(window)]
+
+        if len(valid_window) >= 3:
+            filtered[index] = float(np.median(valid_window))
+        else:
+            # not enough valid measurements in the window to compute a median
+            # use the raw value
+            filtered[index] = values[index]
+
+    return filtered    
 
 def start_h264_writer(output_path, fps, width, height):
     command = [
@@ -249,6 +297,81 @@ def detect_yellow_marker_angle(frame):
     vx, vy, x0, y0 = vx.item(), vy.item(), x0.item(), y0.item()
 
     angle = normalize_angle_deg(math.degrees(math.atan2(vy, vx)))
+
+    line = {
+        "vx": vx,
+        "vy": vy,
+        "x0_abs": x + x0,
+        "y0_abs": y + y0,
+    }
+
+    return angle, line
+
+def detect_green_marker_angle(frame):
+    x, y, w, h = MARKER_ROI
+    roi = frame[y:y+h, x:x+w]
+
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+    # Startwaarden voor felgroene tape
+    # lower_green = np.array([40, 70, 50])
+    # upper_green = np.array([90, 255, 255])
+    lower_green = np.array([45, 85, 60])
+    upper_green = np.array([85, 255, 255])
+
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, KERNEL)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, KERNEL)
+
+    contours, _ = cv2.findContours(
+        mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_NONE,
+    )
+
+    valid = []
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+
+        if area < MARKER_MIN_AREA:
+            continue
+
+        rect = cv2.minAreaRect(contour)
+        (_, _), (box_width, box_height), _ = rect
+
+        aspect = max(box_width, box_height) / max(
+            1.0,
+            min(box_width, box_height),
+        )
+
+        if aspect < 2.0:
+            continue
+
+        valid.append((area, aspect, contour))
+
+    if not valid:
+        return np.nan, None
+
+    largest = max(valid, key=lambda item: item[0])[2]
+
+    vx, vy, x0, y0 = cv2.fitLine(
+        largest,
+        cv2.DIST_L2,
+        0,
+        0.01,
+        0.01,
+    )
+
+    vx = vx.item()
+    vy = vy.item()
+    x0 = x0.item()
+    y0 = y0.item()
+
+    angle = normalize_angle_deg(
+        math.degrees(math.atan2(vy, vx))
+    )
 
     line = {
         "vx": vx,
@@ -457,7 +580,11 @@ def main(output_path_override=None, ros_log_path_override=None):
 
             red_marker_angle, red_marker_line = detect_red_marker_angle(frame)
             blue_marker_angle, blue_marker_line = np.nan, None
-            yellow_marker_angle, yellow_marker_line = detect_yellow_marker_angle(frame) 
+
+            # Intern blijven de oude yellow-namen behouden,
+            # maar de detector zoekt naar groen.
+            green_marker_angle, green_marker_line = detect_green_marker_angle(frame)
+
             shaft_angle, shaft_line = detect_shaft_angle(frame)
 
         elif ACTIVE_DOF == 2:
@@ -465,7 +592,7 @@ def main(output_path_override=None, ros_log_path_override=None):
             red_marker_angle, red_marker_line = detect_red_marker_angle(frame)
             shaft_angle, shaft_line = detect_shaft_angle(frame)
 
-            yellow_marker_angle, yellow_marker_line = np.nan, None
+            green_marker_angle, green_marker_line = np.nan, None
             blue_marker_angle, blue_marker_line = np.nan, None
 
         else:
@@ -473,13 +600,12 @@ def main(output_path_override=None, ros_log_path_override=None):
             red_marker_angle, red_marker_line = detect_red_marker_angle(frame)
             shaft_angle, shaft_line = detect_shaft_angle(frame)
 
-            yellow_marker_angle, yellow_marker_line = np.nan, None
-            # blue_marker_angle, blue_marker_line = np.nan, None
-    
+            green_marker_angle, green_marker_line = np.nan, None
+            blue_marker_angle, blue_marker_line = np.nan, None
 
         measured_angle_red_shaft = None
-        measured_angle_yellow_shaft = None
-        # measured_angle_yellow_blue = None
+        measured_angle_green_shaft = None
+        # measured_angle_green_blue = None
         # measured_angle_red_blue = None
         measured_angle_between_jaws = None
 
@@ -499,10 +625,15 @@ def main(output_path_override=None, ros_log_path_override=None):
                 shaft_angle
             )
 
-            measured_angle_yellow_shaft = relative_angle_between(
-                yellow_marker_angle,
+            # measured_angle_yellow_shaft = relative_angle_between(
+            #     yellow_marker_angle,
+            #     shaft_angle
+            # )
+            measured_angle_green_shaft = relative_angle_between(
+                green_marker_angle,
                 shaft_angle
             )
+
             measured_angle_blue_shaft = relative_angle_between(
                 blue_marker_angle,
                 shaft_angle
@@ -519,12 +650,12 @@ def main(output_path_override=None, ros_log_path_override=None):
             # )
 
             if (
-                not np.isnan(yellow_marker_angle)
+                not np.isnan(green_marker_angle)
                 and not np.isnan(red_marker_angle)
             ):
                 measured_angle_between_jaws = abs(
                     normalize_angle_deg(
-                        yellow_marker_angle - red_marker_angle
+                        green_marker_angle - red_marker_angle
                     )
                 )
 
@@ -542,12 +673,14 @@ def main(output_path_override=None, ros_log_path_override=None):
 
             "shaft_angle_deg": nan_to_none(shaft_angle),
             "red_marker_angle_deg": nan_to_none(red_marker_angle),
-            "yellow_marker_angle_deg": nan_to_none(yellow_marker_angle),
+            # "yellow_marker_angle_deg": nan_to_none(yellow_marker_angle),
+            "green_marker_angle_deg": nan_to_none(green_marker_angle),
             # "blue_marker_angle_deg": nan_to_none(blue_marker_angle),
             "measured_angle_between_jaws": nan_to_none(measured_angle_between_jaws),
             # "measured_angle_yellow_blue": nan_to_none(measured_angle_yellow_blue),
             # "measured_angle_red_blue": nan_to_none(measured_angle_red_blue),
-            "measured_angle_yellow_shaft": nan_to_none(measured_angle_yellow_shaft),
+            "measured_angle_green_shaft": nan_to_none(measured_angle_green_shaft),
+            # "measured_angle_yellow_shaft": nan_to_none(measured_angle_yellow_shaft),
             "measured_angle_red_shaft": nan_to_none(measured_angle_red_shaft),
             # "blue_marker_angle_deg": nan_to_none(blue_marker_angle),
             # "measured_angle_blue_shaft": nan_to_none(measured_angle_blue_shaft),
@@ -570,7 +703,8 @@ def main(output_path_override=None, ros_log_path_override=None):
         draw_line(display, red_marker_line, (0, 0, 255))
         draw_line(display, shaft_line, (0, 0, 0))
         # draw_line(display, yellow_marker_line, (0, 255, 255))
-        draw_line(display, yellow_marker_line, (0, 255, 255))
+        # draw_line(display, green_marker_line, (0, 255, 0))
+        draw_line(display, green_marker_line, (0, 255, 0))
 
         cv2.putText(display, f"frame: {frame_idx}", (30, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
@@ -582,11 +716,18 @@ def main(output_path_override=None, ros_log_path_override=None):
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.putText(display, f"shaft: {shaft_angle:.2f}", (30, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-        cv2.putText(display, f"yellow marker: {yellow_marker_angle:.2f}", (30, 250),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-        if measured_angle_yellow_shaft is not None:
-            cv2.putText(display, f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}", (30, 290),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2,)
+        # cv2.putText(display, f"yellow marker: {yellow_marker_angle:.2f}", (30, 250),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        # if measured_angle_yellow_shaft is not None:
+        #     cv2.putText(display, f"measured yellow marker vs shaft angle: {measured_angle_yellow_shaft:.2f}", (30, 290),
+        #         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2,)
+        cv2.putText(display, f"green marker: {green_marker_angle:.2f}", (30, 250), 
+        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if measured_angle_green_shaft is not None:
+            cv2.putText(display, f"measured green marker vs shaft angle: "f"{measured_angle_green_shaft:.2f}", (30, 290),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                
+        
         # cv2.putText(display, f"blue marker: {blue_marker_angle:.2f}", (30, 250),
         #             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         # cv2.putText(display, f"measured blue marker vs shaft angle: {measured_angle_blue_shaft:.2f}", (30, 290),
@@ -595,9 +736,9 @@ def main(output_path_override=None, ros_log_path_override=None):
 
         if (
             not open_jaws_debug_frame_saved
-            and measured_angle_yellow_shaft is not None
-            and not np.isnan(measured_angle_yellow_shaft)
-            and abs(measured_angle_yellow_shaft) > 3.0
+            and measured_angle_green_shaft is not None
+            and not np.isnan(measured_angle_green_shaft)
+            and abs(measured_angle_green_shaft) > 3.0
             and ros_time_s is not None
         ):
             cv2.imwrite(str(open_jaws_debug_frame_path), small)
@@ -677,36 +818,105 @@ def main(output_path_override=None, ros_log_path_override=None):
     #         r["blue_relative_angle_zeroed_deg"] = zeroed
     #         r["blue_gripper_opening_deg"] = max(0.0, zeroed)
     # 
-    valid_yellow_values = [
-        r["measured_angle_yellow_shaft"]
-        for r in records
-        if r["measured_angle_yellow_shaft"] is not None
-        and r["ros_time_s"] is not None
-    ]
-    if valid_yellow_values:
-        yellow_closed_baseline = float(np.percentile(valid_yellow_values, 5))
+    valid_green_values = [
+            r["measured_angle_green_shaft"]
+            for r in records
+            if r["measured_angle_green_shaft"] is not None
+            and r["ros_time_s"] is not None
+        ]
+    if valid_green_values:
+        green_closed_baseline = float(np.percentile(valid_green_values, 5))
     else:
-        yellow_closed_baseline = None
+        green_closed_baseline = None
 
     for r in records:
-        raw_yellow = r["measured_angle_yellow_shaft"]
+        raw_green = r["measured_angle_green_shaft"]
 
-        if raw_yellow is None or yellow_closed_baseline is None:
-            r["measured_angle_yellow_shaft_zeroed"] = None
-            r["yellow_relative_angle_zeroed_deg"] = None
-            r["yellow_gripper_opening_deg"] = None
+        if raw_green is None or green_closed_baseline is None:
+            r["measured_angle_green_shaft_zeroed"] = None
+            r["green_relative_angle_zeroed_deg"] = None
+            r["green_gripper_opening_deg"] = None
         else:
-            zeroed = raw_yellow - yellow_closed_baseline
+            zeroed = raw_green - green_closed_baseline
 
-            r["measured_angle_yellow_shaft_zeroed"] = zeroed
-            r["yellow_relative_angle_zeroed_deg"] = zeroed
-            r["yellow_gripper_opening_deg"] = max(0.0, zeroed)
+            r["measured_angle_green_shaft_zeroed"] = zeroed
+            r["green_relative_angle_zeroed_deg"] = zeroed
+            r["green_gripper_opening_deg"] = max(0.0, zeroed)
+
+    # valid_yellow_values = [
+    #     r["measured_angle_yellow_shaft"]
+    #     for r in records
+    #     if r["measured_angle_yellow_shaft"] is not None
+    #     and r["ros_time_s"] is not None
+    # ]
+    # if valid_yellow_values:
+    #     yellow_closed_baseline = float(np.percentile(valid_yellow_values, 5))
+    # else:
+    #     yellow_closed_baseline = None
+
+    # for r in records:
+    #     raw_yellow = r["measured_angle_yellow_shaft"]
+
+    #     if raw_yellow is None or yellow_closed_baseline is None:
+    #         r["measured_angle_yellow_shaft_zeroed"] = None
+    #         r["yellow_relative_angle_zeroed_deg"] = None
+    #         r["yellow_gripper_opening_deg"] = None
+    #     else:
+    #         zeroed = raw_yellow - yellow_closed_baseline
+
+    #         r["measured_angle_yellow_shaft_zeroed"] = zeroed
+    #         r["yellow_relative_angle_zeroed_deg"] = zeroed
+    #         r["yellow_gripper_opening_deg"] = max(0.0, zeroed)
+
+    
+    # ---------------------------------------------------------
+    # Offline centred median filtering of video measurements
+    # ---------------------------------------------------------
+
+    signals_to_filter = {
+        # DOF4 validation measurement
+        "measured_angle_between_jaws_filtered":
+            "measured_angle_between_jaws",
+
+        # DOF2 validation measurement
+        "measured_angle_red_shaft_zeroed_filtered":
+            "measured_angle_red_shaft_zeroed",
+
+        # Additional DOF4 diagnostic measurement
+        "measured_angle_green_shaft_zeroed_filtered":
+            "measured_angle_green_shaft_zeroed",
+    #     "measured_angle_yellow_shaft_zeroed_filtered":
+    #         "measured_angle_yellow_shaft_zeroed",
+
+    }
+
+    for filtered_key, raw_key in signals_to_filter.items():
+        raw_values = [
+            record.get(raw_key)
+            for record in records
+        ]
+
+        filtered_values = centered_median_filter(
+            raw_values,
+            window_size=VIDEO_MEDIAN_WINDOW,
+        )
+
+        for index, record in enumerate(records):
+            record[filtered_key] = nan_to_none(
+                filtered_values[index]
+            )
+
+    print(
+        "Applied centred median filter to video measurements: "
+        f"window={VIDEO_MEDIAN_WINDOW} frames"
+    )
+
    
     with output_path.open("w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r) + "\n")
 
-    print(f"Yellow closed baseline: {yellow_closed_baseline}")
+    print(f"Green closed baseline: {green_closed_baseline}")
     # print(f"Blue closed baseline: {blue_closed_baseline}")
     if debug_writer is not None:
         debug_writer.stdin.close()

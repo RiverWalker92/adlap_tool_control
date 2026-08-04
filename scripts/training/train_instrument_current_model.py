@@ -22,7 +22,7 @@ DEFAULT_TRAINING_DATA_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data"
+    / "trainings data V3"
 )
 
 DOF_TRAINING_FOLDERS = {

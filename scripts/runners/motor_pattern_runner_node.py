@@ -104,15 +104,13 @@ class MotorPatternRunner(Node):
         self.task_pub.publish(msg)
         self.get_logger().info(f"Task label: {label}")
     # Helper function to publish motor commands and log them with a timestamp
+    
     def publish_motor_command(self, m0, m1, m2, m3):
+        stamp = self.get_clock().now().nanoseconds * 1e-9
+
         msg = Int32MultiArray()
         msg.data = [int(m0), int(m1), int(m2), int(m3)]
         self.motor_pub.publish(msg)
-
-        self.get_logger().info(
-            f"Motor command: m0={m0}, m1={m1}, m2={m2}, m3={m3}"
-        )
-        stamp = self.get_clock().now().nanoseconds * 1e-9
 
         stamped_msg = Float64MultiArray()
         stamped_msg.data = (
@@ -122,12 +120,19 @@ class MotorPatternRunner(Node):
 
         self.motor_command_stamped_publisher.publish(stamped_msg)
 
+        self.get_logger().info(
+            f"Motor command: m0={m0}, m1={m1}, m2={m2}, m3={m3}"
+        )
+
     def send_command_and_wait(self, motor_steps, duration):
         self.publish_motor_command(*motor_steps)
         time.sleep(duration)
 
     # Main function to run a single test trial with a given name, trial number, and sequence of commands
     def run_trial(self, test_type, motor_name, trial_number, sequence):  
+        self.publish_task_label("between_trials")  # Publish a task label to indicate the end of the previous trial and the start of a pause
+        time.sleep(0.9)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         task_label = (
@@ -140,22 +145,22 @@ class MotorPatternRunner(Node):
         )
 
         self.publish_task_label(task_label)     # Publish the task label at the start of the trial so it gets logged by the tool reader node
-
         self.get_logger().info(f"Starting trial: {task_label}")
 
-        # short pause before movement
-        time.sleep(1.0)
-
+        time.sleep(0.1)  # Short pause to ensure the task label is logged before sending motor commands
+        
         # Run through the sequence of commands for this trial, holding each command for the specified duration
         for step in sequence:
-            steps = step["steps"]
-            duration = step["duration"]
-            self.send_command_and_wait(steps, duration)
+            self.send_command_and_wait(
+                step["steps"],
+                step["duration"],
+            )
 
-        time.sleep(1.0)
-
+        # Trial is nu klaar; de sequence bevat zelf al settling
+        self.publish_task_label("between_trials")
         self.get_logger().info(f"Finished trial: {task_label}")
 
+        time.sleep(1.0)
 
     def run_all_tests(self):
         self.get_logger().info("Starting motor-only pattern tests...")

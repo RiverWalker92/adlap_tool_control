@@ -618,7 +618,7 @@ def main():
             / "ros2_ws"
             / "test_data"
             / "automated_trials"
-            / "trainings data"
+            / "trainings data V3"
             / "instrument_current_dt_results"
             / f"dof{args.dof}"
             / "models"

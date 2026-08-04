@@ -90,7 +90,7 @@ def wait_for_stable_marker(cap, dictionary, known_markers, stable_frames=5, prev
 
         cv2.putText(
             display_frame,
-            "Show marker. Known marker is accepted automatically. d = finish, q = cancel.",
+            "Show marker. Known marker is accepted automatically. d = done, q = quit.",
             (20, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,

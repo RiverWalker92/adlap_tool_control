@@ -53,10 +53,8 @@ def extract_ros_parameters(config: dict) -> dict:
         raise RuntimeError("YAML config is empty or invalid.")
 
     preferred_keys = [
-        "tool_controller_node",
-        "/tool_controller_node",
-        "tool_pattern_runner_node",
-        "/tool_pattern_runner_node",
+        "dof_pattern_runner_node",
+        "/dof_pattern_runner_node",
         "/**",
     ]
 
@@ -110,7 +108,7 @@ def load_continuous_file(file_path):
     commanded = [[], [], [], []]
     current_angles = [[], [], [], []]
     motor_pos = [[], [], [], []]
-    currents = [[], [], [], []]
+    # currents = [[], [], [], []]
     gearbox = [[], [], [], [], [], []]
     predicted_angles = [[] for _ in range(8)]
     hybrid_predicted_angles = [[] for _ in range(8)]
@@ -125,12 +123,12 @@ def load_continuous_file(file_path):
             if cur_ang is None:
                 cur_ang = data.get("current_instrument_angles")
             pos = data.get("measured_motor_positions")
-            cur = data.get("measured_currents")
+            # cur = data.get("measured_currents")
             gb = data.get("gearbox_state")
             pred_ang = data.get("predicted_instrument_angles")
             hybrid_pred_ang = data.get("hybrid_predicted_instrument_angles")
 
-            if cmd is None or pos is None or cur is None or gb is None or pred_ang is None:
+            if cmd is None or pos is None or gb is None:
                 continue
 
             t.append(data["time"])
@@ -140,7 +138,7 @@ def load_continuous_file(file_path):
                 commanded[i].append(cmd[i])
                 current_angles[i].append(cur_ang[i] if cur_ang is not None else None)
                 motor_pos[i].append(pos[i])
-                currents[i].append(cur[i])
+                # currents[i].append(cur[i])
 
             for i in range(6):
                 gearbox[i].append(gb[i])
@@ -194,7 +192,7 @@ def load_continuous_file(file_path):
             commanded[k] = [commanded[k][i] for i in keep]
             current_angles[k] = [current_angles[k][i] for i in keep]
             motor_pos[k] = [motor_pos[k][i] for i in keep]
-            currents[k] = [currents[k][i] for i in keep]
+            # currents[k] = [currents[k][i] for i in keep]
 
         for k in range(6):
             gearbox[k] = [gearbox[k][i] for i in keep]
@@ -215,7 +213,7 @@ def load_continuous_file(file_path):
         predicted_angles,
         hybrid_predicted_angles,
         motor_pos,
-        currents,
+        # currents,
         gearbox,
         motor_ros_t0,
         )
@@ -339,83 +337,82 @@ def load_video_angle_file(file_path, motor_ros_t0):
 
 # Instrument Current DT replay data loading
 # -----------------------------------------
-def default_instrument_current_replay_file(file_path):
-    file_path = Path(file_path)
-    name = file_path.name
+# def default_instrument_current_replay_file(file_path):
+#     file_path = Path(file_path)
+#     name = file_path.name
 
-    if name.endswith("_ros_log.jsonl"):
-        replay_name = name.replace(
-            "_ros_log.jsonl",
-            "_instrument_current_dt_replay.jsonl",
-        )
-    else:
-        replay_name = file_path.stem + "_instrument_current_dt_replay.jsonl"
+#     if name.endswith("_ros_log.jsonl"):
+#         replay_name = name.replace(
+#             "_ros_log.jsonl",
+#             "_motor_dt_replay.jsonl",
+#         )
+#     else:
+#         replay_name = file_path.stem + "_motor_dt_replay.jsonl"
+#     return file_path.with_name(replay_name)
 
-    return file_path.with_name(replay_name)
+# def load_instrument_current_dt_replay(file_path):
+#     t = []
+#     predicted_currents = [[], [], [], []]
+#     filtered_currents = [[], [], [], []]
+#     current_deviation = [[], [], [], []]
+#     active_dof_values = []
 
-def load_instrument_current_dt_replay(file_path):
-    t = []
-    predicted_currents = [[], [], [], []]
-    filtered_currents = [[], [], [], []]
-    current_deviation = [[], [], [], []]
-    active_dof_values = []
+#     if file_path is None:
+#         return None
 
-    if file_path is None:
-        return None
+#     if not os.path.exists(file_path):
+#         print(f"Instrument Current DT replay not found: {file_path}")
+#         return None
 
-    if not os.path.exists(file_path):
-        print(f"Instrument Current DT replay not found: {file_path}")
-        return None
+#     with open(file_path, "r") as f:
+#         for line in f:
+#             if not line.strip():
+#                 continue
 
-    with open(file_path, "r") as f:
-        for line in f:
-            if not line.strip():
-                continue
+#             data = json.loads(line)
 
-            data = json.loads(line)
+#             time_value = data.get("time")
+#             pred = data.get("offline_predicted_currents")
+#             filt = data.get("filtered_measured_currents")
+#             dev = data.get("filtered_current_deviation")
+#             active_dof = data.get("active_dof")
 
-            time_value = data.get("time")
-            pred = data.get("offline_predicted_currents")
-            filt = data.get("filtered_measured_currents")
-            dev = data.get("filtered_current_deviation")
-            active_dof = data.get("active_dof")
+#             if time_value is None or pred is None:
+#                 continue
 
-            if time_value is None or pred is None:
-                continue
+#             if len(pred) < 4:
+#                 continue
 
-            if len(pred) < 4:
-                continue
+#             t.append(float(time_value))
+#             active_dof_values.append(active_dof)
 
-            t.append(float(time_value))
-            active_dof_values.append(active_dof)
+#             for motor_index in range(4):
+#                 predicted_currents[motor_index].append(pred[motor_index])
 
-            for motor_index in range(4):
-                predicted_currents[motor_index].append(pred[motor_index])
+#                 if filt is not None and len(filt) > motor_index:
+#                     filtered_currents[motor_index].append(filt[motor_index])
+#                 else:
+#                     filtered_currents[motor_index].append(None)
 
-                if filt is not None and len(filt) > motor_index:
-                    filtered_currents[motor_index].append(filt[motor_index])
-                else:
-                    filtered_currents[motor_index].append(None)
+#                 if dev is not None and len(dev) > motor_index:
+#                     current_deviation[motor_index].append(dev[motor_index])
+#                 else:
+#                     current_deviation[motor_index].append(None)
 
-                if dev is not None and len(dev) > motor_index:
-                    current_deviation[motor_index].append(dev[motor_index])
-                else:
-                    current_deviation[motor_index].append(None)
+#     if not t:
+#         print(f"No usable Instrument Current DT replay samples found in: {file_path}")
+#         return None
 
-    if not t:
-        print(f"No usable Instrument Current DT replay samples found in: {file_path}")
-        return None
+#     t0 = t[0]
+#     t = [x - t0 for x in t]
 
-    t0 = t[0]
-    t = [x - t0 for x in t]
-
-    return {
-        "time": t,
-        "predicted_currents": predicted_currents,
-        "filtered_currents": filtered_currents,
-        "current_deviation": current_deviation,
-        "active_dof_values": active_dof_values,
-    }
+#     return {
+#         "time": t,
+#         "predicted_currents": predicted_currents,
+#         "filtered_currents": filtered_currents,
+#         "current_deviation": current_deviation,
+#         "active_dof_values": active_dof_values,
+#     }
 
 # Sequence parameter parsing
 # -----------------------------------------
@@ -1063,26 +1060,26 @@ def plot_motor_positions(plot_dir, t, motor_pos):
     fig.savefig(os.path.join(plot_dir, "motor_positions.png"), dpi=200)
     plt.close(fig)
 
-def plot_motor_currents(plot_dir, t, currents):
-    fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
-    fig.suptitle("Measured motor currents", fontsize=16)
+# def plot_motor_currents(plot_dir, t, currents):
+#     fig, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
+#     fig.suptitle("Measured motor currents", fontsize=16)
 
-    for motor_index in range(4):
-        axes[motor_index].plot(
-            t,
-            currents[motor_index],
-            label=f"motor {motor_index}",
-        )
+#     for motor_index in range(4):
+#         axes[motor_index].plot(
+#             t,
+#             currents[motor_index],
+#             label=f"motor {motor_index}",
+#         )
 
-        axes[motor_index].set_ylabel("Current [mA]")
-        axes[motor_index].grid(True)
-        axes[motor_index].legend(fontsize=8)
+#         axes[motor_index].set_ylabel("Current [mA]")
+#         axes[motor_index].grid(True)
+#         axes[motor_index].legend(fontsize=8)
 
-    axes[-1].set_xlabel("Time [s]")
+#     axes[-1].set_xlabel("Time [s]")
 
-    plt.tight_layout()
-    fig.savefig(os.path.join(plot_dir, "motor_currents.png"), dpi=200)
-    plt.close(fig)
+#     plt.tight_layout()
+#     fig.savefig(os.path.join(plot_dir, "motor_currents.png"), dpi=200)
+#     plt.close(fig)
 
 def plot_gearbox_state(plot_dir, t, gearbox):
     fig, axes = plt.subplots(6, 1, figsize=(12, 13), sharex=True)
@@ -1193,105 +1190,105 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
 
 
 # DOF1 and DOF3 specific wrapped rotation plotting
-def plot_current_vs_wrapped_angle(
-    plot_dir,
-    t,
-    angle_deg,
-    motor_current,
-    filename,
-    title,
-    current_label,
-    y_limit=(0, 250),
-):
-    angle_deg = np.array(angle_deg, dtype=float)
-    angle_rad = np.radians(angle_deg)
-    wrapped_rad = wrap_to_pi(angle_rad)
+# def plot_current_vs_wrapped_angle(
+#     plot_dir,
+#     t,
+#     angle_deg,
+#     motor_current,
+#     filename,
+#     title,
+#     current_label,
+#     y_limit=(0, 250),
+# ):
+#     angle_deg = np.array(angle_deg, dtype=float)
+#     angle_rad = np.radians(angle_deg)
+#     wrapped_rad = wrap_to_pi(angle_rad)
 
-    motor_current = np.array(motor_current, dtype=float)
-    t_arr = np.array(t, dtype=float)
+#     motor_current = np.array(motor_current, dtype=float)
+#     t_arr = np.array(t, dtype=float)
 
-    valid = (
-        np.isfinite(wrapped_rad)
-        & np.isfinite(motor_current)
-        & np.isfinite(t_arr)
-    )
+#     valid = (
+#         np.isfinite(wrapped_rad)
+#         & np.isfinite(motor_current)
+#         & np.isfinite(t_arr)
+#     )
 
-    wrapped_rad = wrapped_rad[valid]
-    motor_current = motor_current[valid]
-    t_arr = t_arr[valid]
+#     wrapped_rad = wrapped_rad[valid]
+#     motor_current = motor_current[valid]
+#     t_arr = t_arr[valid]
 
-    # Alleen het bewegende deel gebruiken.
-    moving = np.abs(wrapped_rad) > 0.15
+#     # Alleen het bewegende deel gebruiken.
+#     moving = np.abs(wrapped_rad) > 0.15
 
-    if np.sum(moving) < 10:
-        return
+#     if np.sum(moving) < 10:
+#         return
 
-    first = np.where(moving)[0][0]
-    last = np.where(moving)[0][-1] + 1
+#     first = np.where(moving)[0][0]
+#     last = np.where(moving)[0][-1] + 1
 
-    wrapped_rad = wrapped_rad[first:last]
-    motor_current = motor_current[first:last]
-    t_arr = t_arr[first:last]
+#     wrapped_rad = wrapped_rad[first:last]
+#     motor_current = motor_current[first:last]
+#     t_arr = t_arr[first:last]
 
-    # Split op wrap-jumps: van +pi naar -pi of andersom.
-    jumps = np.where(np.abs(np.diff(wrapped_rad)) > np.pi)[0] + 1
-    cycle_edges = np.r_[0, jumps, len(wrapped_rad)]
+#     # Split op wrap-jumps: van +pi naar -pi of andersom.
+#     jumps = np.where(np.abs(np.diff(wrapped_rad)) > np.pi)[0] + 1
+#     cycle_edges = np.r_[0, jumps, len(wrapped_rad)]
 
-    cycle_edges = [
-        (start, end)
-        for start, end in zip(cycle_edges[:-1], cycle_edges[1:])
-        if end - start > 20
-    ]
+#     cycle_edges = [
+#         (start, end)
+#         for start, end in zip(cycle_edges[:-1], cycle_edges[1:])
+#         if end - start > 20
+#     ]
 
-    # Eerste en laatste onvolledige rotatie weggooien.
-    if len(cycle_edges) > 2:
-        cycle_edges = cycle_edges[1:-1]
+#     # Eerste en laatste onvolledige rotatie weggooien.
+#     if len(cycle_edges) > 2:
+#         cycle_edges = cycle_edges[1:-1]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+#     fig, ax = plt.subplots(figsize=(10, 6))
 
-    cycle_count = 0
+#     cycle_count = 0
 
-    for start, end in cycle_edges:
-        if end - start < 20:
-            continue
+#     for start, end in cycle_edges:
+#         if end - start < 20:
+#             continue
 
-        angle_cycle = wrapped_rad[start:end]
-        current_cycle = motor_current[start:end]
+#         angle_cycle = wrapped_rad[start:end]
+#         current_cycle = motor_current[start:end]
 
-        angle_range = np.nanmax(angle_cycle) - np.nanmin(angle_cycle)
+#         angle_range = np.nanmax(angle_cycle) - np.nanmin(angle_cycle)
 
-        # Alleen bijna volledige -pi tot pi stukken gebruiken.
-        if angle_range < 0.8 * 2.0 * np.pi:
-            continue
+#         # Alleen bijna volledige -pi tot pi stukken gebruiken.
+#         if angle_range < 0.8 * 2.0 * np.pi:
+#             continue
 
-        cycle_count += 1
+#         cycle_count += 1
 
-        ax.plot(
-            angle_cycle,
-            current_cycle,
-            linewidth=1.2,
-            alpha=0.8,
-            # label=f"Rotation {cycle_count}",
-        )
+#         ax.plot(
+#             angle_cycle,
+#             current_cycle,
+#             linewidth=1.2,
+#             alpha=0.8,
+#             # label=f"Rotation {cycle_count}",
+#         )
 
-    ax.set_title(title)
-    ax.set_xlabel("Wrapped angle [rad]")
-    ax.set_ylabel(current_label)
-    ax.set_xlim(-np.pi, np.pi)
+#     ax.set_title(title)
+#     ax.set_xlabel("Wrapped angle [rad]")
+#     ax.set_ylabel(current_label)
+#     ax.set_xlim(-np.pi, np.pi)
 
-    if y_limit is not None:
-        ax.set_ylim(*y_limit)
+#     if y_limit is not None:
+#         ax.set_ylim(*y_limit)
 
-    ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
-    ax.set_xticklabels(["-π", "-π/2", "0", "π/2", "π"])
-    ax.grid(True)
+#     ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+#     ax.set_xticklabels(["-π", "-π/2", "0", "π/2", "π"])
+#     ax.grid(True)
 
-    if cycle_count > 0:
-        ax.legend(fontsize=8)
+#     if cycle_count > 0:
+#         ax.legend(fontsize=8)
 
-    plt.tight_layout()
-    fig.savefig(os.path.join(plot_dir, filename), dpi=200)
-    plt.close(fig)
+#     plt.tight_layout()
+#     fig.savefig(os.path.join(plot_dir, filename), dpi=200)
+#     plt.close(fig)
 
 
 # later all dof? 
@@ -1495,343 +1492,343 @@ def plot_motor_positions_axis(ax, t, motor_pos):
     ax.grid(True)
     ax.legend(fontsize=8, ncol=4)
 
-def get_relevant_current_motors(active_dof):
-    """
-    Return the most relevant motor currents for the compact overview plot.
+# def get_relevant_current_motors(active_dof):
+#     """
+#     Return the most relevant motor currents for the compact overview plot.
 
-    active_dof is zero-based:
-    0 = DOF1
-    1 = DOF2
-    2 = DOF3
-    3 = DOF4
-    """
-    if active_dof == 0:
-        return [1, 2]
+#     active_dof is zero-based:
+#     0 = DOF1
+#     1 = DOF2
+#     2 = DOF3
+#     3 = DOF4
+#     """
+#     if active_dof == 0:
+#         return [1, 2]
 
-    if active_dof == 1:
-        return [1, 2]
+#     if active_dof == 1:
+#         return [1, 2]
 
-    if active_dof == 2:
-        return [0]
+#     if active_dof == 2:
+#         return [0]
 
-    if active_dof == 3:
-        return [0, 3]
+#     if active_dof == 3:
+#         return [0, 3]
 
-    return [0, 1, 2, 3]
+#     return [0, 1, 2, 3]
 
-def plot_motor_currents_axis(
-    ax,
-    t,
-    currents,
-    instrument_current_dt=None,
-    show_prediction=False,
-    active_dof=None,
-):
-    """
-    Current plot used in the overview figures.
+# def plot_motor_currents_axis(
+#     ax,
+#     t,
+#     currents,
+#     instrument_current_dt=None,
+#     show_prediction=False,
+#     active_dof=None,
+# ):
+#     """
+#     Current plot used in the overview figures.
 
-    Overview 1:
-    - show raw measured current for all motors.
+#     Overview 1:
+#     - show raw measured current for all motors.
 
-    Overview 2:
-    - show only filtered measured current and predicted current
-      for the most relevant motors.
-    """
-    if show_prediction and instrument_current_dt is not None:
-        current_dt_t = clean_numeric_array(instrument_current_dt["time"])
-        predicted_currents = instrument_current_dt["predicted_currents"]
-        filtered_currents = instrument_current_dt["filtered_currents"]
+#     Overview 2:
+#     - show only filtered measured current and predicted current
+#       for the most relevant motors.
+#     """
+#     if show_prediction and instrument_current_dt is not None:
+#         current_dt_t = clean_numeric_array(instrument_current_dt["time"])
+#         predicted_currents = instrument_current_dt["predicted_currents"]
+#         filtered_currents = instrument_current_dt["filtered_currents"]
 
-        relevant_motors = get_relevant_current_motors(active_dof)
-        plotted_any_prediction = False
+#         relevant_motors = get_relevant_current_motors(active_dof)
+#         plotted_any_prediction = False
 
-        for motor_index in relevant_motors:
-            filtered_current = clean_numeric_array(
-                filtered_currents[motor_index]
-            )
+#         for motor_index in relevant_motors:
+#             filtered_current = clean_numeric_array(
+#                 filtered_currents[motor_index]
+#             )
 
-            predicted_current = clean_numeric_array(
-                predicted_currents[motor_index]
-            )
+#             predicted_current = clean_numeric_array(
+#                 predicted_currents[motor_index]
+#             )
 
-            if np.isfinite(filtered_current).any():
-                ax.plot(
-                    current_dt_t,
-                    filtered_current,
-                    linewidth=1.2,
-                    label=f"M{motor_index} filtered measured",
-                )
+#             if np.isfinite(filtered_current).any():
+#                 ax.plot(
+#                     current_dt_t,
+#                     filtered_current,
+#                     linewidth=1.2,
+#                     label=f"M{motor_index} filtered measured",
+#                 )
 
-            if np.isfinite(predicted_current).any():
-                ax.plot(
-                    current_dt_t,
-                    predicted_current,
-                    linestyle="--",
-                    linewidth=1.3,
-                    label=f"M{motor_index} predicted",
-                )
-                plotted_any_prediction = True
+#             if np.isfinite(predicted_current).any():
+#                 ax.plot(
+#                     current_dt_t,
+#                     predicted_current,
+#                     linestyle="--",
+#                     linewidth=1.3,
+#                     label=f"M{motor_index} predicted",
+#                 )
+#                 plotted_any_prediction = True
 
-        if plotted_any_prediction:
-            ax.set_title("Current DT prediction: relevant motors")
-        else:
-            ax.set_title("Measured motor current")
-    else:
-        for motor_index in range(4):
-            ax.plot(
-                t,
-                clean_numeric_array(currents[motor_index]),
-                label=f"M{motor_index} raw measured",
-                linewidth=1.0,
-            )
+#         if plotted_any_prediction:
+#             ax.set_title("Current DT prediction: relevant motors")
+#         else:
+#             ax.set_title("Measured motor current")
+#     else:
+#         for motor_index in range(4):
+#             ax.plot(
+#                 t,
+#                 clean_numeric_array(currents[motor_index]),
+#                 label=f"M{motor_index} raw measured",
+#                 linewidth=1.0,
+#             )
 
-        ax.set_title("Measured motor current")
+#         ax.set_title("Measured motor current")
 
-    ax.set_ylabel("Motor current\n[mA]")
-    ax.grid(True)
-    ax.legend(fontsize=8, ncol=2)
+#     ax.set_ylabel("Motor current\n[mA]")
+#     ax.grid(True)
+#     ax.legend(fontsize=8, ncol=2)
 
-def compute_current_prediction_metrics(
-    time_values,
-    filtered_current,
-    predicted_current,
-    evaluation_window=None,
-):
-    time_values = np.asarray(
-        time_values,
-        dtype=float,
-    )
+# def compute_current_prediction_metrics(
+#     time_values,
+#     filtered_current,
+#     predicted_current,
+#     evaluation_window=None,
+# ):
+#     time_values = np.asarray(
+#         time_values,
+#         dtype=float,
+#     )
 
-    filtered_current = np.asarray(
-        filtered_current,
-        dtype=float,
-    )
+#     filtered_current = np.asarray(
+#         filtered_current,
+#         dtype=float,
+#     )
 
-    predicted_current = np.asarray(
-        predicted_current,
-        dtype=float,
-    )
+#     predicted_current = np.asarray(
+#         predicted_current,
+#         dtype=float,
+#     )
 
-    valid = (
-        np.isfinite(time_values)
-        & np.isfinite(filtered_current)
-        & np.isfinite(predicted_current)
-    )
+#     valid = (
+#         np.isfinite(time_values)
+#         & np.isfinite(filtered_current)
+#         & np.isfinite(predicted_current)
+#     )
 
-    if evaluation_window is not None:
-        valid &= (
-            time_values
-            >= evaluation_window["start_s"]
-        )
+#     if evaluation_window is not None:
+#         valid &= (
+#             time_values
+#             >= evaluation_window["start_s"]
+#         )
 
-        valid &= (
-            time_values
-            <= evaluation_window["end_s"]
-        )
+#         valid &= (
+#             time_values
+#             <= evaluation_window["end_s"]
+#         )
 
-    if np.sum(valid) < 2:
-        return None
+#     if np.sum(valid) < 2:
+#         return None
 
-    error = (
-        filtered_current[valid]
-        - predicted_current[valid]
-    )
+#     error = (
+#         filtered_current[valid]
+#         - predicted_current[valid]
+#     )
 
-    return {
-        "n_samples": int(len(error)),
-        "mae_mA": float(
-            np.mean(np.abs(error))
-        ),
-        "rmse_mA": float(
-            np.sqrt(np.mean(error ** 2))
-        ),
-        "bias_mA": float(
-            np.mean(error)
-        ),
-        "max_abs_error_mA": float(
-            np.max(np.abs(error))
-        ),
-        "evaluation_start_s": float(
-            time_values[valid][0]
-        ),
-        "evaluation_end_s": float(
-            time_values[valid][-1]
-        ),
-    }
+#     return {
+#         "n_samples": int(len(error)),
+#         "mae_mA": float(
+#             np.mean(np.abs(error))
+#         ),
+#         "rmse_mA": float(
+#             np.sqrt(np.mean(error ** 2))
+#         ),
+#         "bias_mA": float(
+#             np.mean(error)
+#         ),
+#         "max_abs_error_mA": float(
+#             np.max(np.abs(error))
+#         ),
+#         "evaluation_start_s": float(
+#             time_values[valid][0]
+#         ),
+#         "evaluation_end_s": float(
+#             time_values[valid][-1]
+#         ),
+#     }
 
 
-def plot_instrument_current_prediction_per_motor(
-    plot_dir,
-    instrument_current_dt,
-    active_dof_name,
-    evaluation_window=None
-):
-    if instrument_current_dt is None:
-        return
+# def plot_instrument_current_prediction_per_motor(
+#     plot_dir,
+#     instrument_current_dt,
+#     active_dof_name,
+#     evaluation_window=None
+# ):
+#     if instrument_current_dt is None:
+#         return
 
-    t = clean_numeric_array(instrument_current_dt["time"])
-    predicted_currents = instrument_current_dt["predicted_currents"]
-    filtered_currents = instrument_current_dt["filtered_currents"]
-    current_deviation = instrument_current_dt["current_deviation"]
+#     t = clean_numeric_array(instrument_current_dt["time"])
+#     predicted_currents = instrument_current_dt["predicted_currents"]
+#     filtered_currents = instrument_current_dt["filtered_currents"]
+#     current_deviation = instrument_current_dt["current_deviation"]
 
-    fig, axes = plt.subplots(
-        4,
-        2,
-        figsize=(16, 12),
-        sharex=True,
-        sharey="col",
-    )
+#     fig, axes = plt.subplots(
+#         4,
+#         2,
+#         figsize=(16, 12),
+#         sharex=True,
+#         sharey="col",
+#     )
 
-    fig.suptitle(
-        f"Instrument Current DT prediction per motor: {active_dof_name}",
-        fontsize=16,
-    )
+#     fig.suptitle(
+#         f"Instrument Current DT prediction per motor: {active_dof_name}",
+#         fontsize=16,
+#     )
 
-    metrics_by_motor = {}
+#     metrics_by_motor = {}
 
-    for motor_index in range(4):
-        filtered_current = clean_numeric_array(
-            filtered_currents[motor_index]
-        )
+#     for motor_index in range(4):
+#         filtered_current = clean_numeric_array(
+#             filtered_currents[motor_index]
+#         )
 
-        predicted_current = clean_numeric_array(
-            predicted_currents[motor_index]
-        )
+#         predicted_current = clean_numeric_array(
+#             predicted_currents[motor_index]
+#         )
 
-        residual = clean_numeric_array(
-            current_deviation[motor_index]
-        )
+#         residual = clean_numeric_array(
+#             current_deviation[motor_index]
+#         )
 
-        metrics = compute_current_prediction_metrics(
-            time_values=t,
-            filtered_current=filtered_current,
-            predicted_current=predicted_current,
-            evaluation_window=evaluation_window,
-        )
+#         metrics = compute_current_prediction_metrics(
+#             time_values=t,
+#             filtered_current=filtered_current,
+#             predicted_current=predicted_current,
+#             evaluation_window=evaluation_window,
+#         )
 
-        metrics_by_motor[motor_index] = metrics
+#         metrics_by_motor[motor_index] = metrics
 
-        # Left column: measured vs predicted current
-        axes[motor_index, 0].plot(
-            t,
-            filtered_current,
-            linewidth=1.2,
-            color = "orange",
-            label=f"M{motor_index} filtered measured",
-        )
+#         # Left column: measured vs predicted current
+#         axes[motor_index, 0].plot(
+#             t,
+#             filtered_current,
+#             linewidth=1.2,
+#             color = "orange",
+#             label=f"M{motor_index} filtered measured",
+#         )
 
-        axes[motor_index, 0].plot(
-            t,
-            predicted_current,
-            linestyle="--",
-            linewidth=1.2,
-            color = "tab:purple",
-            label=f"M{motor_index} predicted",
-        )
+#         axes[motor_index, 0].plot(
+#             t,
+#             predicted_current,
+#             linestyle="--",
+#             linewidth=1.2,
+#             color = "tab:purple",
+#             label=f"M{motor_index} predicted",
+#         )
 
-        axes[motor_index, 0].set_ylabel("Current [mA]")
-        axes[motor_index, 0].set_title(
-            f"Motor {motor_index}: filtered measured vs predicted"
-        )
-        axes[motor_index, 0].grid(True)
-        axes[motor_index, 0].legend(fontsize=8)
+#         axes[motor_index, 0].set_ylabel("Current [mA]")
+#         axes[motor_index, 0].set_title(
+#             f"Motor {motor_index}: filtered measured vs predicted"
+#         )
+#         axes[motor_index, 0].grid(True)
+#         axes[motor_index, 0].legend(fontsize=8)
 
-        # Right column: residual
-        axes[motor_index, 1].plot(
-            t,
-            residual,
-            linewidth=1.1,
-            color = "#4C78A8",
-            label=f"M{motor_index} residual",
-        )
+#         # Right column: residual
+#         axes[motor_index, 1].plot(
+#             t,
+#             residual,
+#             linewidth=1.1,
+#             color = "#4C78A8",
+#             label=f"M{motor_index} residual",
+#         )
 
-        axes[motor_index, 1].axhline(
-            0.0,
-            linewidth=1.0,
-            color="black",
-        )
+#         axes[motor_index, 1].axhline(
+#             0.0,
+#             linewidth=1.0,
+#             color="black",
+#         )
 
-        axes[motor_index, 1].set_ylabel("Residual [mA]")
-        axes[motor_index, 1].set_title(
-            f"Motor {motor_index}: residual = filtered measured - predicted"
-        )
-        axes[motor_index, 1].grid(True)
-        axes[motor_index, 1].legend(fontsize=8)
+#         axes[motor_index, 1].set_ylabel("Residual [mA]")
+#         axes[motor_index, 1].set_title(
+#             f"Motor {motor_index}: residual = filtered measured - predicted"
+#         )
+#         axes[motor_index, 1].grid(True)
+#         axes[motor_index, 1].legend(fontsize=8)
 
-        if metrics is not None:
-            text = (
-                f"MAE = {metrics['mae_mA']:.2f} mA\n"
-                f"RMSE = {metrics['rmse_mA']:.2f} mA"
-                # f"Bias = {metrics['bias_mA']:.2f} mA"
-            )
+#         if metrics is not None:
+#             text = (
+#                 f"MAE = {metrics['mae_mA']:.2f} mA\n"
+#                 f"RMSE = {metrics['rmse_mA']:.2f} mA"
+#                 # f"Bias = {metrics['bias_mA']:.2f} mA"
+#             )
 
-            axes[motor_index, 1].text(
-                0.01,
-                0.95,
-                text,
-                transform=axes[motor_index, 1].transAxes,
-                va="top",
-                ha="left",
-                fontsize=8,
-                bbox=dict(boxstyle="round", alpha=0.8),
-            )
+#             axes[motor_index, 1].text(
+#                 0.01,
+#                 0.95,
+#                 text,
+#                 transform=axes[motor_index, 1].transAxes,
+#                 va="top",
+#                 ha="left",
+#                 fontsize=8,
+#                 bbox=dict(boxstyle="round", alpha=0.8),
+#             )
 
-    axes[-1, 0].set_xlabel("Time [s]")
-    axes[-1, 1].set_xlabel("Time [s]")
+#     axes[-1, 0].set_xlabel("Time [s]")
+#     axes[-1, 1].set_xlabel("Time [s]")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.94])
+#     plt.tight_layout(rect=[0, 0, 1, 0.94])
 
-    plot_path = os.path.join(
-        plot_dir,
-        "instrument_current_prediction_per_motor.png",
-    )
+#     plot_path = os.path.join(
+#         plot_dir,
+#         "motor_current_prediction_residuals.png",
+#     )
 
-    fig.savefig(plot_path, dpi=200)
-    plt.close(fig)
+#     fig.savefig(plot_path, dpi=200)
+#     plt.close(fig)
 
-    metrics_path = os.path.join(
-        plot_dir,
-        "instrument_current_prediction_metrics.txt",
-    )
+#     metrics_path = os.path.join(
+#         plot_dir,
+#         "motor_current_prediction_metrics.txt",
+#     )
 
-    with open(metrics_path, "w") as f:
-        f.write("Instrument Current DT prediction metrics\n")
-        f.write("========================================\n\n")
-        f.write("Error definition:\n")
-        f.write("residual = filtered_measured_current - predicted_current\n\n")
-        if evaluation_window is not None:
-            f.write("Evaluation window:\n")
-            f.write(
-                f"{evaluation_window['start_s']:.3f} - "
-                f"{evaluation_window['end_s']:.3f} s\n"
-            )
-            f.write(
-                f"Duration: "
-                f"{evaluation_window['duration_s']:.3f} s\n"
-            )
-            f.write(
-                "Source: command start + YAML sequence duration\n\n"
-            )
+#     with open(metrics_path, "w") as f:
+#         f.write("Motor current prediction metrics\n")
+#         f.write("========================================\n\n")
+#         f.write("Error definition:\n")
+#         f.write("residual = filtered_measured_current - predicted_current\n\n")
+#         if evaluation_window is not None:
+#             f.write("Evaluation window:\n")
+#             f.write(
+#                 f"{evaluation_window['start_s']:.3f} - "
+#                 f"{evaluation_window['end_s']:.3f} s\n"
+#             )
+#             f.write(
+#                 f"Duration: "
+#                 f"{evaluation_window['duration_s']:.3f} s\n"
+#             )
+#             f.write(
+#                 "Source: command start + YAML sequence duration\n\n"
+#             )
 
-        for motor_index in range(4):
-            metrics = metrics_by_motor[motor_index]
+#         for motor_index in range(4):
+#             metrics = metrics_by_motor[motor_index]
 
-            f.write(f"Motor {motor_index}\n")
-            f.write("-" * 20 + "\n")
+#             f.write(f"Motor {motor_index}\n")
+#             f.write("-" * 20 + "\n")
 
-            if metrics is None:
-                f.write("Not available\n\n")
-                continue
+#             if metrics is None:
+#                 f.write("Not available\n\n")
+#                 continue
 
-            f.write(f"MAE:             {metrics['mae_mA']:.3f} mA\n")
-            f.write(f"RMSE:            {metrics['rmse_mA']:.3f} mA\n")
-            # f.write(f"Bias:            {metrics['bias_mA']:.3f} mA\n")
-            f.write(f"Max abs error:   {metrics['max_abs_error_mA']:.3f} mA\n")
-            f.write(f"Samples:         "f"{metrics['n_samples']}\n")
-            f.write(f"Time window:     "f"{metrics['evaluation_start_s']:.3f} - "f"{metrics['evaluation_end_s']:.3f} s\n")
+#             f.write(f"MAE:             {metrics['mae_mA']:.3f} mA\n")
+#             f.write(f"RMSE:            {metrics['rmse_mA']:.3f} mA\n")
+#             # f.write(f"Bias:            {metrics['bias_mA']:.3f} mA\n")
+#             f.write(f"Max abs error:   {metrics['max_abs_error_mA']:.3f} mA\n")
+#             f.write(f"Samples:         "f"{metrics['n_samples']}\n")
+#             f.write(f"Time window:     "f"{metrics['evaluation_start_s']:.3f} - "f"{metrics['evaluation_end_s']:.3f} s\n")
 
-    print(f"Saved Instrument Current DT plot: {plot_path}")
-    print(f"Saved Instrument Current DT metrics: {metrics_path}")
+#     print(f"Saved Instrument Current DT plot: {plot_path}")
+#     print(f"Saved Instrument Current DT metrics: {metrics_path}")
     
 def plot_video_instrument_measurement_axis(
     ax,
@@ -2117,12 +2114,13 @@ def plot_instrument_prediction_axis(
                 label=setup["video_label"],
             )
 
-    write_video_prediction_metrics(
-        plot_dir=plot_dir,
-        active_dof_name=active_dof_name,
-        video_signal_name=setup["video_signal_name"],
-        prediction_blocks=prediction_metric_blocks,
-    )
+    if len(setup["video_t"]) > 0:
+        write_video_prediction_metrics(
+            plot_dir=plot_dir,
+            active_dof_name=active_dof_name,
+            video_signal_name=setup["video_signal_name"],
+            prediction_blocks=prediction_metric_blocks,
+        )
 
     # Optional backwards-compatible DOF2 metrics file.
     # You may remove this later if the generic file is enough.
@@ -2346,7 +2344,8 @@ def plot_overview_inputs_outputs(
     commanded,
     current_angles,
     motor_pos,
-    currents,
+    # currents,
+    coupling_mode,
     video_t,
     red_shaft_video_angle,
     jaw_video_angle,
@@ -2362,7 +2361,15 @@ def plot_overview_inputs_outputs(
     - measured motor current feedback
     - video-measured instrument output
     """
-    fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
+    show_instrument = coupling_mode == "full_setup"
+    nrows = 3 if show_instrument else 2
+
+    fig, axes = plt.subplots(
+        nrows,
+        1,
+        figsize=(14, 4 * nrows),
+        sharex=True,
+    )
 
     fig.suptitle(
         f"Overview inputs and measured outputs: {active_dof_name}",
@@ -2384,24 +2391,25 @@ def plot_overview_inputs_outputs(
         motor_pos,
     )
 
-    plot_motor_currents_axis(
-        axes[2],
-        t,
-        currents,
-        instrument_current_dt=None,
-        show_prediction=False,
-        active_dof=active_dof,
-    )
+    # plot_motor_currents_axis(
+    #     axes[2],
+    #     t,
+    #     currents,
+    #     instrument_current_dt=None,
+    #     show_prediction=False,
+    #     active_dof=active_dof,
+    # )
 
-    plot_video_instrument_measurement_axis(
-        axes[3],
-        active_dof,
-        video_t,
-        red_shaft_video_angle,
-        jaw_video_angle,
-    )
+    if show_instrument:
+        plot_video_instrument_measurement_axis(
+            axes[2],
+            active_dof,
+            video_t,
+            red_shaft_video_angle,
+            jaw_video_angle,
+        )
 
-    axes[3].set_xlabel("Time [s]")
+    axes[-1].set_xlabel("Time [s]")
 
     plt.tight_layout(rect=[0, 0, 1, 0.92])
 
@@ -2459,11 +2467,12 @@ def plot_overview_prediction(
     commanded,
     current_angles,
     motor_pos,
-    currents,
+    # currents,
     gearbox,
     predicted_angles,
     hybrid_predicted_angles,
-    instrument_current_dt,
+    # instrument_current_dt,
+    coupling_mode,
     video_t,
     red_shaft_video_angle,
     jaw_video_angle,
@@ -2480,7 +2489,15 @@ def plot_overview_prediction(
     - Gearbox DT prediction
     - Instrument DT / Hybrid DT prediction
     """
-    fig, axes = plt.subplots(5, 1, figsize=(14, 13), sharex=True)
+    show_instrument = coupling_mode == "full_setup"
+    nrows = 4 if show_instrument else 3
+
+    fig, axes = plt.subplots(
+        nrows,
+        1,
+        figsize=(14, 3.2 * nrows),
+        sharex=True,
+    )
 
     fig.suptitle(
         f"Overview Digital Twin prediction: {active_dof_name}",
@@ -2502,35 +2519,36 @@ def plot_overview_prediction(
         motor_pos,
     )
 
-    plot_motor_currents_axis(
-        axes[2],
-        t,
-        currents,
-        instrument_current_dt=instrument_current_dt,
-        show_prediction=True,
-        active_dof=active_dof,
-    )
+    # plot_motor_currents_axis(
+    #     axes[2],
+    #     t,
+    #     currents,
+    #     instrument_current_dt=instrument_current_dt,
+    #     show_prediction=True,
+    #     active_dof=active_dof,
+    # )
 
     plot_relevant_gearbox_axis(
-        axes[3],
+        axes[2],
         t,
         gearbox,
         active_dof,
     )
 
-    plot_instrument_prediction_axis(
-        axes[4],
-        plot_dir,
-        t,
-        active_dof,
-        active_dof_name,
-        predicted_angles,
-        hybrid_predicted_angles,
-        video_t,
-        red_shaft_video_angle,
-        jaw_video_angle,
-        evaluation_window=evaluation_window
-    )
+    if show_instrument:
+        plot_instrument_prediction_axis(
+            axes[3],
+            plot_dir,
+            t,
+            active_dof,
+            active_dof_name,
+            predicted_angles,
+            hybrid_predicted_angles,
+            video_t,
+            red_shaft_video_angle,
+            jaw_video_angle,
+            evaluation_window=evaluation_window,
+        )
 
     plt.tight_layout(rect=[0, 0, 1, 0.91])
 
@@ -2584,9 +2602,9 @@ def plot_continuous_file(
     video_angle_file=None,
     output_dir=None,
     params_file=None,
-    instrument_current_dt_file=None,
+    coupling_mode="full_setup",
 ):
-    t, commanded, current_angles, predicted_angles, hybrid_predicted_angles, motor_pos, currents, gearbox, motor_ros_t0 = load_continuous_file(file_path)
+    t, commanded, current_angles, predicted_angles, hybrid_predicted_angles, motor_pos, gearbox, motor_ros_t0 = load_continuous_file(file_path)
     basename = os.path.basename(file_path).replace(".jsonl", "")
     pattern_name = os.path.basename(os.path.dirname(file_path))
 
@@ -2596,16 +2614,7 @@ def plot_continuous_file(
         plot_dir = output_dir
 
     os.makedirs(plot_dir, exist_ok=True)
-    
-    if instrument_current_dt_file is None:
-        default_replay = default_instrument_current_replay_file(file_path)
 
-        if default_replay.exists():
-            instrument_current_dt_file = str(default_replay)
-
-    instrument_current_dt = load_instrument_current_dt_replay(
-        instrument_current_dt_file
-    )
 
     # Creates multiple plots in the output directory, including;
     # 1. commanded vs current instrument angles
@@ -2656,13 +2665,6 @@ def plot_continuous_file(
         # yellow_shaft_video_angle = []
         green_shaft_video_angle = []
 
-    # Separate diagnostic plots
-    plot_instrument_angles(
-        plot_dir,
-        t,
-        commanded,
-        current_angles,
-    )
 
     plot_motor_positions(
         plot_dir,
@@ -2670,17 +2672,60 @@ def plot_continuous_file(
         motor_pos,
     )
 
-    plot_motor_currents(
-        plot_dir,
-        t,
-        currents,
-    )
+    # plot_motor_currents(
+    #     plot_dir,
+    #     t,
+    #     currents,
+    # )
 
     plot_gearbox_state(
         plot_dir,
         t,
         gearbox,
     )
+
+    if coupling_mode == "full_setup":
+        plot_instrument_angles(
+            plot_dir,
+            t,
+            commanded,
+            current_angles,
+        )
+
+        plot_instrument_position_prediction_residual(
+            plot_dir=plot_dir,
+            t=t,
+            active_dof=active_dof,
+            predicted_angles=predicted_angles,
+            hybrid_predicted_angles=hybrid_predicted_angles,
+            video_t=video_t,
+            red_shaft_video_angle=red_shaft_video_angle,
+            jaw_video_angle=jaw_video_angle,
+            evaluation_window=evaluation_window,
+        )
+
+        if active_dof == 1 and len(video_t) > 0:
+            plot_dof2_video_validation(
+                plot_dir,
+                t,
+                commanded,
+                current_angles,
+                motor_pos,
+                video_t,
+                red_shaft_video_angle,
+                predicted_angles,
+                hybrid_predicted_angles,
+            )
+
+        if active_dof == 3 and len(video_t) > 0:
+            plot_gripper_video_measurements(
+                plot_dir,
+                video_t,
+                jaw_video_angle,
+                green_shaft_video_angle,
+                red_shaft_video_angle,
+            )
+    
 
     # Overview 1: measured inputs and outputs only
     plot_overview_inputs_outputs(
@@ -2691,7 +2736,8 @@ def plot_continuous_file(
         commanded=commanded,
         current_angles=current_angles,
         motor_pos=motor_pos,
-        currents=currents,
+        coupling_mode=coupling_mode,
+        # currents=currents,
         video_t=video_t,
         red_shaft_video_angle=red_shaft_video_angle,
         jaw_video_angle=jaw_video_angle,
@@ -2708,11 +2754,12 @@ def plot_continuous_file(
         commanded=commanded,
         current_angles=current_angles,
         motor_pos=motor_pos,
-        currents=currents,
+        coupling_mode=coupling_mode,
+        # currents=currents,
         gearbox=gearbox,
         predicted_angles=predicted_angles,
         hybrid_predicted_angles=hybrid_predicted_angles,
-        instrument_current_dt=instrument_current_dt,
+        # instrument_current_dt=instrument_current_dt,
         video_t=video_t,
         red_shaft_video_angle=red_shaft_video_angle,
         jaw_video_angle=jaw_video_angle,
@@ -2721,75 +2768,75 @@ def plot_continuous_file(
         evaluation_window=evaluation_window
     )
 
-    plot_instrument_current_prediction_per_motor(
-        plot_dir=plot_dir,
-        instrument_current_dt=instrument_current_dt,
-        active_dof_name=active_dof_name,
-        evaluation_window=evaluation_window,
-    )
+    # plot_instrument_current_prediction_per_motor(
+    #     plot_dir=plot_dir,
+    #     instrument_current_dt=instrument_current_dt,
+    #     active_dof_name=active_dof_name,
+    #     evaluation_window=evaluation_window,
+    # )
 
-    plot_instrument_position_prediction_residual(
-        plot_dir=plot_dir,
-        t=t,
-        active_dof=active_dof,
-        predicted_angles=predicted_angles,
-        hybrid_predicted_angles=hybrid_predicted_angles,
-        video_t=video_t,
-        red_shaft_video_angle=red_shaft_video_angle,
-        jaw_video_angle=jaw_video_angle,
-        evaluation_window=evaluation_window
-    )
+    # plot_instrument_position_prediction_residual(
+    #     plot_dir=plot_dir,
+    #     t=t,
+    #     active_dof=active_dof,
+    #     predicted_angles=predicted_angles,
+    #     hybrid_predicted_angles=hybrid_predicted_angles,
+    #     video_t=video_t,
+    #     red_shaft_video_angle=red_shaft_video_angle,
+    #     jaw_video_angle=jaw_video_angle,
+    #     evaluation_window=evaluation_window
+    # )
 
 
-    if active_dof == 1:
-        plot_dof2_video_validation(
-        plot_dir,
-        t,
-        commanded,
-        current_angles,
-        motor_pos,
-        video_t,
-        red_shaft_video_angle,
-        predicted_angles,
-        hybrid_predicted_angles,
-    )
+    # if active_dof == 1:
+    #     plot_dof2_video_validation(
+    #     plot_dir,
+    #     t,
+    #     commanded,
+    #     current_angles,
+    #     motor_pos,
+    #     video_t,
+    #     red_shaft_video_angle,
+    #     predicted_angles,
+    #     hybrid_predicted_angles,
+    # )
 
-    if active_dof == 0:
-        plot_current_vs_wrapped_angle(
-            plot_dir=plot_dir,
-            t=t,
-            angle_deg=gearbox[4],
-            motor_current=currents[2],
-            filename="dof1_current_vs_wrapped_angle.png",
-            title="DOF1: motor current vs wrapped outer shaft rotation",
-            current_label="Motor 2 current [mA]",
-            y_limit=(0, 250),
-        )
-    if active_dof == 2:
-        plot_current_vs_wrapped_angle(
-            plot_dir=plot_dir,
-            t=t,
-            angle_deg=gearbox[0],
-            motor_current=currents[0],
-            filename="dof3_current_vs_wrapped_angle.png",
-            title="DOF3: motor current vs wrapped inner shaft rotation",
-            current_label="Motor 0 current [mA]",
-            y_limit=(0, 250),
-        )
+    # # if active_dof == 0:
+    # #     plot_current_vs_wrapped_angle(
+    # #         plot_dir=plot_dir,
+    # #         t=t,
+    # #         angle_deg=gearbox[4],
+    # #         motor_current=currents[2],
+    # #         filename="dof1_current_vs_wrapped_angle.png",
+    # #         title="DOF1: motor current vs wrapped outer shaft rotation",
+    # #         current_label="Motor 2 current [mA]",
+    # #         y_limit=(0, 250),
+    # #     )
+    # # if active_dof == 2:
+    # #     plot_current_vs_wrapped_angle(
+    # #         plot_dir=plot_dir,
+    # #         t=t,
+    # #         angle_deg=gearbox[0],
+    # #         motor_current=currents[0],
+    # #         filename="dof3_current_vs_wrapped_angle.png",
+    # #         title="DOF3: motor current vs wrapped inner shaft rotation",
+    # #         current_label="Motor 0 current [mA]",
+    # #         y_limit=(0, 250),
+    # #     )
 
-        # plot_dof3_instrument_current_prediction(
-        #     plot_dir,
-        #     instrument_current_dt,
-        # )
+    #     # plot_dof3_instrument_current_prediction(
+    #     #     plot_dir,
+    #     #     instrument_current_dt,
+    #     # )
 
-    if active_dof == 3:
-        plot_gripper_video_measurements(
-            plot_dir,
-            video_t,
-            jaw_video_angle,
-            green_shaft_video_angle, #yellow_shaft_video_angle,
-            red_shaft_video_angle,
-        )    
+    # if active_dof == 3:
+    #     plot_gripper_video_measurements(
+    #         plot_dir,
+    #         video_t,
+    #         jaw_video_angle,
+    #         green_shaft_video_angle, #yellow_shaft_video_angle,
+    #         red_shaft_video_angle,
+    #     )    
     print(f"Saved plots in: {plot_dir}")
 
 
@@ -2800,10 +2847,11 @@ if __name__ == "__main__":
     parser.add_argument("--video-angles", default=None)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
-        "--instrument-current-dt",
-        default=None,
-        help="Optional Instrument Current DT replay jsonl file.",
+        "--coupling-mode",
+        choices=["gearbox_only", "full_setup"],
+        required=True,
     )
+   
     parser.add_argument(
         "--params-file",
         default=str(
@@ -2822,7 +2870,7 @@ if __name__ == "__main__":
         video_angle_file=args.video_angles,
         output_dir=args.output_dir,
         params_file=args.params_file,
-        instrument_current_dt_file=args.instrument_current_dt,
+        coupling_mode=args.coupling_mode,
     )
 
     print("All plots saved.")

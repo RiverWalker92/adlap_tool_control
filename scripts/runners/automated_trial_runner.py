@@ -12,17 +12,11 @@ from pathlib import Path
 
 import cv2
 
-# def ask_test_mode():
-#     while True:
-#         mode = input("Select test mode: [t] tool/instrument, [m] motor-only: ").strip().lower()
-
-#         if mode in ["t", "tool"]:
-#             return "tool"
-
-#         if mode in ["m", "motor"]:
-#             return "motor"
-
-#         print("Invalid choice. Type 't' for tool or 'm' for motor.")
+VALID_COUPLING_MODES = {
+    "motor_only",
+    "gearbox_only",
+    "full_setup",
+}
 
 def apply_camera_settings(camera_device: str, focus: int, sharpness: int):
     """
@@ -122,9 +116,9 @@ def extract_ros_parameters(config: dict) -> dict:
     """
     Extracts ros__parameters from a ROS2 yaml file.
     Supports:
-    - tool_controller_node:
+    - dof_pattern_runner_node:
         ros__parameters:
-    - /tool_controller_node:
+    - /dof_pattern_runner_node:
         ros__parameters:
     - /**:
         ros__parameters:
@@ -134,10 +128,8 @@ def extract_ros_parameters(config: dict) -> dict:
         raise RuntimeError("YAML config is empty or invalid.")
 
     preferred_keys = [
-        "tool_controller_node",
-        "/tool_controller_node",
-        "tool_pattern_runner_node",
-        "/tool_pattern_runner_node",
+        "dof_pattern_runner_node",
+        "/dof_pattern_runner_node",
         "/**",
     ]
 
@@ -194,23 +186,27 @@ def run_marker_detection(args, output_path: Path) -> dict:
 
     return detected_hardware
 
-def test_mode_from_detected_hardware(detected_hardware: dict) -> str:
-    detected_mode = detected_hardware.get("mode")
+def coupling_mode_from_detected_hardware(detected_hardware: dict) -> str:
+    coupling_mode = detected_hardware.get("coupling_mode")
 
-    if detected_mode == "motor_only":
-        return "motor"
-
-    if detected_mode == "full_setup":
-        return "tool"
-
-    if detected_mode == "gearbox_only":
+    if coupling_mode not in VALID_COUPLING_MODES:
         raise RuntimeError(
-            "Gearbox-only setup was detected, but gearbox-only automated trial mode "
-            "is not implemented yet."
+            f"Unknown coupling mode: {coupling_mode}. "
+            f"Expected one of: {sorted(VALID_COUPLING_MODES)}"
         )
 
-    raise RuntimeError(f"Unknown detected hardware mode: {detected_mode}")
+    return coupling_mode
 
+def pattern_mode_from_coupling_mode(coupling_mode: str) -> str:
+    if coupling_mode == "motor_only":
+        return "motor"
+
+    if coupling_mode in {"gearbox_only", "full_setup"}:
+        return "tool"
+
+    raise RuntimeError(
+        f"Unsupported coupling mode: {coupling_mode}"
+    )
 def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
     """
     Infers active DOF from tool_params.yaml.
@@ -255,33 +251,29 @@ def infer_active_dof_from_params(params_file: Path, require_video_supported: boo
 
     return active_dof
 
-def wait_for_hardware_ready(test_mode: str, detected_hardware: dict | None):
+def wait_for_hardware_ready(
+    coupling_mode: str,
+    detected_hardware: dict | None,
+):
     """
-    Pauses the automated trial after marker detection.
-    This gives the user time to physically couple the detected hardware and
-    update the starting positions before the actual trial starts.
+    Pauses the automated trial after marker detection so that the detected
+    hardware can be coupled and initialized before the trial starts.
     """
-    if detected_hardware is None:
+    if coupling_mode == "motor_only":
         return
 
-    detected_mode = detected_hardware.get("mode")
+    print("\nHardware configuration:")
+    print(f"  coupling mode: {coupling_mode}")
 
-    # Motor-only trials do not require mechanical coupling or start-position update.
-    if detected_mode == "motor_only":
-        return
+    if detected_hardware is not None:
+        gearbox = detected_hardware.get("gearbox")
+        instrument = detected_hardware.get("instrument")
 
-    print("\nHardware markers detected:")
-    print(f"  detected setup: {detected_mode}")
-    print(f"  selected mode:  {test_mode}")
+        if gearbox is not None:
+            print(f"  gearbox:      {gearbox.get('name')}")
 
-    gearbox = detected_hardware.get("gearbox")
-    instrument = detected_hardware.get("instrument")
-
-    if gearbox is not None:
-        print(f"  gearbox:        {gearbox.get('name')}")
-
-    if instrument is not None:
-        print(f"  instrument:     {instrument.get('name')}")
+        if instrument is not None:
+            print(f"  instrument:   {instrument.get('name')}")
 
     print("\nThe automated trial is now paused.")
     print("Do NOT press Enter yet.")
@@ -294,13 +286,30 @@ def wait_for_hardware_ready(test_mode: str, detected_hardware: dict | None):
     print("  5. Check that the setup is mechanically ready.")
     print("  6. Return to this terminal.")
     print("")
-    input("Press Enter here only when coupling + initialization + start-position update are done...")
+
+    input(
+        "Press Enter here only when coupling, initialization, "
+        "and the start-position update are done..."
+    )
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run full automated AdLap trial: camera settings, video, pattern, angle detection, plotting."
     )
-    # parser.add_argument("--mode", choices=["ask", "tool", "motor"], default="ask", help="Select trial mode: tool, motor, or ask interactively.")
-    parser.add_argument("--mode", choices=["auto", "tool", "motor"], default="auto", help="Select trial mode: auto, tool or motor")
+    # parser.add_argument("--mode", choices=["auto", "tool", "motor"], default="auto", help="Select trial mode: auto, tool or motor")
+    parser.add_argument("--coupling-mode", choices=["motor_only", "gearbox_only", "full_setup"], default=None, 
+                        help=("Physical coupling configuration. Required when " "--skip-marker-scan is used."),)
+    parser.add_argument(
+        "--gearbox-variant",
+        default=None,
+        help="Gearbox variant, for example gearbox_2.",
+    )
+
+    parser.add_argument(
+        "--instrument-config",
+        default=None,
+        help="Instrument configuration from marker_detection.yaml.",
+    )
     parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
     parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "tool_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
@@ -326,13 +335,19 @@ def main():
     parser.add_argument(
         "--no-camera",
         action="store_true",
-        help="Run trial without webcam/video detection and plotting.",
+        help="Run trial without webcam/video detection; offline plots are still generated.",
     )
 
     parser.add_argument(
         "--motor-setup-name",
         default="setup_01_motors",
         help="Folder name used for motor-only automated trials.",
+    )
+
+    parser.add_argument(
+        "--gearbox-setup-name",
+        default="setup_02_motors_gearbox",
+        help="Folder name used for gearbox-only automated trials.",
     )
 
     parser.add_argument(
@@ -371,8 +386,8 @@ def main():
     parser.add_argument(
         "--plot-cmd",
         default=(
-            "ros2 run adlap_tool_control plot_trial.py "
-            "--file {ros_log} --video-angles {angles} --output-dir {plot_dir} --params-file {params_file}"
+            "ros2 run adlap_tool_control plot_dof.py "
+            "--file {ros_log} --video-angles {angles} --output-dir {plot_dir} --params-file {params_file} --coupling-mode {coupling_mode}"
         ),
         help="Command for plotting. Available placeholders: {ros_log}, {angles}, {plot_dir}.",
     )
@@ -388,21 +403,43 @@ def main():
     params_file = Path(args.params_file).expanduser()
 
     detected_hardware = None
-    gearbox_variant = None
-    instrument_config = None
+    gearbox_variant = args.gearbox_variant
+    instrument_config = args.instrument_config
 
     if args.skip_marker_scan:
-        print("")
-        print("Skipping ArUco marker detection.")
-        print("Using active/default configuration.")
-        print("")
+        if args.coupling_mode is None:
+            raise RuntimeError(
+                "--coupling-mode is required when "
+                "--skip-marker-scan is used."
+            )
 
-        if args.mode == "auto":
-            test_mode = "tool"
-        else:
-            test_mode = args.mode
+        coupling_mode = args.coupling_mode
+        if coupling_mode in ["gearbox_only", "full_setup"]:
+            if not gearbox_variant:
+                raise RuntimeError(
+                    "--gearbox-variant is required for "
+                    f"{coupling_mode} when --skip-marker-scan is used."
+                )
 
-    elif args.mode == "auto":
+        if coupling_mode == "full_setup":
+            if not instrument_config:
+                raise RuntimeError(
+                    "--instrument-config is required for full_setup "
+                    "when --skip-marker-scan is used."
+                )
+    
+
+        print("\nSkipping ArUco marker detection.")
+        print(f"Using coupling mode: {coupling_mode}")
+
+    else:
+        if args.coupling_mode is not None:
+            raise RuntimeError(
+                "--coupling-mode should only be used together with "
+                "--skip-marker-scan. Without it, the configuration "
+                "is determined by the markers."
+            )
+
         marker_output_path = (
             Path(args.output_dir).expanduser()
             / "_latest_detected_hardware.json"
@@ -413,33 +450,38 @@ def main():
             output_path=marker_output_path,
         )
 
-        test_mode = test_mode_from_detected_hardware(detected_hardware)
-
-        if detected_hardware is not None:
-            gearbox = detected_hardware.get("gearbox")
-            instrument = detected_hardware.get("instrument")
-
-            if gearbox is not None:
-                gearbox_variant = gearbox.get("gearbox_variant")
-
-            if instrument is not None:
-                instrument_config = instrument.get("instrument_config")
-                
-        print("\nAutomatically selected trial mode from markers:")
-        print(f"  marker_detector mode: {detected_hardware.get('mode')}")
-        print(f"  automated trial mode: {test_mode}")
-
-        wait_for_hardware_ready(
-            test_mode=test_mode,
-            detected_hardware=detected_hardware,
+        coupling_mode = coupling_mode_from_detected_hardware(
+            detected_hardware
         )
 
-    else:
-        test_mode = args.mode
+        gearbox = detected_hardware.get("gearbox")
+        instrument = detected_hardware.get("instrument")
+
+        if gearbox is not None:
+            gearbox_variant = gearbox.get("gearbox_variant")
+
+        if instrument is not None:
+            instrument_config = instrument.get("instrument_config")
+
+        print("\nAutomatically detected hardware configuration:")
+        print(f"  coupling mode: {coupling_mode}")
+
+    pattern_mode = pattern_mode_from_coupling_mode(coupling_mode)
+
+    print(f"  pattern mode:  {pattern_mode}")
+
+    wait_for_hardware_ready(
+        coupling_mode=coupling_mode,
+        detected_hardware=detected_hardware,
+    )
             
-    if test_mode == "motor":
+    if pattern_mode == "motor":
+        args.dof = None
         dof_label = "motor"
-        print("Motor-only mode selected: no active DOF is inferred from tool_params.yaml.")
+
+        print(
+            "Motor pattern selected: no active DOF is required."
+        )
 
     else:
         if args.dof is None:
@@ -447,15 +489,18 @@ def main():
                 params_file,
                 require_video_supported=False,
             )
-            print(f"Inferred active DOF from tool_params.yaml: DOF{args.dof}")
+            print(
+                f"Inferred active DOF from tool_params.yaml: "
+                f"DOF{args.dof}"
+            )
         else:
-            print(f"Using DOF from terminal argument: DOF{args.dof}")
+            print(
+                f"Using DOF from terminal argument: DOF{args.dof}"
+            )
 
         dof_label = f"dof{args.dof}"
 
-    if test_mode == "motor":
-        use_camera = False
-    elif args.no_camera:
+    if coupling_mode != "full_setup" or args.no_camera:
         use_camera = False
     else:
         use_camera = args.dof in [2, 4]
@@ -463,21 +508,28 @@ def main():
     # Create output directories and file paths
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    if test_mode == "motor":
-        run_name = f"auto_motor_{timestamp}"
+    if coupling_mode == "motor_only":
         setup_name = args.motor_setup_name
-    else:
-        run_name = f"auto_{dof_label}_{timestamp}"
+        run_name = f"auto_motor_{timestamp}"
+        dof_dir_name = "motor"
+
+    elif coupling_mode == "gearbox_only":
+        setup_name = args.gearbox_setup_name
+        run_name = f"auto_dof{args.dof}_{timestamp}"
+        dof_dir_name = f"dof{args.dof}"
+
+    elif coupling_mode == "full_setup":
         setup_name = args.tool_setup_name
+        run_name = f"auto_dof{args.dof}_{timestamp}"
+        dof_dir_name = f"dof{args.dof}"
 
-    root_output_dir = Path(args.output_dir).expanduser()
-    setup_dir = root_output_dir / setup_name
-
-    if test_mode == "motor":
-        dof_dir = setup_dir / "motor"
     else:
-        dof_dir = setup_dir / dof_label
+        raise RuntimeError(
+            f"Unsupported coupling mode: {coupling_mode}"
+        )
 
+    setup_dir = Path(args.output_dir).expanduser() / setup_name
+    dof_dir = setup_dir / dof_dir_name
     output_dir = dof_dir / run_name
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -488,9 +540,15 @@ def main():
     angles_path = output_dir / f"{run_name}_webcam_angles.jsonl"
     metadata_path = output_dir / f"{run_name}_metadata.json"
     plots_dir = output_dir / "plots"
-    plots_dir.mkdir(parents=True, exist_ok=True)
+    motor_plots_dir = plots_dir / "motor_outputs"
+    instrument_plots_dir = plots_dir / "instrument_outputs"
 
-    if test_mode == "motor":
+    motor_plots_dir.mkdir(parents=True, exist_ok=True)
+
+    if pattern_mode != "motor":
+        instrument_plots_dir.mkdir(parents=True, exist_ok=True)
+
+    if pattern_mode == "motor":
         args.pattern_cmd = (
             "ros2 launch adlap_tool_control motor_pattern_runner.launch.py "
             f"output_dir:={shlex.quote(str(output_dir))} "
@@ -500,16 +558,22 @@ def main():
         args.pattern_cmd = (
             "ros2 launch adlap_tool_control pattern_runner.launch.py "
             f"output_dir:={shlex.quote(str(output_dir))} "
-            f"log_file_name:={shlex.quote(ros_log_path.name)}"
+            f"log_file_name:={shlex.quote(ros_log_path.name)} "
+            f"coupling_mode:={shlex.quote(coupling_mode)}"
         )
 
-        if gearbox_variant is not None:
-            args.pattern_cmd += f" gearbox_variant:={shlex.quote(gearbox_variant)}"
+        if gearbox_variant:
+            args.pattern_cmd += (
+                f" gearbox_variant:={shlex.quote(gearbox_variant)}"
+            )
 
-        if instrument_config is not None:
-            args.pattern_cmd += f" instrument_config:={shlex.quote(instrument_config)}"
+        if instrument_config:
+            args.pattern_cmd += (
+                f" instrument_config:={shlex.quote(instrument_config)}"
+            )
 
-    print(f"Selected mode: {test_mode}")
+    print(f"Coupling mode: {coupling_mode}")
+    print(f"Pattern mode:  {pattern_mode}")
     print(f"Setup folder:  {setup_dir}")
     print(f"DOF folder:    {dof_dir}")
     print(f"Run folder:    {output_dir}")
@@ -523,7 +587,9 @@ def main():
     stop_event = None
     recorder_thread = None
     detector_cmd = None
-    plot_cmd = None
+    motor_plot_cmd = None
+    instrument_plot_cmd = None
+
     if use_camera:
         apply_camera_settings(
             camera_device=args.camera,
@@ -582,72 +648,79 @@ def main():
 
     motor_dt_replay_path = None
     motor_dt_replay_cmd = None
-    instrument_current_dt_replay_path = None
-    instrument_current_dt_replay_cmd = None
+    # instrument_current_dt_replay_path = None
+    # instrument_current_dt_replay_cmd = None
 
-    if test_mode == "motor":
-        motor_dt_replay_path = output_dir / f"{run_name}_motor_dt_replay.jsonl"
+    motor_dt_replay_path = output_dir / f"{run_name}_motor_dt_replay.jsonl"
+    
+    motor_dt_replay_cmd = (
+        f"ros2 run adlap_tool_control motor_digital_twin.py "
+        f"--file {shlex.quote(str(ros_log_path))} "
+        f"--coupling-mode {shlex.quote(coupling_mode)}"
+    )
 
-        motor_dt_replay_cmd = (
-            f"ros2 run adlap_tool_control motor_digital_twin.py "
-            f"--file {shlex.quote(str(ros_log_path))}"
+    if coupling_mode == "full_setup":
+        motor_dt_replay_cmd += f" --dof {args.dof}"
+
+    run_command(motor_dt_replay_cmd, check=True)
+
+    if not motor_dt_replay_path.exists() or motor_dt_replay_path.stat().st_size == 0:
+        raise RuntimeError(
+            f"Motor DT replay file was not created correctly: {motor_dt_replay_path}"
         )
 
-        run_command(motor_dt_replay_cmd, check=True)
+    print(f"\nOffline Motor DT replay saved at:\n{motor_dt_replay_path}")
 
-        if not motor_dt_replay_path.exists() or motor_dt_replay_path.stat().st_size == 0:
-            raise RuntimeError(
-                f"Motor DT replay file was not created correctly: {motor_dt_replay_path}"
-            )
 
-        print(f"\nOffline Motor DT replay saved at:\n{motor_dt_replay_path}")
+    motor_plot_cmd = (
+        f"ros2 run adlap_tool_control plot_motor.py "
+        f"--file {ros_log_path} "
+        f"--replay-file {motor_dt_replay_path} "
+        f"--output-dir {motor_plots_dir}"
+    )
 
-        plot_cmd = (
-            f"ros2 run adlap_tool_control plot_motor_trial.py "
-            f"--file {shlex.quote(str(ros_log_path))} "
-            f"--output-dir {shlex.quote(str(plots_dir))}"
-        )
+    run_command(motor_plot_cmd, check=True)
 
-    else:
-        instrument_current_dt_replay_path = (
-            output_dir / f"{run_name}_instrument_current_dt_replay.jsonl"
-        )
+    if pattern_mode != "motor":
+        # instrument_current_dt_replay_path = (
+        #     output_dir / f"{run_name}_instrument_current_dt_replay.jsonl"
+        # )
 
-        instrument_current_model_path = (
-            Path.home()
-            / "ros2_ws"
-            / "test_data"
-            / "automated_trials"
-            / "trainings data V3"
-            / "instrument_current_dt_results"
-            / f"dof{args.dof}"
-            / "models"
-            / f"instrument_current_dt_dof{args.dof}_all_motors.pkl"
-        )
+        # instrument_current_model_path = (
+        #     Path.home()
+        #     / "ros2_ws"
+        #     / "test_data"
+        #     / "automated_trials"
+        #     / "trainings data V3"
+        #     / "instrument_current_dt_results"
+        #     / f"dof{args.dof}"
+        #     / "models"
+        #     / f"instrument_current_dt_dof{args.dof}_all_motors.pkl"
+        # )
 
-        instrument_current_dt_replay_cmd = (
-            f"ros2 run adlap_tool_control instrument_current_digital_twin.py "
-            f"--file {shlex.quote(str(ros_log_path))} "
-            f"--model-file {shlex.quote(str(instrument_current_model_path))} "
-            f"--output-file {shlex.quote(str(instrument_current_dt_replay_path))} "
-            f"--dof {args.dof}"
-        )
+        # instrument_current_dt_replay_cmd = (
+        #     f"ros2 run adlap_tool_control instrument_current_digital_twin.py "
+        #     f"--file {shlex.quote(str(ros_log_path))} "
+        #     f"--model-file {shlex.quote(str(instrument_current_model_path))} "
+        #     f"--output-file {shlex.quote(str(instrument_current_dt_replay_path))} "
+        #     f"--dof {args.dof}"
+        # )
 
-        run_command(instrument_current_dt_replay_cmd, check=True)
+        # run_command(instrument_current_dt_replay_cmd, check=True)
 
-        if (
-            not instrument_current_dt_replay_path.exists()
-            or instrument_current_dt_replay_path.stat().st_size == 0
-        ):
-            raise RuntimeError(
-                "Instrument Current DT replay file was not created correctly: "
-                f"{instrument_current_dt_replay_path}"
-            )
+        # if (
+        #     not instrument_current_dt_replay_path.exists()
+        #     or instrument_current_dt_replay_path.stat().st_size == 0
+        # ):
+        #     raise RuntimeError(
+        #         "Instrument Current DT replay file was not created correctly: "
+        #         f"{instrument_current_dt_replay_path}"
+        #     )
 
-        print(
-            "\nOffline Instrument Current DT replay saved at:\n"
-            f"{instrument_current_dt_replay_path}"
-        )
+        # print(
+        #     "\nOffline Instrument Current DT replay saved at:\n"
+        #     f"{instrument_current_dt_replay_path}"
+        # )
 
         if use_camera:
             print(f"\nDetected webcam video:\n{video_path}")
@@ -665,28 +738,31 @@ def main():
                 original_video_path.unlink()
                 print(f"Removed temporary raw webcam video: {original_video_path}")
 
-            plot_cmd = args.plot_cmd.format(
+            instrument_plot_cmd = args.plot_cmd.format(
                 ros_log=shlex.quote(str(ros_log_path)),
                 angles=shlex.quote(str(angles_path)),
-                plot_dir=shlex.quote(str(plots_dir)),
+                plot_dir=shlex.quote(str(instrument_plots_dir)),
                 dof=args.dof,
                 video=shlex.quote(str(video_path)),
                 params_file=shlex.quote(str(params_file)),
+                coupling_mode=shlex.quote(coupling_mode),
             )
 
         else:
-            plot_cmd = (
-                f"ros2 run adlap_tool_control plot_trial.py "
+            instrument_plot_cmd = (
+                f"ros2 run adlap_tool_control plot_dof.py "
                 f"--file {shlex.quote(str(ros_log_path))} "
-                f"--output-dir {shlex.quote(str(plots_dir))} "
-                f"--params-file {shlex.quote(str(params_file))}"
+                f"--output-dir {shlex.quote(str(instrument_plots_dir))} "
+                f"--params-file {shlex.quote(str(params_file))} "
+                f"--coupling-mode {shlex.quote(coupling_mode)} "
             )
 
-    if plot_cmd is not None:
-        run_command(plot_cmd, check=True)
+    if instrument_plot_cmd is not None:
+        run_command(instrument_plot_cmd, check=True)
 
     metadata = {
-        "mode": test_mode,
+        "coupling_mode": coupling_mode,
+        "pattern_mode": pattern_mode,
         "detected_hardware": detected_hardware,
         "setup_name": setup_name,
         "setup_dir": str(setup_dir),
@@ -707,12 +783,19 @@ def main():
         "ros_log_path": str(ros_log_path),
         "motor_dt_replay_path": str(motor_dt_replay_path) if motor_dt_replay_path is not None else None,
         "motor_dt_replay_cmd": motor_dt_replay_cmd,
-        "instrument_current_dt_replay_path": (str(instrument_current_dt_replay_path) if instrument_current_dt_replay_path is not None else None),
-        "instrument_current_dt_replay_cmd": instrument_current_dt_replay_cmd,
+        # "instrument_current_dt_replay_path": (str(instrument_current_dt_replay_path) if instrument_current_dt_replay_path is not None else None),
+        # "instrument_current_dt_replay_cmd": instrument_current_dt_replay_cmd,
         "plots_dir": str(plots_dir),
+        "motor_plots_dir": str(motor_plots_dir),
+        "instrument_plots_dir": (
+            str(instrument_plots_dir)
+            if pattern_mode != "motor"
+            else None
+        ),
         "pattern_cmd": args.pattern_cmd,
         "detector_cmd": detector_cmd,
-        "plot_cmd": plot_cmd,
+        "motor_plot_cmd": motor_plot_cmd,
+        "instrument_plot_cmd": instrument_plot_cmd,
     }
 
     with open(metadata_path, "w") as f:
@@ -725,8 +808,10 @@ def main():
     if use_camera:
         print(f"Angles:     {angles_path}")
 
-    if plot_cmd is not None:
-        print(f"Plots:      {plots_dir}")
+    print(f"Motor plots:      {motor_plots_dir}")
+
+    if instrument_plot_cmd is not None:
+        print(f"Instrument plots: {instrument_plots_dir}")
     
     print(f"Metadata:   {metadata_path}")
 

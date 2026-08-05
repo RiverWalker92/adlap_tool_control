@@ -7,8 +7,8 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-# Default directory for the stored motor digital twin model
-DEFAULT_MODEL_DIR = (
+# Default directory for the stored motor digital twin model depending on the setup.
+DEFAULT_MOTOR_ONLY_MODEL_DIR = (
     Path.home()
     / "ros2_ws"
     / "test_data"
@@ -17,6 +17,25 @@ DEFAULT_MODEL_DIR = (
     / "training motor data NEW"
     / "motor_dt_results"
     / "models"
+)
+
+DEFAULT_GEARBOX_ONLY_MODEL_DIR = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+    / "setup_02_motors_gearbox"
+    / "motor_dt_results"
+    / "models"
+)
+
+DEFAULT_FULL_SETUP_CURRENT_MODEL_ROOT = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+    / "trainings data V3"
+    / "instrument_current_dt_results"
 )
 
 
@@ -93,6 +112,11 @@ def load_motor_log(file_path):
             if commands is None:
                 commands = data.get("commands")
 
+
+            instrument_dof_commands = data.get("commanded_instrument_angles")
+            if instrument_dof_commands is None or len(instrument_dof_commands) < 4:
+                instrument_dof_commands = [np.nan, np.nan, np.nan, np.nan]
+
             if t_value is None or positions is None or currents is None:
                 continue
 
@@ -108,6 +132,7 @@ def load_motor_log(file_path):
                 "positions": [float(x) for x in positions[:4]],
                 "currents": [float(x) for x in currents[:4]],
                 "commands": [float(x) for x in commands[:4]],
+                "instrument_dof_commands": [float(x) for x in instrument_dof_commands[:4]],
             })
 
     if not rows:
@@ -200,7 +225,7 @@ def relative_commands_to_target(commands):
     return target
 
 
-def time_since_signal_change(t, signal):
+def time_since_signal_change(t, signal, threshold=0.0):
     result = np.zeros_like(t, dtype=float)
 
     if len(t) == 0:
@@ -210,7 +235,7 @@ def time_since_signal_change(t, signal):
     previous_signal = signal[0]
 
     for i in range(len(t)):
-        if signal[i] != previous_signal:
+        if abs(signal[i] - previous_signal) > threshold:
             last_change_time = t[i]
             previous_signal = signal[i]
 
@@ -256,11 +281,22 @@ def segment_to_arrays(segment):
         dtype=float,
     ).T
 
+    instrument_dof_commands = np.array(
+        [row["instrument_dof_commands"] for row in rows],
+        dtype=float,
+    ).T
+
     for motor_index in range(4):
         positions[motor_index] = positions[motor_index] - positions[motor_index][0]
 
-    return t_global, t_segment, commands, positions, currents
-
+    return (
+    t_global,
+    t_segment,
+    commands,
+    instrument_dof_commands,
+    positions,
+    currents,
+)
 
 def load_motor_dt_models(model_dir):
     model_dir = Path(model_dir).expanduser()
@@ -330,38 +366,177 @@ def build_motor_dt_features(t_segment, target):
         target_based_is_moving,
     ])
 
-def predict_segment_offline(t_segment, raw_commands, models):
-    """
-    Replay the trained Motor DT offline for one segment.
 
-    Input:
-    - raw_commands: relative motor commands from the ROS log
-
-    Output:
-    - commanded_target: reconstructed cumulative target position
-    - predicted_positions: offline predicted encoder response
-    - predicted_currents: offline predicted filtered motor current
+def build_instrument_current_features(t, target):
     """
+    Build the same 7 command-only features as used during
+    instrument current training.
+
+    Feature order:
+    1. target
+    2. abs_target
+    3. target_delta
+    4. abs_target_delta
+    5. target_direction
+    6. time_after_change
+    7. target_based_is_moving
+    """
+    command_change_threshold = 1e-5
+
+    abs_target = np.abs(target)
+
+    instant_target_delta = np.zeros_like(target)
+    instant_target_delta[1:] = target[1:] - target[:-1]
+
+    target_delta = np.zeros_like(target)
+    last_delta = 0.0
+
+    for sample_index in range(len(target)):
+        if abs(instant_target_delta[sample_index]) > command_change_threshold:
+            last_delta = instant_target_delta[sample_index]
+
+        target_delta[sample_index] = last_delta
+
+    abs_target_delta = np.abs(target_delta)
+    target_direction = np.sign(target_delta)
+
+    time_after_change = time_since_signal_change(
+        t,
+        target,
+        threshold=command_change_threshold,
+    )
+
+    movement_memory_s = 1.2
+    target_based_is_moving = (
+        (np.abs(target_delta) > command_change_threshold)
+        & (time_after_change < movement_memory_s)
+    ).astype(float)
+
+    return np.column_stack([
+        target,
+        abs_target,
+        target_delta,
+        abs_target_delta,
+        target_direction,
+        time_after_change,
+        target_based_is_moving,
+    ]), target_based_is_moving
+
+
+def load_instrument_current_model(model_file):
+    model_file = Path(model_file).expanduser()
+
+    if not model_file.exists():
+        raise RuntimeError(f"Missing Instrument Current DT model: {model_file}")
+
+    model_package = joblib.load(model_file)
+
+    expected_features = [
+        "target",
+        "abs_target",
+        "target_delta",
+        "abs_target_delta",
+        "target_direction",
+        "time_after_change",
+        "target_based_is_moving",
+    ]
+
+    feature_names = model_package.get("feature_names")
+
+    if feature_names != expected_features:
+        raise RuntimeError(
+            "The loaded model does not use the expected command-only features.\n"
+            f"Expected: {expected_features}\n"
+            f"Found:    {feature_names}"
+        )
+
+    return model_package
+
+def full_setup_current_model_file(active_dof):
+    return (
+        DEFAULT_FULL_SETUP_CURRENT_MODEL_ROOT
+        / f"dof{active_dof}"
+        / "models"
+        / f"instrument_current_dt_dof{active_dof}_all_motors.pkl"
+    )
+
+def predict_segment_offline(
+    t_segment,
+    raw_commands,
+    instrument_dof_commands,
+    position_models,
+    coupling_mode,
+    full_setup_current_package=None,
+    active_dof=None,
+):
     raw_commands = np.asarray(raw_commands, dtype=float)
 
     commanded_target = relative_commands_to_target(raw_commands)
 
-    predicted_positions = np.full_like(raw_commands, np.nan, dtype=float)
-    predicted_currents = np.full_like(raw_commands, np.nan, dtype=float)
+    predicted_positions = np.full_like(
+        raw_commands,
+        np.nan,
+        dtype=float,
+    )
 
+    predicted_currents = np.full_like(
+        raw_commands,
+        np.nan,
+        dtype=float,
+    )
+
+    # Position prediction currently uses the normal Motor-DT packages.
     for motor_index in range(4):
         target = commanded_target[motor_index]
         motor_features = build_motor_dt_features(t_segment, target)
+        model_package = position_models[motor_index]
 
-        model_package = models[motor_index]
-
-        predicted_positions[motor_index] = model_package["encoder_model"].predict(
-            motor_features
+        predicted_positions[motor_index] = (
+            model_package["encoder_model"].predict(motor_features)
         )
 
-        predicted_currents[motor_index] = model_package["current_model"].predict(
-            motor_features
+        if coupling_mode != "full_setup":
+            predicted_currents[motor_index] = (
+                model_package["current_model"].predict(motor_features)
+            )
+
+    # For a full setup, replace the motor-only current prediction
+    # with the DOF-specific loaded-current prediction.
+    if coupling_mode == "full_setup":
+        if active_dof is None:
+            raise RuntimeError(
+                "--dof is required for coupling mode full_setup."
+            )
+
+        target = instrument_dof_commands[active_dof - 1]
+
+        if not np.all(np.isfinite(target)):
+            raise RuntimeError(
+                "The ROS log does not contain usable "
+                "commanded_instrument_angles."
+            )
+
+        features, _ = build_instrument_current_features(
+            t=t_segment,
+            target=target,
         )
+
+        models_by_motor = full_setup_current_package["models_by_motor"]
+
+        for motor_index in range(4):
+            current_model = models_by_motor.get(motor_index)
+
+            if current_model is None:
+                current_model = models_by_motor.get(str(motor_index))
+
+            if current_model is None:
+                raise RuntimeError(
+                    f"Missing full-setup current model for motor {motor_index}"
+                )
+
+            predicted_currents[motor_index] = current_model.predict(
+                features
+            )
 
     return commanded_target, predicted_positions, predicted_currents
 
@@ -377,7 +552,13 @@ def default_output_file(input_file):
     return input_file.with_name(output_name)
 
 
-def replay_motor_digital_twin(input_file, model_dir, output_file, current_filter_window_size=5):
+def replay_motor_digital_twin(
+    input_file,
+    output_file,
+    coupling_mode,
+    active_dof=None,
+    current_filter_window_size=5,
+):
     input_file = Path(input_file).expanduser()
     output_file = Path(output_file).expanduser()
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -390,9 +571,43 @@ def replay_motor_digital_twin(input_file, model_dir, output_file, current_filter
 
     print(f"Found {len(segments)} valid segments.")
 
-    print(f"Loading Motor DT models from: {model_dir}")
-    models = load_motor_dt_models(model_dir)
+    if coupling_mode == "motor_only":
+        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
 
+    elif coupling_mode == "gearbox_only":
+        position_model_dir = DEFAULT_GEARBOX_ONLY_MODEL_DIR
+
+    elif coupling_mode == "full_setup":
+        # Temporary: the full-setup position model does not exist yet.
+        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
+
+    else:
+        raise RuntimeError(
+            f"Unsupported coupling mode: {coupling_mode}"
+        )
+
+    print(f"Loading Motor DT models from: {position_model_dir}")
+    position_models = load_motor_dt_models(position_model_dir)
+
+    full_setup_current_package = None
+
+    if coupling_mode == "full_setup":
+        if active_dof is None:
+            raise RuntimeError(
+                "--dof is required for coupling mode full_setup."
+            )
+
+        current_model_file = full_setup_current_model_file(active_dof)
+
+        print(
+            "Loading full-setup current model from: "
+            f"{current_model_file}"
+        )
+
+        full_setup_current_package = (
+            load_instrument_current_model(current_model_file)
+        )
+        
     written_rows = 0
 
     with open(output_file, "w") as f:
@@ -404,6 +619,7 @@ def replay_motor_digital_twin(input_file, model_dir, output_file, current_filter
                 t_global,
                 t_segment,
                 raw_commands,
+                instrument_dof_commands,
                 measured_positions,
                 raw_currents,
             ) = segment_to_arrays(segment)
@@ -423,7 +639,11 @@ def replay_motor_digital_twin(input_file, model_dir, output_file, current_filter
             ) = predict_segment_offline(
                 t_segment=t_segment,
                 raw_commands=raw_commands,
-                models=models,
+                instrument_dof_commands=instrument_dof_commands,
+                position_models=position_models,
+                coupling_mode=coupling_mode,
+                full_setup_current_package=full_setup_current_package,
+                active_dof=active_dof,
             )
 
             encoder_deviation = measured_positions - predicted_positions
@@ -441,6 +661,8 @@ def replay_motor_digital_twin(input_file, model_dir, output_file, current_filter
                     "motor_name": info["motor_name"],
                     "trial": info["trial"],
                     "sample_index": int(sample_index),
+                    "coupling_mode": coupling_mode,
+                    "active_dof": int(active_dof) if active_dof is not None else None,
 
                     "raw_commands": safe_list(raw_commands[:, sample_index]),
                     "offline_commanded_target": safe_list(commanded_target[:, sample_index]),
@@ -478,9 +700,18 @@ def main():
     )
 
     parser.add_argument(
-        "--model-dir",
-        default=str(DEFAULT_MODEL_DIR),
-        help="Folder containing motor_dt_m0.pkl ... motor_dt_m3.pkl.",
+        "--coupling-mode",
+        required=True,
+        choices=["motor_only", "gearbox_only", "full_setup"],
+        help="Detected physical coupling configuration.",
+    )
+
+    parser.add_argument(
+        "--dof",
+        type=int,
+        choices=[1, 2, 3, 4],
+        default=None,
+        help="Required for selecting the full-setup current model.",
     )
 
     parser.add_argument(
@@ -507,7 +738,8 @@ def main():
 
     replay_motor_digital_twin(
         input_file=input_file,
-        model_dir=Path(args.model_dir).expanduser(),
+        coupling_mode=args.coupling_mode,
+        active_dof=args.dof,
         output_file=output_file,
         current_filter_window_size=args.current_filter_window_size,
     )

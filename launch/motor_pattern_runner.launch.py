@@ -9,9 +9,9 @@ def generate_launch_description():
     output_dir = LaunchConfiguration("output_dir")
     log_file_name = LaunchConfiguration("log_file_name")
 
-    tool_reader_node = Node(
+    dof_reader_node = Node(
         package="adlap_tool_control",
-        executable="tool_reader_node.py",
+        executable="dof_reader_node.py",
         output="screen",
         parameters=[
             {
@@ -52,7 +52,7 @@ def generate_launch_description():
         DeclareLaunchArgument("output_dir"),
         DeclareLaunchArgument("log_file_name"),
 
-        tool_reader_node,
+        dof_reader_node,
         motor_dt_node,
         delayed_motor_pattern_runner,
         shutdown_when_pattern_is_done,

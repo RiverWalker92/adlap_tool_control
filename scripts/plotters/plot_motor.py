@@ -44,6 +44,9 @@ FINAL_HOLD_DURATION_S = {
     "single_step_large": 0.5,
 }
 
+COMMAND_CHANGE_THRESHOLD = 1e-5
+MOTION_MEMORY_S = 1.2
+
 def parse_task_label(label):
     if not label:
         return {
@@ -104,6 +107,21 @@ def load_motor_log(file_path):
 
             currents = data.get("measured_currents")
             commands = data.get("commanded_motor_positions")
+
+            instrument_commands = data.get(
+                "commanded_instrument_angles"
+            )
+
+            if (
+                instrument_commands is None
+                or len(instrument_commands) < 4
+            ):
+                instrument_commands = [
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                ]
             
             predicted_positions = data.get("predicted_motor_positions")
             predicted_currents = data.get("predicted_motor_currents")
@@ -149,6 +167,9 @@ def load_motor_log(file_path):
                 "positions": [float(x) for x in positions[:4]],
                 "currents": [float(x) for x in currents[:4]],
                 "commands": [float(x) for x in commands[:4]],
+                "instrument_commands": [
+                    float(x) for x in instrument_commands[:4]
+                ],
                 "predicted_positions": predicted_positions,
                 "predicted_currents": predicted_currents,
                 "measured_positions_timestamp": float_or_none(measured_positions_timestamp),
@@ -538,8 +559,45 @@ def get_metric_window(segment, replay_time):
     final_hold = FINAL_HOLD_DURATION_S.get(test_type)
 
     if final_hold is None:
+        if test_type == "gearbox_instrument":
+            # Bij DOF-/instrumenttrials bevat het replaysegment de volledige
+            # sequence, inclusief de afsluitende hold.
+            evaluation_start = float(replay_time[0])
+            evaluation_end = float(replay_time[-1])
+
+            mask = (
+                np.isfinite(replay_time)
+                & (replay_time >= evaluation_start)
+                & (replay_time <= evaluation_end)
+            )
+
+            if np.sum(mask) < 2:
+                print(
+                    f"Warning: fewer than two metric samples for "
+                    f"{segment['task_label']}; skipping metrics."
+                )
+                return None
+
+            command_times_abs = get_actual_command_times(segment)
+
+            if command_times_abs.size >= 2:
+                logged_command_span = float(
+                    command_times_abs[-1] - command_times_abs[0]
+                )
+            else:
+                logged_command_span = 0.0
+
+            return {
+                "start_s": evaluation_start,
+                "end_s": evaluation_end,
+                "mask": mask,
+                "source": "full_replay_segment",
+                "command_count": int(command_times_abs.size),
+                "logged_command_span_s": logged_command_span,
+            }
+
         print(
-            f"Warning: no final hold duration defined for "
+            f"Warning: no metric-window definition for "
             f"{test_type}; skipping metrics."
         )
         return None
@@ -1448,6 +1506,258 @@ def plot_test_type_grid(segments, output_dir, replay_by_task_label=None):
 
         print(f"Saved plot: {plot_path}")
 
+def get_metric_phase_target(
+    segment,
+    replay_time,
+    motor_target,
+):
+    """
+    Kies het commandosignaal waarmee dynamic/stationary
+    wordt bepaald.
+
+    Motor-only:
+        cumulatief motorcommando in pulses.
+
+    Gearbox/instrument:
+        commanded_instrument_angles van de actieve DOF
+        in radialen.
+    """
+    replay_time = np.asarray(replay_time, dtype=float)
+    motor_target = np.asarray(motor_target, dtype=float)
+
+    if segment["info"]["test_type"] != "gearbox_instrument":
+        return motor_target, "offline_motor_target", "pulses"
+
+    rows = segment["rows"]
+
+    instrument_commands = np.asarray(
+        [
+            row.get(
+                "instrument_commands",
+                [np.nan, np.nan, np.nan, np.nan],
+            )
+            for row in rows
+        ],
+        dtype=float,
+    )
+
+    if instrument_commands.ndim != 2:
+        return None, "missing_instrument_command", "rad"
+
+    if instrument_commands.shape[1] < 4:
+        return None, "missing_instrument_command", "rad"
+
+    # Bepaal de actieve DOF eerst uit het task label.
+    motor_name = str(
+        segment["info"].get("motor_name", "")
+    ).lower()
+
+    active_dof_index = None
+
+    for dof_index in range(4):
+        if f"dof{dof_index + 1}" in motor_name:
+            active_dof_index = dof_index
+            break
+
+    # Fallback: kies het instrumentkanaal met de grootste range.
+    if active_dof_index is None:
+        command_ranges = []
+
+        for dof_index in range(4):
+            values = instrument_commands[:, dof_index]
+            values = values[np.isfinite(values)]
+
+            if values.size == 0:
+                command_ranges.append(-np.inf)
+            else:
+                command_ranges.append(
+                    float(np.max(values) - np.min(values))
+                )
+
+        active_dof_index = int(np.argmax(command_ranges))
+
+    instrument_target = instrument_commands[
+        :,
+        active_dof_index,
+    ]
+
+    row_time = np.asarray(
+        [row["time"] for row in rows],
+        dtype=float,
+    )
+
+    if row_time.size > 0:
+        row_time = row_time - row_time[0]
+
+    valid = (
+        np.isfinite(row_time)
+        & np.isfinite(instrument_target)
+    )
+
+    if np.sum(valid) < 2:
+        return None, "missing_instrument_command", "rad"
+
+    valid_time = row_time[valid]
+    valid_target = instrument_target[valid]
+
+    # np.interp vereist oplopende, unieke tijdstippen.
+    order = np.argsort(valid_time)
+    valid_time = valid_time[order]
+    valid_target = valid_target[order]
+
+    valid_time, unique_indices = np.unique(
+        valid_time,
+        return_index=True,
+    )
+    valid_target = valid_target[unique_indices]
+
+    if valid_time.size < 2:
+        return None, "missing_instrument_command", "rad"
+
+    target_range = float(
+        np.max(valid_target) - np.min(valid_target)
+    )
+
+    if target_range <= COMMAND_CHANGE_THRESHOLD:
+        return None, "constant_instrument_command", "rad"
+
+    phase_target = np.interp(
+        replay_time,
+        valid_time,
+        valid_target,
+        left=valid_target[0],
+        right=valid_target[-1],
+    )
+
+    return (
+        phase_target,
+        "commanded_instrument_angles",
+        "rad",
+    )
+
+def make_metric_zone_masks(
+    time,
+    commanded_target,
+    full_mask,
+    command_change_threshold=COMMAND_CHANGE_THRESHOLD,
+    motion_memory_s=MOTION_MEMORY_S,
+):
+    """
+    Verdeel het evaluatievenster in:
+    - full: alle geldige evaluatiesamples;
+    - dynamic: vanaf een targetverandering tot motion_memory_s daarna;
+    - stationary: full minus dynamic.
+
+    De classificatie wordt uitsluitend uit het commanded target afgeleid.
+    """
+    time = np.asarray(time, dtype=float)
+    commanded_target = np.asarray(commanded_target, dtype=float)
+    full_mask = np.asarray(full_mask, dtype=bool)
+
+    valid = (
+        full_mask
+        & np.isfinite(time)
+        & np.isfinite(commanded_target)
+    )
+
+    dynamic_mask = np.zeros(len(time), dtype=bool)
+
+    valid_indices = np.flatnonzero(valid)
+
+    if valid_indices.size > 0:
+        first_index = valid_indices[0]
+        change_indices = []
+
+        # Als het eerste target al niet nul is, begint daar een beweging.
+        if abs(commanded_target[first_index]) > command_change_threshold:
+            change_indices.append(first_index)
+
+        differences = np.abs(np.diff(commanded_target))
+
+        detected_changes = np.flatnonzero(
+            np.isfinite(differences)
+            & (differences > command_change_threshold)
+        ) + 1
+
+        change_indices.extend(detected_changes.tolist())
+
+        for change_index in change_indices:
+            if not valid[change_index]:
+                continue
+
+            change_time = time[change_index]
+
+            dynamic_mask |= (
+                valid
+                & (time >= change_time)
+                & (time <= change_time + motion_memory_s)
+            )
+
+    stationary_mask = valid & ~dynamic_mask
+
+    return {
+        "full": valid,
+        "dynamic": dynamic_mask,
+        "stationary": stationary_mask,
+    }
+
+
+def calculate_residual_statistics(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+
+    if values.size == 0:
+        return {
+            "samples": 0,
+            "mae": None,
+            "rmse": None,
+            "max_abs": None,
+            "bias": None,
+            "sd": None,
+        }
+
+    return {
+        "samples": int(values.size),
+        "mae": float(np.mean(np.abs(values))),
+        "rmse": float(np.sqrt(np.mean(values ** 2))),
+        "max_abs": float(np.max(np.abs(values))),
+        "bias": float(np.mean(values)),
+        "sd": float(
+            np.std(values, ddof=1)
+            if values.size > 1
+            else 0.0
+        ),
+    }
+
+
+def finite_mean(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+
+    if values.size == 0:
+        return None
+
+    return float(np.mean(values))
+
+
+def finite_max(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+
+    if values.size == 0:
+        return None
+
+    return float(np.max(values))
+
+
+def finite_min(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+
+    if values.size == 0:
+        return None
+
+    return float(np.min(values))
 
 def write_motor_metrics(
     segments,
@@ -1469,7 +1779,7 @@ def write_motor_metrics(
 
         (
             t,
-            commands,
+            commanded_target,
             predicted_positions,
             predicted_currents,
             filtered_currents,
@@ -1487,7 +1797,11 @@ def write_motor_metrics(
         if metric_window is None:
             continue
 
-        replay_mask = metric_window["mask"]
+        full_window_mask = np.asarray(
+            metric_window["mask"],
+            dtype=bool,
+        )
+
         evaluation_start = metric_window["start_s"]
         evaluation_end = metric_window["end_s"]
 
@@ -1513,44 +1827,73 @@ def write_motor_metrics(
         ) = segment_to_arrays(segment)
 
         for idx in motor_indices:
-            # ----------------------------------------------------------
-            # Offline replay signals within the evaluation window
-            # ----------------------------------------------------------
-            position_error = np.asarray(
-                encoder_deviation[idx],
-                dtype=float,
-            )[replay_mask]
-
-            filtered_current_error = np.asarray(
-                current_deviation[idx],
-                dtype=float,
-            )[replay_mask]
-
-            command_eval = np.asarray(
-                commands[idx],
-                dtype=float,
-            )[replay_mask]
-
-            filtered_current_eval = np.asarray(
-                filtered_currents[idx],
-                dtype=float,
-            )[replay_mask]
-
-            predicted_current_eval = np.asarray(
-                predicted_currents[idx],
-                dtype=float,
-            )[replay_mask]
-
-            # ----------------------------------------------------------
-            # Raw current comparison within the same evaluation window
-            # ----------------------------------------------------------
-            raw_current = np.asarray(
-                raw_currents[idx],
+            motor_target = np.asarray(
+                commanded_target[idx],
                 dtype=float,
             )
 
-            predicted_current = np.asarray(
+            (
+                phase_target,
+                phase_source,
+                phase_unit,
+            ) = get_metric_phase_target(
+                segment=segment,
+                replay_time=t,
+                motor_target=motor_target,
+            )
+
+            if phase_target is None:
+                print(
+                    f"Warning: no usable phase command for "
+                    f"{segment['task_label']}; "
+                    f"skipping motor {idx} metrics."
+                )
+                continue
+
+            zone_masks = make_metric_zone_masks(
+                time=t,
+                commanded_target=phase_target,
+                full_mask=full_window_mask,
+            )
+
+            phase_differences = np.abs(np.diff(phase_target))
+
+            phase_change_count = int(
+                np.sum(
+                    np.isfinite(phase_differences)
+                    & (
+                        phase_differences
+                        > COMMAND_CHANGE_THRESHOLD
+                    )
+                    & full_window_mask[1:]
+                )
+            )
+
+            position_error_all = np.asarray(
+                encoder_deviation[idx],
+                dtype=float,
+            )
+
+            filtered_current_error_all = np.asarray(
+                current_deviation[idx],
+                dtype=float,
+            )
+
+            filtered_current_all = np.asarray(
+                filtered_currents[idx],
+                dtype=float,
+            )
+
+            predicted_current_all = np.asarray(
                 predicted_currents[idx],
+                dtype=float,
+            )
+
+            # ------------------------------------------------------
+            # Raw current op dezelfde tijdas vergelijken
+            # ------------------------------------------------------
+            raw_current = np.asarray(
+                raw_currents[idx],
                 dtype=float,
             )
 
@@ -1561,151 +1904,227 @@ def write_motor_metrics(
                 & (t_cur <= evaluation_end)
             )
 
-            valid_pred = (
+            valid_prediction = (
                 np.isfinite(t)
-                & np.isfinite(predicted_current)
-                & replay_mask
+                & np.isfinite(predicted_current_all)
+                & full_window_mask
             )
+
+            raw_current_times = np.array([], dtype=float)
+            raw_current_eval = np.array([], dtype=float)
+            raw_current_error = np.array([], dtype=float)
 
             if (
                 np.sum(valid_raw) >= 2
-                and np.sum(valid_pred) >= 2
+                and np.sum(valid_prediction) >= 2
             ):
                 t_raw_valid = t_cur[valid_raw]
-                raw_current_valid = raw_current[valid_raw]
+                raw_valid = raw_current[valid_raw]
 
-                t_pred_valid = t[valid_pred]
-                predicted_current_valid = predicted_current[valid_pred]
+                t_prediction_valid = t[valid_prediction]
+                predicted_valid = predicted_current_all[valid_prediction]
 
                 overlap = (
-                    (t_raw_valid >= t_pred_valid[0])
-                    & (t_raw_valid <= t_pred_valid[-1])
+                    (t_raw_valid >= t_prediction_valid[0])
+                    & (t_raw_valid <= t_prediction_valid[-1])
                 )
 
                 if np.sum(overlap) >= 2:
-                    raw_current_eval = raw_current_valid[overlap]
+                    raw_current_times = t_raw_valid[overlap]
+                    raw_current_eval = raw_valid[overlap]
 
-                    predicted_current_at_raw_time = np.interp(
-                        t_raw_valid[overlap],
-                        t_pred_valid,
-                        predicted_current_valid,
+                    predicted_at_raw_time = np.interp(
+                        raw_current_times,
+                        t_prediction_valid,
+                        predicted_valid,
                     )
 
                     raw_current_error = (
                         raw_current_eval
-                        - predicted_current_at_raw_time
+                        - predicted_at_raw_time
                     )
-                else:
-                    raw_current_eval = np.array([np.nan])
-                    raw_current_error = np.array([np.nan])
-            else:
-                raw_current_eval = np.array([np.nan])
-                raw_current_error = np.array([np.nan])
 
-            # Residual definitions:
-            # position_error = measured - predicted
-            # current_error  = measured - predicted
-            #
-            # Positive bias therefore means systematic underprediction.
-            position_bias = np.nanmean(position_error)
-            filtered_current_bias = np.nanmean(
-                filtered_current_error
+            # ------------------------------------------------------
+            # Full, dynamic en stationary afzonderlijk opslaan
+            # ------------------------------------------------------
+            median_dt = np.median(
+                np.diff(t[np.isfinite(t)])
             )
-            raw_current_bias = np.nanmean(raw_current_error)
 
-            metrics.append({
-                "prediction_source": "offline_replay",
-                "metric_window_source": metric_window["source"],
-                "detected_command_count": metric_window["command_count"],
-                "logged_command_span_s": metric_window["logged_command_span_s"],
+            for metric_zone, zone_mask in zone_masks.items():
+                zone_mask = np.asarray(zone_mask, dtype=bool)
 
-                "test_type": info["test_type"],
-                "motor_name": info["motor_name"],
-                "trial": info["trial"],
-                "motor_index": idx,
+                position_error = position_error_all[zone_mask]
+                filtered_current_error = (
+                    filtered_current_error_all[zone_mask]
+                )
 
-                "evaluation_start_s": float(evaluation_start),
-                "evaluation_end_s": float(evaluation_end),
-                "evaluation_duration_s": float(
-                    evaluation_end - evaluation_start
-                ),
-                "evaluation_samples": int(
-                    np.sum(replay_mask)
-                ),
+                phase_command_eval = phase_target[zone_mask]
+                filtered_current_eval = (
+                    filtered_current_all[zone_mask]
+                )
+                predicted_current_eval = (
+                    predicted_current_all[zone_mask]
+                )
 
-                "command_min_pulses": float(
-                    np.nanmin(command_eval)
-                ),
-                "command_max_pulses": float(
-                    np.nanmax(command_eval)
-                ),
-
-                "position_prediction_mae_pulses": float(
-                    np.nanmean(np.abs(position_error))
-                ),
-                "position_prediction_rmse_pulses": float(
-                    np.sqrt(np.nanmean(position_error ** 2))
-                ),
-                "position_prediction_max_abs_error_pulses": float(
-                    np.nanmax(np.abs(position_error))
-                ),
-                "position_prediction_bias_pulses": float(
-                    position_bias
-                ),
-
-                "filtered_current_prediction_mae_mA": float(
-                    np.nanmean(
-                        np.abs(filtered_current_error)
+                position_stats = calculate_residual_statistics(
+                    position_error
+                )
+                filtered_current_stats = (
+                    calculate_residual_statistics(
+                        filtered_current_error
                     )
-                ),
-                "filtered_current_prediction_rmse_mA": float(
-                    np.sqrt(
-                        np.nanmean(
-                            filtered_current_error ** 2
-                        )
-                    )
-                ),
-                "filtered_current_prediction_max_abs_error_mA": float(
-                    np.nanmax(
-                        np.abs(filtered_current_error)
-                    )
-                ),
-                "filtered_current_prediction_bias_mA": float(
-                    filtered_current_bias
-                ),
+                )
 
-                "raw_current_prediction_mae_mA": float(
-                    np.nanmean(np.abs(raw_current_error))
-                ),
-                "raw_current_prediction_rmse_mA": float(
-                    np.sqrt(
-                        np.nanmean(raw_current_error ** 2)
+                # Zet het zonemask over op de raw-currenttijdas.
+                if raw_current_times.size > 0:
+                    replay_indices = np.searchsorted(
+                        t,
+                        raw_current_times,
+                        side="right",
+                    ) - 1
+
+                    replay_indices = np.clip(
+                        replay_indices,
+                        0,
+                        len(t) - 1,
                     )
-                ),
-                "raw_current_prediction_max_abs_error_mA": float(
-                    np.nanmax(np.abs(raw_current_error))
-                ),
-                "raw_current_prediction_bias_mA": float(
-                    raw_current_bias
-                ),
 
-                "filtered_current_mean_mA": float(
-                    np.nanmean(filtered_current_eval)
-                ),
-                "filtered_current_max_mA": float(
-                    np.nanmax(filtered_current_eval)
-                ),
-                "predicted_current_mean_mA": float(
-                    np.nanmean(predicted_current_eval)
-                ),
+                    raw_zone_mask = zone_mask[replay_indices]
 
-                "raw_current_mean_mA": float(
-                    np.nanmean(raw_current_eval)
-                ),
-                "raw_current_max_mA": float(
-                    np.nanmax(raw_current_eval)
-                ),
-            })
+                    raw_error_zone = raw_current_error[
+                        raw_zone_mask
+                    ]
+                    raw_current_zone = raw_current_eval[
+                        raw_zone_mask
+                    ]
+                else:
+                    raw_error_zone = np.array([], dtype=float)
+                    raw_current_zone = np.array([], dtype=float)
+
+                raw_current_stats = calculate_residual_statistics(
+                    raw_error_zone
+                )
+
+                metrics.append({
+                    "prediction_source": "offline_replay",
+                    "metric_window_source": metric_window["source"],
+                    "metric_zone": metric_zone,
+
+                    "test_type": info["test_type"],
+                    "motor_name": info["motor_name"],
+                    "trial": info["trial"],
+                    "motor_index": idx,
+
+                    "detected_command_count": (
+                        metric_window["command_count"]
+                    ),
+                    "logged_command_span_s": (
+                        metric_window["logged_command_span_s"]
+                    ),
+
+                    "evaluation_start_s": float(evaluation_start),
+                    "evaluation_end_s": float(evaluation_end),
+                    "evaluation_duration_s": float(
+                        evaluation_end - evaluation_start
+                    ),
+                    "zone_duration_s": float(
+                        np.sum(zone_mask) * median_dt
+                    ),
+                    "evaluation_samples": int(
+                        np.sum(zone_mask)
+                    ),
+
+                    "phase_source": phase_source,
+                    "phase_unit": phase_unit,
+                    "phase_change_count": phase_change_count,
+
+                    "command_min_pulses": (
+                        finite_min(phase_command_eval)
+                        if phase_unit == "pulses"
+                        else None
+                    ),
+                    "command_max_pulses": (
+                        finite_max(phase_command_eval)
+                        if phase_unit == "pulses"
+                        else None
+                    ),
+
+                    "instrument_command_min_rad": (
+                        finite_min(phase_command_eval)
+                        if phase_unit == "rad"
+                        else None
+                    ),
+                    "instrument_command_max_rad": (
+                        finite_max(phase_command_eval)
+                        if phase_unit == "rad"
+                        else None
+                    ),
+
+                    "position_prediction_mae_pulses": (
+                        position_stats["mae"]
+                    ),
+                    "position_prediction_rmse_pulses": (
+                        position_stats["rmse"]
+                    ),
+                    "position_prediction_max_abs_error_pulses": (
+                        position_stats["max_abs"]
+                    ),
+                    "position_prediction_bias_pulses": (
+                        position_stats["bias"]
+                    ),
+                    "position_prediction_residual_sd_pulses": (
+                        position_stats["sd"]
+                    ),
+
+                    "filtered_current_prediction_mae_mA": (
+                        filtered_current_stats["mae"]
+                    ),
+                    "filtered_current_prediction_rmse_mA": (
+                        filtered_current_stats["rmse"]
+                    ),
+                    "filtered_current_prediction_max_abs_error_mA": (
+                        filtered_current_stats["max_abs"]
+                    ),
+                    "filtered_current_prediction_bias_mA": (
+                        filtered_current_stats["bias"]
+                    ),
+                    "filtered_current_prediction_residual_sd_mA": (
+                        filtered_current_stats["sd"]
+                    ),
+
+                    "raw_current_prediction_mae_mA": (
+                        raw_current_stats["mae"]
+                    ),
+                    "raw_current_prediction_rmse_mA": (
+                        raw_current_stats["rmse"]
+                    ),
+                    "raw_current_prediction_max_abs_error_mA": (
+                        raw_current_stats["max_abs"]
+                    ),
+                    "raw_current_prediction_bias_mA": (
+                        raw_current_stats["bias"]
+                    ),
+                    "raw_current_prediction_residual_sd_mA": (
+                        raw_current_stats["sd"]
+                    ),
+
+                    "filtered_current_mean_mA": finite_mean(
+                        filtered_current_eval
+                    ),
+                    "filtered_current_max_mA": finite_max(
+                        filtered_current_eval
+                    ),
+                    "predicted_current_mean_mA": finite_mean(
+                        predicted_current_eval
+                    ),
+                    "raw_current_mean_mA": finite_mean(
+                        raw_current_zone
+                    ),
+                    "raw_current_max_mA": finite_max(
+                        raw_current_zone
+                    ),
+                })
 
     metrics_path = Path(output_dir) / "motor_metrics.json"
 
@@ -1740,7 +2159,9 @@ def plot_motor_position_prediction_residuals(
             motor_index = get_active_motor_index(segment)
 
             if motor_index is None:
-                continue
+                motor_indices = range(4)
+            else:
+                motor_indices = [motor_index]
 
             replay_arrays = get_replay_arrays_for_segment(
                 segment,
@@ -1760,61 +2181,63 @@ def plot_motor_position_prediction_residuals(
                 replay_current_deviation,
             ) = replay_arrays
 
-            predicted_position = np.asarray(
-                replay_predicted_positions[motor_index],
-                dtype=float,
-            )
+            for motor_index in motor_indices:
 
-            position_residual = np.asarray(
-                replay_encoder_deviation[motor_index],
-                dtype=float,
-            )
-
-            # encoder_deviation = measured - predicted
-            measured_position = (
-                predicted_position + position_residual
-            )
-
-            t_local = np.asarray(t_replay, dtype=float)
-
-            if len(t_local) < 2:
-                continue
-
-            t_local = t_local - t_local[0]
-
-            data = motor_data.setdefault(
-                motor_index,
-                {
-                    "time": [],
-                    "measured": [],
-                    "predicted": [],
-                    "residual": [],
-                    "end_time": 0.0,
-                },
-            )
-
-            if data["time"]:
-                positive_dt = np.diff(t_local)
-                positive_dt = positive_dt[positive_dt > 0]
-
-                dt = (
-                    np.median(positive_dt)
-                    if len(positive_dt) > 0
-                    else 0.01
+                predicted_position = np.asarray(
+                    replay_predicted_positions[motor_index],
+                    dtype=float,
                 )
 
-                t_local = t_local + data["end_time"] + dt
+                position_residual = np.asarray(
+                    replay_encoder_deviation[motor_index],
+                    dtype=float,
+                )
 
-            data["time"].extend(t_local)
-            data["measured"].extend(measured_position)
-            data["predicted"].extend(predicted_position)
-            data["residual"].extend(position_residual)
-            data["end_time"] = t_local[-1]
+                # encoder_deviation = measured - predicted
+                measured_position = (
+                    predicted_position + position_residual
+                )
 
-            data["time"].append(np.nan)
-            data["measured"].append(np.nan)
-            data["predicted"].append(np.nan)
-            data["residual"].append(np.nan)
+                t_local = np.asarray(t_replay, dtype=float)
+
+                if len(t_local) < 2:
+                    continue
+
+                t_local = t_local - t_local[0]
+
+                data = motor_data.setdefault(
+                    motor_index,
+                    {
+                        "time": [],
+                        "measured": [],
+                        "predicted": [],
+                        "residual": [],
+                        "end_time": 0.0,
+                    },
+                )
+
+                if data["time"]:
+                    positive_dt = np.diff(t_local)
+                    positive_dt = positive_dt[positive_dt > 0]
+
+                    dt = (
+                        np.median(positive_dt)
+                        if len(positive_dt) > 0
+                        else 0.01
+                    )
+
+                    t_local = t_local + data["end_time"] + dt
+
+                data["time"].extend(t_local)
+                data["measured"].extend(measured_position)
+                data["predicted"].extend(predicted_position)
+                data["residual"].extend(position_residual)
+                data["end_time"] = t_local[-1]
+
+                data["time"].append(np.nan)
+                data["measured"].append(np.nan)
+                data["predicted"].append(np.nan)
+                data["residual"].append(np.nan)
 
         if not motor_data:
             continue
@@ -1975,7 +2398,9 @@ def plot_motor_current_prediction_residuals(
             motor_index = get_active_motor_index(segment)
 
             if motor_index is None:
-                continue
+                motor_indices = range(4)
+            else:
+                motor_indices = [motor_index]
 
             replay_arrays = get_replay_arrays_for_segment(
                 segment,
@@ -1995,61 +2420,63 @@ def plot_motor_current_prediction_residuals(
                 replay_current_deviation,
             ) = replay_arrays
 
-            measured_current = np.asarray(
-                replay_filtered_currents[motor_index],
-                dtype=float,
-            )
+            for motor_index in motor_indices:
 
-            predicted_current = np.asarray(
-                replay_predicted_currents[motor_index],
-                dtype=float,
-            )
-
-            current_residual = np.asarray(
-                replay_current_deviation[motor_index],
-                dtype=float,
-            )
-
-            t_local = np.asarray(t_replay, dtype=float)
-            if len(t_local) < 2:
-                continue
-
-            t_local = t_local - t_local[0]
-
-            data = motor_data.setdefault(
-                motor_index,
-                {
-                    "time": [],
-                    "measured": [],
-                    "predicted": [],
-                    "residual": [],
-                    "end_time": 0.0,
-                },
-            )
-
-            if data["time"]:
-                positive_dt = np.diff(t_local)
-                positive_dt = positive_dt[positive_dt > 0]
-
-                dt = (
-                    np.median(positive_dt)
-                    if len(positive_dt) > 0
-                    else 0.01
+                measured_current = np.asarray(
+                    replay_filtered_currents[motor_index],
+                    dtype=float,
                 )
 
-                t_local = t_local + data["end_time"] + dt
+                predicted_current = np.asarray(
+                    replay_predicted_currents[motor_index],
+                    dtype=float,
+                )
 
-            data["time"].extend(t_local)
-            data["measured"].extend(measured_current)
-            data["predicted"].extend(predicted_current)
-            data["residual"].extend(current_residual)
-            data["end_time"] = t_local[-1]
+                current_residual = np.asarray(
+                    replay_current_deviation[motor_index],
+                    dtype=float,
+                )
 
-            # Onderbreking zodat trials niet met een rechte lijn worden verbonden.
-            data["time"].append(np.nan)
-            data["measured"].append(np.nan)
-            data["predicted"].append(np.nan)
-            data["residual"].append(np.nan)
+                t_local = np.asarray(t_replay, dtype=float)
+                if len(t_local) < 2:
+                    continue
+
+                t_local = t_local - t_local[0]
+
+                data = motor_data.setdefault(
+                    motor_index,
+                    {
+                        "time": [],
+                        "measured": [],
+                        "predicted": [],
+                        "residual": [],
+                        "end_time": 0.0,
+                    },
+                )
+
+                if data["time"]:
+                    positive_dt = np.diff(t_local)
+                    positive_dt = positive_dt[positive_dt > 0]
+
+                    dt = (
+                        np.median(positive_dt)
+                        if len(positive_dt) > 0
+                        else 0.01
+                    )
+
+                    t_local = t_local + data["end_time"] + dt
+
+                data["time"].extend(t_local)
+                data["measured"].extend(measured_current)
+                data["predicted"].extend(predicted_current)
+                data["residual"].extend(current_residual)
+                data["end_time"] = t_local[-1]
+
+                # Onderbreking zodat trials niet met een rechte lijn worden verbonden.
+                data["time"].append(np.nan)
+                data["measured"].append(np.nan)
+                data["predicted"].append(np.nan)
+                data["residual"].append(np.nan)
 
         if not motor_data:
             continue
@@ -2182,7 +2609,7 @@ def plot_motor_current_prediction_residuals(
             f"Saved Motor DT current residual plot: {plot_path}"
         )
 
-def plot_motor_trial(file_path, output_dir, replay_file=None):
+def plot_motor(file_path, output_dir, replay_file=None):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2250,7 +2677,7 @@ def main():
 
     args = parser.parse_args()
 
-    plot_motor_trial(
+    plot_motor(
         file_path=args.file,
         output_dir=args.output_dir,
         replay_file=args.replay_file,

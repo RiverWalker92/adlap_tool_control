@@ -137,38 +137,46 @@ def wait_for_stable_marker(cap, dictionary, known_markers, stable_frames=5, prev
 
 def classify_detected_hardware(detected_markers):
     gearbox_markers = [
-        marker for marker in detected_markers
-        if marker["type"] == "gearbox"
+        marker
+        for marker in detected_markers
+        if marker.get("type") == "gearbox"
     ]
 
     instrument_markers = [
-        marker for marker in detected_markers
-        if marker["type"] == "instrument"
+        marker
+        for marker in detected_markers
+        if marker.get("type") == "instrument"
     ]
 
     if len(gearbox_markers) > 1:
-        raise RuntimeError("Multiple gearbox markers detected. Use only one gearbox marker.")
+        raise RuntimeError(
+            "Multiple gearbox markers detected. Use only one gearbox marker."
+        )
 
     if len(instrument_markers) > 1:
-        raise RuntimeError("Multiple instrument markers detected. Use only one instrument marker.")
+        raise RuntimeError(
+            "Multiple instrument markers detected. Use only one instrument marker."
+        )
 
     gearbox = gearbox_markers[0] if gearbox_markers else None
     instrument = instrument_markers[0] if instrument_markers else None
 
     if gearbox is None and instrument is None:
-        mode = "motor_only"
+        coupling_mode = "motor_only"
 
     elif gearbox is not None and instrument is None:
-        mode = "gearbox_only"
+        coupling_mode = "gearbox_only"
 
     elif gearbox is not None and instrument is not None:
-        mode = "full_setup"
+        coupling_mode = "full_setup"
 
     else:
-        raise RuntimeError("Instrument marker detected without gearbox marker.")
+        raise RuntimeError(
+            "Instrument marker detected without gearbox marker."
+        )
 
     return {
-        "mode": mode,
+        "coupling_mode": coupling_mode,
         "gearbox": gearbox,
         "instrument": instrument,
     }
@@ -231,6 +239,13 @@ def main():
                 marker_info = dict(marker_info)
                 marker_info["id"] = marker_id
 
+                marker_type = marker_info.get("type")
+                if marker_type not in {"gearbox", "instrument"}:
+                    raise RuntimeError(
+                        f"Marker {marker_id} has invalid type {marker_type!r}. "
+                        "Expected 'gearbox' or 'instrument'."
+                    )
+
                 detected_marker_ids.append(marker_id)
                 detected_markers.append(marker_info)
 
@@ -261,7 +276,7 @@ def main():
         "timestamp": time.time(),
         "detected_marker_ids": detected_marker_ids,
         "detected_markers": detected_markers,
-        "mode": result["mode"],
+        "coupling_mode": result["coupling_mode"],
         "gearbox": result["gearbox"],
         "instrument": result["instrument"],
     }

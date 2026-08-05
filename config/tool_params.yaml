@@ -1,4 +1,4 @@
-tool_controller_node:
+dof_pattern_runner_node:
   ros__parameters:
     # topic: "/robot_cmd"
     topic: "/right/tool_control_node/instrument_angles"
@@ -31,7 +31,7 @@ tool_controller_node:
       sequence_final_pause_duration: 2.0
 
     dof2:
-      mode: "constant"
+      mode: "sequence"
       value: 0.0
       min: -0.4
       max: 0.4
@@ -73,7 +73,7 @@ tool_controller_node:
     
 
     dof4:
-      mode: "sequence"
+      mode: "constant"
       value: 0.0
       min: 0.0
       max: 0.4

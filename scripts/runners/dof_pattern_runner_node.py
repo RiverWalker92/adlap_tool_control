@@ -12,7 +12,7 @@ from pathlib import Path
 
 class PatternRunner(Node):
     def __init__(self):
-        super().__init__("tool_controller_node")
+        super().__init__("dof_pattern_runner_node")
 
         default_config_path = (
             Path.home()

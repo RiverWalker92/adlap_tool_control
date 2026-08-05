@@ -2,9 +2,10 @@ from pathlib import Path
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 
@@ -30,20 +31,21 @@ def generate_launch_description():
     output_dir = LaunchConfiguration("output_dir")
     log_file_name = LaunchConfiguration("log_file_name")
 
+    coupling_mode = LaunchConfiguration("coupling_mode")
     gearbox_variant = LaunchConfiguration("gearbox_variant")
     instrument_config = LaunchConfiguration("instrument_config")
 
-    tool_pattern_runner_node = Node(
+    dof_pattern_runner_node = Node(
         package="adlap_tool_control",
-        executable="tool_pattern_runner_node.py",
-        name="tool_controller_node",   # belangrijk: moet matchen met tool_params.yaml
+        executable="dof_pattern_runner_node.py",
+        name="dof_pattern_runner_node",   # belangrijk: moet matchen met tool_params.yaml
         parameters=[str(params_file)],
         output="screen",
     )
 
-    tool_reader_node = Node(
+    dof_reader_node = Node(
         package="adlap_tool_control",
-        executable="tool_reader_node.py",
+        executable="dof_reader_node.py",
         output="screen",
         parameters=[
             {
@@ -101,10 +103,15 @@ def generate_launch_description():
 
         ],
         output="screen",
+        condition=IfCondition(
+            PythonExpression([
+                "'", coupling_mode, "' == 'full_setup'"
+            ])
+        ),
     )
     shutdown_when_pattern_is_done = RegisterEventHandler(
         OnProcessExit(
-            target_action=tool_pattern_runner_node,
+            target_action=dof_pattern_runner_node,
             on_exit=[
                 EmitEvent(
                     event=Shutdown(reason="Pattern runner finished")
@@ -116,6 +123,10 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("output_dir"),
         DeclareLaunchArgument("log_file_name"),
+        DeclareLaunchArgument(
+            "coupling_mode",
+            description="Detected coupling mode: gearbox_only or full_setup.",
+        ),
 
         DeclareLaunchArgument(
             "gearbox_variant",
@@ -129,8 +140,8 @@ def generate_launch_description():
             description="Instrument config selected by marker detection, e.g. gripper.",
         ),
 
-        tool_pattern_runner_node,
-        tool_reader_node,
+        dof_pattern_runner_node,
+        dof_reader_node,
         gearbox_state_node,
         instrument_state_node,
         shutdown_when_pattern_is_done,

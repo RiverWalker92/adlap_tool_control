@@ -31,7 +31,7 @@ dof_pattern_runner_node:
       sequence_final_pause_duration: 2.0
 
     dof2:
-      mode: "sequence"
+      mode: "constant"
       value: 0.0
       min: -0.4
       max: 0.4
@@ -73,7 +73,7 @@ dof_pattern_runner_node:
     
 
     dof4:
-      mode: "constant"
+      mode: "sequence"
       value: 0.0
       min: 0.0
       max: 0.4

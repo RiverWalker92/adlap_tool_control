@@ -38,11 +38,15 @@ def generate_launch_description():
     dof_pattern_runner_node = Node(
         package="adlap_tool_control",
         executable="dof_pattern_runner_node.py",
-        name="dof_pattern_runner_node",   # belangrijk: moet matchen met tool_params.yaml
-        parameters=[str(params_file)],
+        name="dof_pattern_runner_node",
+        parameters=[
+            str(params_file),
+            {
+                "coupling_mode": coupling_mode,
+            },
+        ],
         output="screen",
     )
-
     dof_reader_node = Node(
         package="adlap_tool_control",
         executable="dof_reader_node.py",
@@ -95,9 +99,11 @@ def generate_launch_description():
                     / "test_data"
                     / "automated_trials"
                     / "trainings data V3"
-                    / "hybrid_bend_dt_results"
-                    / "random_forest"
-                    / "random_forest_bend_hybrid_model.joblib"
+                    / "full_setup"
+                    / "DOF 2"
+                    / "bend_dt_results"
+                    / "gradient_boosting"
+                    / "gradient_boosting_bend_hybrid_model.joblib"
                 ),
             }
 

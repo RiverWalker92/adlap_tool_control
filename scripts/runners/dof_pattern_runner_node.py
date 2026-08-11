@@ -25,6 +25,9 @@ class PatternRunner(Node):
         self.declare_parameter("topic", "/right/tool_control_node/instrument_angles")
         self.declare_parameter("publish_rate", 100.0)
         self.declare_parameter("duration", 11.0)
+        self.declare_parameter("coupling_mode", "full_setup")
+
+        self.coupling_mode = str(self.get_parameter("coupling_mode").value)
         self.duration = float(self.get_parameter("duration").value)
 
         for i in range(1, 5):
@@ -230,9 +233,21 @@ class PatternRunner(Node):
         test_name = self.generate_test_name()
 
         task = String()
+        if self.coupling_mode == "gearbox_only":
+            setup_label = "setup_02_motors_gearbox"
+
+        elif self.coupling_mode == "full_setup":
+            setup_label = "setup_03_motors_gearbox_instrument"
+
+        else:
+            raise RuntimeError(
+                f"Unsupported coupling mode for DOF pattern runner: "
+                f"{self.coupling_mode}"
+            )
+
         task.data = (
-            f"setup_03|"
-            f"gearbox_instrument|"
+            f"{setup_label}|"
+            f"{self.coupling_mode}|"
             f"{test_name}|"
             f"trial_01|"
             f"{timestamp}"

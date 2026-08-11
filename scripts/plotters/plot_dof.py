@@ -23,6 +23,8 @@ TRIM_DURATION = 750
 TRIM_MARGIN_AFTER = 0.5
 SEGMENT_MARGIN_BEFORE = 0.2
 SEGMENT_MARGIN_AFTER = 1.0
+COMMAND_CHANGE_THRESHOLD = 1e-5
+MOTION_MEMORY_S = 1.2
 
 # General utility functions
 # -----------------------------------------
@@ -774,6 +776,82 @@ def get_sequence_evaluation_window(
         "range_factors": range_factors,
     }
 
+def get_metric_zone_masks(
+    sample_t,
+    command_t,
+    command_values,
+    evaluation_window,
+):
+    """Classify samples as full, dynamic, or stationary."""
+    sample_t = np.asarray(sample_t, dtype=float)
+    command_t = np.asarray(command_t, dtype=float)
+    command_values = clean_numeric_array(command_values)
+
+    full_mask = np.isfinite(sample_t)
+
+    if evaluation_window is not None:
+        full_mask &= (
+            (sample_t >= evaluation_window["start_s"])
+            & (sample_t <= evaluation_window["end_s"])
+        )
+
+    valid_command = (
+        np.isfinite(command_t)
+        & np.isfinite(command_values)
+    )
+    command_t = command_t[valid_command]
+    command_values = command_values[valid_command]
+
+    dynamic_mask = np.zeros(len(sample_t), dtype=bool)
+
+    if len(command_t) >= 2:
+        change_indices = np.where(
+            np.abs(np.diff(command_values))
+            > COMMAND_CHANGE_THRESHOLD
+        )[0] + 1
+
+        change_times = command_t[change_indices]
+
+        if len(change_times) > 0:
+            previous_change_index = (
+                np.searchsorted(
+                    change_times,
+                    sample_t,
+                    side="right",
+                )
+                - 1
+            )
+
+            has_previous_change = previous_change_index >= 0
+
+            time_since_change = np.full(
+                len(sample_t),
+                np.inf,
+                dtype=float,
+            )
+
+            time_since_change[has_previous_change] = (
+                sample_t[has_previous_change]
+                - change_times[
+                    previous_change_index[has_previous_change]
+                ]
+            )
+
+            dynamic_mask = (
+                has_previous_change
+                & (time_since_change >= 0.0)
+                & (time_since_change <= MOTION_MEMORY_S)
+            )
+
+    dynamic_mask &= full_mask
+    stationary_mask = full_mask & ~dynamic_mask
+
+    return {
+        "full": full_mask,
+        "dynamic": dynamic_mask,
+        "stationary": stationary_mask,
+    }
+
 # Prediction metrics computation
 # -----------------------------------------
 def compute_prediction_metrics(
@@ -782,8 +860,21 @@ def compute_prediction_metrics(
     prediction_t,
     prediction_deg,
     evaluation_window=None,
+    video_sample_mask=None,
 ):
     video_t = np.asarray(video_t, dtype=float)
+    if video_sample_mask is None:
+        video_sample_mask = np.ones(len(video_t), dtype=bool)
+    else:
+        video_sample_mask = np.asarray(
+            video_sample_mask,
+            dtype=bool,
+        )
+
+        if len(video_sample_mask) != len(video_t):
+            raise ValueError(
+                "video_sample_mask must match video_t length."
+            )
 
     video_angle_deg = np.asarray(
         [
@@ -806,6 +897,7 @@ def compute_prediction_metrics(
     valid_video = (
         np.isfinite(video_t)
         & np.isfinite(video_angle_deg)
+        & video_sample_mask
     )
 
     valid_prediction = (
@@ -978,8 +1070,16 @@ def write_video_prediction_metrics(
             "residual = median_filtered_video_measurement_deg "
             "- prediction_deg\n\n"
         )
-        for title, metrics in prediction_blocks:
-            write_block(f, title, metrics)
+        for title, metrics_by_zone in prediction_blocks:
+            f.write(f"{title}\n")
+            f.write("=" * len(title) + "\n\n")
+
+            for zone_name in ("full", "dynamic", "stationary"):
+                write_block(
+                    f,
+                    f"Metric zone: {zone_name}",
+                    metrics_by_zone.get(zone_name),
+                )
 
     print(f"Saved video prediction metrics: {metrics_path}")
     return metrics_path
@@ -1140,17 +1240,19 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
         label="commanded pitch [deg]"
     )
 
-    axes[2].plot(
-        t,
-        pitch_deg,
-        label="current pitch from motors [deg]"
-    )
+    # axes[2].plot(
+    #     t,
+    #     pitch_deg,
+    #     label="current pitch from motors [deg]"
+    # )
 
     axes[2].plot(
         video_t,
         video_angle,
         linestyle="-",
+        color="#E76F8A",
         linewidth=2,
+        zorder=2,
         label="video measured angle [deg]"
     )
     has_hybrid_bend = False
@@ -1159,17 +1261,7 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
         hybrid_bend_deg = radians_to_deg_array(hybrid_predicted_angles[1])
         has_hybrid_bend = np.isfinite(hybrid_bend_deg).any()
 
-    if has_hybrid_bend:
-        axes[2].plot(
-            t,
-            hybrid_bend_deg,
-            label="Hybrid DT bend [deg]",
-            linestyle="--",
-            linewidth=1.2,
-            color="green",
-        )
-
-    elif predicted_angles is not None:
+    if predicted_angles is not None: #physics
         predicted_bend_deg = radians_to_deg_array(predicted_angles[1])
         axes[2].plot(
             t,
@@ -1177,8 +1269,18 @@ def plot_dof2_video_validation(plot_dir, t, commanded, current_angles, motor_pos
             label="Physics-based DT bend [deg]",
             linestyle="--",
             linewidth=1.2,
-            color="purple",
+            color="#9C89B8" 
         )
+    if has_hybrid_bend:
+        axes[2].plot(
+            t,
+            hybrid_bend_deg,
+            label="Hybrid DT bend [deg]",
+            linestyle="--",
+            linewidth=1.2,
+            color="#8064A2"
+        )
+    
 
     axes[2].set_ylabel("Angle [deg]")
     axes[2].grid(True)
@@ -1857,7 +1959,7 @@ def plot_video_instrument_measurement_axis(
             jaw_video_angle,
             linestyle="-",
             markersize=3,
-            color="orange",
+            color="#E76F8A",
             label="video measured jaw angle [deg]",
         )
         ax.set_ylabel("Jaw angle [deg]")
@@ -1867,7 +1969,7 @@ def plot_video_instrument_measurement_axis(
             red_shaft_video_angle,
             linestyle="-",
             linewidth=2,
-            color="orange",
+            color="#E76F8A",
             label="video measured red marker vs shaft [deg]",
         )
         ax.set_ylabel("Angle [deg]")
@@ -1952,7 +2054,7 @@ def get_video_prediction_setup(
             {
                 "name": "Physics-based DT bend",
                 "values_deg": predicted_bend_deg,
-                "color": "#8064A2",
+                "color": "#9C89B8",
                 "linestyle": "--",
             }
         ]
@@ -1962,7 +2064,7 @@ def get_video_prediction_setup(
                 {
                     "name": "Hybrid DT bend",
                     "values_deg": hybrid_bend_deg,
-                    "color": "green",
+                    "color": "#8064A2",
                     "linestyle": "--",
                 }
             )
@@ -2022,6 +2124,7 @@ def plot_instrument_prediction_axis(
     ax,
     plot_dir,
     t,
+    commanded,
     active_dof,
     active_dof_name,
     predicted_angles,
@@ -2056,22 +2159,32 @@ def plot_instrument_prediction_axis(
         return
 
     prediction_metric_blocks = []
+    metric_zone_masks = get_metric_zone_masks(
+        sample_t=setup["video_t"],
+        command_t=t,
+        command_values=commanded[active_dof],
+        evaluation_window=evaluation_window,
+    )
 
     for block in setup["prediction_blocks"]:
         prediction_values_deg = block["values_deg"]
 
-        metrics = compute_prediction_metrics(
-            video_t=setup["video_t"],
-            video_angle_deg=setup["video_values_deg"],
-            prediction_t=t,
-            prediction_deg=prediction_values_deg,
-            evaluation_window=evaluation_window,
-        )
+        metrics_by_zone = {}
+
+        for zone_name, zone_mask in metric_zone_masks.items():
+            metrics_by_zone[zone_name] = compute_prediction_metrics(
+                video_t=setup["video_t"],
+                video_angle_deg=setup["video_values_deg"],
+                prediction_t=t,
+                prediction_deg=prediction_values_deg,
+                evaluation_window=evaluation_window,
+                video_sample_mask=zone_mask,
+            )
 
         prediction_metric_blocks.append(
             (
                 block["name"],
-                metrics,
+                metrics_by_zone,
             )
         )
 
@@ -2082,12 +2195,17 @@ def plot_instrument_prediction_axis(
             linewidth=1.5,
             color=block["color"],
             linestyle=block["linestyle"],
+            zorder=4 if block["name"] == "Hybrid DT bend" else 3
         )
 
     # Show metrics box for the most relevant prediction.
     # Prefer Hybrid DT when available, otherwise use the last/only block.
-    shown_metrics_name, shown_metrics = prediction_metric_blocks[-1]
+    shown_metrics_name, shown_metrics_by_zone = prediction_metric_blocks[-1]
 
+    shown_metrics = (
+        shown_metrics_by_zone.get("dynamic")
+        or shown_metrics_by_zone.get("full")
+    )
     add_metrics_text_box(
         ax,
         shown_metrics_name,
@@ -2101,7 +2219,7 @@ def plot_instrument_prediction_axis(
                 setup["video_values_deg"],
                 "-",
                 markersize=3,
-                color="orange",
+                color="#E76F8A",
                 label=setup["video_label"],
             )
         else:
@@ -2110,7 +2228,8 @@ def plot_instrument_prediction_axis(
                 setup["video_values_deg"],
                 "-",
                 linewidth=2,
-                color="orange",
+                color="#E76F8A",
+                zorder=2,
                 label=setup["video_label"],
             )
 
@@ -2266,7 +2385,7 @@ def plot_instrument_position_prediction_residual(
             time_values,
             measured,
             linestyle="-",
-            linewidth=2,
+            linewidth=1.5,
             color="#6BAED6",
             label=setup["video_label"],
         )
@@ -2540,6 +2659,7 @@ def plot_overview_prediction(
             axes[3],
             plot_dir,
             t,
+            commanded,
             active_dof,
             active_dof_name,
             predicted_angles,

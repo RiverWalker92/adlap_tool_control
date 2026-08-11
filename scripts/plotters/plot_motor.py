@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -300,14 +301,68 @@ def get_replay_arrays_for_segment(segment, replay_by_task_label):
     if replay_by_task_label is None:
         return None
 
-    replay_rows = replay_by_task_label.get(segment["task_label"])
+    replay_rows = replay_by_task_label.get(
+        segment["task_label"]
+    )
 
     if replay_rows is None or len(replay_rows) < 2:
         return None
 
-    return replay_rows_to_arrays(replay_rows)
+    # Motor-pattern segment:
+    # task_label is already unique, so use the complete replay segment.
+    if "segment_start_time_s" not in segment:
+        return replay_rows_to_arrays(replay_rows)
 
-def split_into_segments(rows):
+    # DOF-pattern segment:
+    # several waveform segments share the same task_label,
+    # therefore slice the complete replay to this waveform window.
+    start_s = float(segment["segment_start_time_s"])
+    end_s = float(segment["segment_end_time_s"])
+
+    selected_rows = [
+        row
+        for row in replay_rows
+        if start_s
+        <= float(row["segment_time"])
+        <= end_s
+    ]
+
+    if len(selected_rows) < 2:
+        print(
+            "Warning: no matching replay samples for "
+            f"DOF{segment['dof_number']} "
+            f"{segment['pattern_type']} "
+            f"freq={segment['frequency_factor']} "
+            f"range={segment['range_factor']}"
+        )
+        return None
+
+    arrays = replay_rows_to_arrays(selected_rows)
+
+    (
+        t_replay,
+        commanded_target,
+        predicted_positions,
+        predicted_currents,
+        filtered_currents,
+        encoder_deviation,
+        current_deviation,
+    ) = arrays
+
+    # Make every individual waveform start at t = 0.
+    t_replay = t_replay - t_replay[0]
+
+    return (
+        t_replay,
+        commanded_target,
+        predicted_positions,
+        predicted_currents,
+        filtered_currents,
+        encoder_deviation,
+        current_deviation,
+    )
+
+def split_motor_pattern_segments(rows):
     segments = []
     current_segment = []
     current_label = None
@@ -349,6 +404,409 @@ def split_into_segments(rows):
             "unknown_test",
         ]
     ]
+
+def parse_number_token(value):
+    """
+    Convert label notation such as:
+        0p5 -> 0.5
+        1p0 -> 1.0
+        m0p5 -> -0.5
+    """
+    value = str(value)
+
+    negative = value.startswith("m")
+    if negative:
+        value = value[1:]
+
+    number = float(value.replace("p", "."))
+
+    return -number if negative else number
+
+
+def parse_dof_sequence_label(task_label):
+    """
+    Extract DOF sequence information from labels such as:
+
+    continuous_dof2_sequence_sinusoid_triangle_
+    freqx0p5_1p0_2p0_rangex0p5
+    """
+    if not task_label:
+        return None
+
+    label = str(task_label).lower()
+
+    dof_match = re.search(r"dof[\s_-]*([1-4])", label)
+
+    freq_match = re.search(
+        r"freqx([0-9mp_]+?)(?=_rangex|$)",
+        label,
+    )
+
+    range_match = re.search(
+        r"rangex([0-9mp_]+?)(?:\||$)",
+        label,
+    )
+
+    if dof_match is None or freq_match is None or range_match is None:
+        return None
+
+    dof_number = int(dof_match.group(1))
+
+    frequency_factors = [
+        parse_number_token(token)
+        for token in freq_match.group(1).split("_")
+        if token
+    ]
+
+    range_factors = [
+        parse_number_token(token)
+        for token in range_match.group(1).split("_")
+        if token
+    ]
+
+    sequence_part_match = re.search(
+        r"sequence_(.+?)_freqx",
+        label,
+    )
+
+    if sequence_part_match is None:
+        return None
+
+    sequence_part = sequence_part_match.group(1)
+    modes = []
+
+    mode_pattern = re.compile(
+        r"(sinusoid_mid|triangle_mid|sinusoid|triangle)"
+    )
+
+    for match in mode_pattern.finditer(sequence_part):
+        mode_name = match.group(1)
+
+        if mode_name.startswith("sinusoid"):
+            modes.append("sinusoid")
+
+        elif mode_name.startswith("triangle"):
+            modes.append("triangle")
+
+    if not modes:
+        return None
+
+    return {
+        "dof_number": dof_number,
+        "frequency_factors": frequency_factors,
+        "range_factors": range_factors,
+        "modes": modes,
+    }
+
+def split_dof_pattern_segments(
+    rows,
+    command_tolerance=1e-4,
+    minimum_pause_s=1.0,
+):
+    """
+    Split one continuous DOF sequence into individual waveform segments.
+
+    Output segment definition:
+        one DOF
+        + one range factor
+        + one frequency factor
+        + one waveform type
+
+    Example:
+        DOF2 / range 0.5 / freq 0.5 / sinusoid
+        DOF2 / range 0.5 / freq 0.5 / triangle
+        DOF2 / range 0.5 / freq 1.0 / sinusoid
+        DOF2 / range 0.5 / freq 1.0 / triangle
+
+    Sinusoid and triangle remain separate segments here.
+    The plotter can later combine segments with equal
+    DOF + range + frequency into one comparison figure.
+    """
+
+    if not rows:
+        return []
+
+    # ----------------------------------------------------------
+    # 1. Remove irrelevant/unlabelled rows
+    # ----------------------------------------------------------
+
+    valid_rows = [
+        row
+        for row in rows
+        if row.get("task_label") not in [
+            None,
+            "unlabeled",
+            "between_trials",
+            "motor_tests_finished",
+            "tests_finished",
+        ]
+    ]
+
+    if not valid_rows:
+        return []
+
+    # A DOF log should contain one continuous sequence label.
+    task_label = valid_rows[0]["task_label"]
+    info = parse_task_label(task_label)
+
+    sequence_info = parse_dof_sequence_label(task_label)
+
+    if sequence_info is None:
+        raise RuntimeError(
+            "Could not parse DOF sequence information from task label:\n"
+            f"{task_label}"
+        )
+
+    dof_number = sequence_info["dof_number"]
+    dof_index = dof_number - 1
+
+    frequency_factors = sequence_info["frequency_factors"]
+    range_factors = sequence_info["range_factors"]
+    modes = sequence_info["modes"]
+
+    # ----------------------------------------------------------
+    # 2. Get active DOF command
+    # ----------------------------------------------------------
+
+    t = np.asarray(
+        [row["time"] for row in valid_rows],
+        dtype=float,
+    )
+
+    command = np.asarray(
+        [
+            row["instrument_commands"][dof_index]
+            for row in valid_rows
+        ],
+        dtype=float,
+    )
+
+    if len(t) < 3:
+        return []
+
+    t = t - t[0]
+
+    finite = (
+        np.isfinite(t)
+        & np.isfinite(command)
+    )
+
+    if np.sum(finite) < 3:
+        return []
+
+    # ----------------------------------------------------------
+    # 3. Determine neutral/baseline command
+    # ----------------------------------------------------------
+
+    # The sequence starts with a stationary hold.
+    # Median of the first second is more robust than using one sample.
+    initial_mask = (
+        finite
+        & (t <= min(1.0, float(t[-1])))
+    )
+
+    if np.any(initial_mask):
+        baseline = float(
+            np.median(command[initial_mask])
+        )
+    else:
+        baseline = float(command[np.flatnonzero(finite)[0]])
+
+    moving = (
+        finite
+        & (np.abs(command - baseline) > command_tolerance)
+    )
+
+    # ----------------------------------------------------------
+    # 4. Find sustained neutral pauses
+    # ----------------------------------------------------------
+
+    # A sinusoid/triangle naturally crosses zero.
+    # Therefore a single zero sample must NOT split a segment.
+    #
+    # Only a neutral interval lasting >= minimum_pause_s
+    # counts as a true stage pause.
+
+    pause_mask = finite & ~moving
+
+    pause_intervals = []
+
+    pause_start = None
+
+    for index, is_pause in enumerate(pause_mask):
+        if is_pause and pause_start is None:
+            pause_start = index
+
+        is_last = index == len(pause_mask) - 1
+
+        if pause_start is not None and (
+            (not is_pause) or is_last
+        ):
+            pause_end = (
+                index
+                if is_pause and is_last
+                else index - 1
+            )
+
+            duration = (
+                t[pause_end]
+                - t[pause_start]
+            )
+
+            if duration >= minimum_pause_s:
+                pause_intervals.append(
+                    (pause_start, pause_end)
+                )
+
+            pause_start = None
+
+    # ----------------------------------------------------------
+    # 5. Convert pauses into motion blocks
+    # ----------------------------------------------------------
+
+    motion_blocks = []
+
+    previous_pause_end = -1
+
+    for pause_start, pause_end in pause_intervals:
+        block_start = previous_pause_end + 1
+        block_end = pause_start - 1
+
+        block_moving = moving[
+            block_start:block_end + 1
+        ]
+
+        if (
+            block_end >= block_start
+            and np.any(block_moving)
+        ):
+            first_motion = (
+                block_start
+                + np.flatnonzero(block_moving)[0]
+            )
+
+            # Keep the neutral hold after the waveform
+            # as part of this DOF-pattern segment.
+            segment_end = pause_end
+
+            motion_blocks.append(
+                (first_motion, segment_end)
+            )
+        previous_pause_end = pause_end
+
+    # Possible final block after final detected pause.
+    block_start = previous_pause_end + 1
+    block_end = len(valid_rows) - 1
+
+    if block_end >= block_start:
+        block_moving = moving[
+            block_start:block_end + 1
+        ]
+
+        if np.any(block_moving):
+            first_motion = (
+                block_start
+                + np.flatnonzero(block_moving)[0]
+            )
+
+            last_motion = (
+                block_start
+                + np.flatnonzero(block_moving)[-1]
+            )
+
+            motion_blocks.append(
+                (first_motion, last_motion)
+            )
+
+    # ----------------------------------------------------------
+    # 6. Build expected sequence order
+    # ----------------------------------------------------------
+
+    expected_patterns = []
+
+    for range_factor in range_factors:
+        for frequency_factor in frequency_factors:
+            for mode in modes:
+                expected_patterns.append({
+                    "range_factor": range_factor,
+                    "frequency_factor": frequency_factor,
+                    "pattern_type": mode,
+                })
+
+    if len(motion_blocks) != len(expected_patterns):
+        raise RuntimeError(
+            "DOF pattern split does not match the sequence label.\n"
+            f"Detected motion blocks: {len(motion_blocks)}\n"
+            f"Expected blocks:        {len(expected_patterns)}\n"
+            f"DOF:                    {dof_number}\n"
+            f"Frequencies:            {frequency_factors}\n"
+            f"Ranges:                 {range_factors}\n"
+            f"Modes:                  {modes}\n"
+            f"Task label:             {task_label}"
+        )
+
+    # ----------------------------------------------------------
+    # 7. Create final DOF pattern segments
+    # ----------------------------------------------------------
+
+    segments = []
+
+    for block_index, (
+        motion_block,
+        pattern_info,
+    ) in enumerate(
+        zip(motion_blocks, expected_patterns)
+    ):
+        start_index, end_index = motion_block
+
+        segment_rows = valid_rows[
+            start_index:end_index + 1
+        ]
+
+        if len(segment_rows) < 3:
+            continue
+
+        segment = {
+            "task_label": task_label,
+            "rows": segment_rows,
+            "info": dict(info),
+
+            "sequence_start_time_s": float(valid_rows[0]["time"]),
+            "segment_start_time_s": float(
+                segment_rows[0]["time"] - valid_rows[0]["time"]
+            ),
+            "segment_end_time_s": float(
+                segment_rows[-1]["time"] - valid_rows[0]["time"]
+            ),
+
+            "encoder_reference_positions": [
+                float(value)
+                for value in valid_rows[
+                    max(0, start_index - 1)
+                ]["positions"][:4]
+            ],
+
+            "dof_number": dof_number,
+            "dof_index": dof_index,
+
+            "frequency_factor": (
+                pattern_info["frequency_factor"]
+            ),
+
+            "range_factor": (
+                pattern_info["range_factor"]
+            ),
+
+            "pattern_type": (
+                pattern_info["pattern_type"]
+            ),
+
+            "pattern_index": block_index,
+        }
+
+        segments.append(segment)
+
+    return segments
 
 def list_or_nan4(value):
     if value is None:
@@ -2609,12 +3067,962 @@ def plot_motor_current_prediction_residuals(
             f"Saved Motor DT current residual plot: {plot_path}"
         )
 
+def detect_pattern_type(rows):
+    for row in rows:
+        info = parse_task_label(row["task_label"])
+
+        motor_name = str(
+            info.get("motor_name", "")
+        ).lower()
+
+        if re.search(r"dof[\s_-]*[1-4]", motor_name):
+            return "dof"
+
+        if re.fullmatch(r"m[0-3]", motor_name):
+            return "motor"
+
+    return "unknown"
+
+def plot_motor_pattern_results(
+    segments,
+    output_dir,
+    replay_by_task_label,
+):
+    for segment in segments:
+        plot_segment(
+            segment,
+            output_dir,
+            replay_by_task_label=replay_by_task_label,
+        )
+
+    plot_test_type_grid(
+        segments,
+        output_dir,
+        replay_by_task_label=replay_by_task_label,
+    )
+
+    plot_motor_position_prediction_residuals(
+        segments,
+        output_dir,
+        replay_by_task_label,
+    )
+
+    plot_motor_current_prediction_residuals(
+        segments,
+        output_dir,
+        replay_by_task_label,
+    )
+
+def get_commanded_motors_for_dof_patterns(
+    patterns,
+    replay_by_task_label,
+    minimum_position_range_pulses=5.0,
+):
+    """
+    Determine which motors are actually involved in a DOF pattern.
+
+    For DOF-controlled trials the offline motor commanded_target is
+    not always a useful indicator of motor activity. Therefore use
+    the measured encoder motion instead.
+
+    A motor is considered active when its measured encoder position
+    changes by more than minimum_position_range_pulses in at least
+    one waveform segment.
+    """
+
+    active_motors = set()
+
+    for segment in patterns.values():
+        if segment is None:
+            continue
+
+        rows = segment["rows"]
+
+        if len(rows) < 2:
+            continue
+
+        positions = np.asarray(
+            [
+                row["positions"]
+                for row in rows
+            ],
+            dtype=float,
+        )
+
+        if (
+            positions.ndim != 2
+            or positions.shape[1] < 4
+        ):
+            continue
+
+        for motor_index in range(4):
+            motor_position = positions[
+                :,
+                motor_index,
+            ]
+
+            finite = motor_position[
+                np.isfinite(motor_position)
+            ]
+
+            if finite.size < 2:
+                continue
+
+            position_range = float(
+                np.max(finite)
+                - np.min(finite)
+            )
+
+            if (
+                position_range
+                > minimum_position_range_pulses
+            ):
+                active_motors.add(
+                    motor_index
+                )
+
+    return sorted(active_motors)
+
+def plot_dof_pattern_results(
+    segments,
+    output_dir,
+    replay_by_task_label,
+):
+    plot_root = (Path(output_dir))
+    plot_root.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # ----------------------------------------------------------
+    # Group segments by:
+    # DOF + frequency + range
+    #
+    # Within each group:
+    #     sinusoid
+    #     triangle
+    # ----------------------------------------------------------
+
+    grouped = {}
+
+    for segment in segments:
+        key = (
+            int(segment["dof_number"]),
+            float(segment["frequency_factor"]),
+            float(segment["range_factor"]),
+        )
+
+        grouped.setdefault(
+            key,
+            {},
+        )[segment["pattern_type"]] = segment
+
+    # ----------------------------------------------------------
+    # One figure per:
+    # DOF + frequency + range + commanded motor
+    #
+    # Columns:
+    #   left  = sinusoid
+    #   right = triangle
+    #
+    # Rows:
+    #   0 = DOF command
+    #   1 = position
+    #   2 = position residual
+    #   3 = current
+    #   4 = current residual
+    # ----------------------------------------------------------
+
+    for (
+        dof_number,
+        frequency,
+        range_factor,
+    ), patterns in sorted(grouped.items()):
+
+        dof_dir = plot_root
+        dof_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        # Only generate plots for motors that actually
+        # received a motor target during this DOF pattern.
+        active_motors = get_commanded_motors_for_dof_patterns(
+            patterns,
+            replay_by_task_label,
+        )
+
+        if not active_motors:
+            print(
+                f"Warning: no commanded motors detected for "
+                f"DOF{dof_number}, "
+                f"freq x{frequency:g}, "
+                f"range x{range_factor:g}"
+            )
+            continue
+
+        for motor_index in active_motors:
+
+            # sharey="row":
+            # sinusoid and triangle use exactly the same
+            # y-axis limits for each type of signal.
+            fig, axes = plt.subplots(
+                5,
+                2,
+                figsize=(16, 13),
+                sharey="row",
+                squeeze=False,
+            )
+
+            fig.suptitle(
+                (
+                    f"Motor DT - DOF{dof_number} - "
+                    f"Motor {motor_index} - "
+                    f"frequency x{frequency:g} - "
+                    f"range x{range_factor:g}"
+                ),
+                fontsize=15,
+            )
+
+            waveform_columns = [
+                (
+                    "Sinusoid",
+                    patterns.get("sinusoid"),
+                ),
+                (
+                    "Triangle",
+                    patterns.get("triangle"),
+                ),
+            ]
+
+            for column_index, (
+                waveform_name,
+                segment,
+            ) in enumerate(waveform_columns):
+
+                # --------------------------------------------------
+                # Missing waveform
+                # --------------------------------------------------
+
+                if segment is None:
+                    for row_index in range(5):
+                        axes[
+                            row_index,
+                            column_index,
+                        ].axis("off")
+
+                    continue
+
+                rows = segment["rows"]
+                dof_index = segment["dof_index"]
+
+                # --------------------------------------------------
+                # Raw log data
+                # --------------------------------------------------
+
+                t_raw = np.asarray(
+                    [
+                        row["time"]
+                        for row in rows
+                    ],
+                    dtype=float,
+                )
+
+                t_raw = (
+                    t_raw
+                    - t_raw[0]
+                )
+
+                dof_command = np.asarray(
+                    [
+                        row[
+                            "instrument_commands"
+                        ][dof_index]
+                        for row in rows
+                    ],
+                    dtype=float,
+                )
+
+                raw_position = np.asarray(
+                    [
+                        row["positions"][
+                            motor_index
+                        ]
+                        for row in rows
+                    ],
+                    dtype=float,
+                )
+
+                # Position is shown relative to the
+                # beginning of this individual pattern.
+                encoder_reference = float(
+                    segment["encoder_reference_positions"][motor_index]
+                )
+
+                raw_position = (
+                    raw_position
+                    - encoder_reference
+                )
+
+                raw_current = np.asarray(
+                    [
+                        row["currents"][
+                            motor_index
+                        ]
+                        for row in rows
+                    ],
+                    dtype=float,
+                )
+
+                # --------------------------------------------------
+                # Offline Motor DT replay
+                # --------------------------------------------------
+
+                replay_arrays = (
+                    get_replay_arrays_for_segment(
+                        segment,
+                        replay_by_task_label,
+                    )
+                )
+
+                # ==================================================
+                # ROW 0 — DOF COMMAND
+                # ==================================================
+
+                ax_command = axes[
+                    0,
+                    column_index,
+                ]
+
+                ax_command.set_title(
+                    waveform_name
+                )
+
+                ax_command.plot(
+                    t_raw,
+                    dof_command,
+                    color="black",
+                    linewidth=1.4,
+                    label=(
+                        f"DOF{dof_number} command"
+                    ),
+                )
+
+                ax_command.set_ylabel(
+                    "Command [rad]"
+                )
+
+                ax_command.grid(True)
+                ax_command.legend(
+                    fontsize=8
+                )
+
+                # ==================================================
+                # ROW 1 — POSITION
+                # ==================================================
+
+                ax_position = axes[
+                    1,
+                    column_index,
+                ]
+
+                ax_position.plot(
+                    t_raw,
+                    raw_position,
+                    color="#6BAED6",
+                    linewidth=1.5,
+                    label=(
+                        "Measured encoder position"
+                    ),
+                )
+
+                # ==================================================
+                # ROW 3 — RAW CURRENT
+                # ==================================================
+
+                ax_current = axes[
+                    3,
+                    column_index,
+                ]
+
+                ax_current.plot(
+                    t_raw,
+                    raw_current,
+                    color="orange",
+                    linewidth=0.8,
+                    alpha=0.30,
+                    label="Raw measured current",
+                )
+
+                # --------------------------------------------------
+                # Offline prediction + residuals
+                # --------------------------------------------------
+
+                if replay_arrays is not None:
+                    (
+                        t_replay,
+                        replay_commanded_target,
+                        replay_predicted_positions,
+                        replay_predicted_currents,
+                        replay_filtered_currents,
+                        replay_encoder_deviation,
+                        replay_current_deviation,
+                    ) = replay_arrays
+
+                    # ==============================================
+                    # ROW 1 — POSITION PREDICTION
+                    # ==============================================
+
+                    ax_position.plot(
+                        t_replay,
+                        replay_predicted_positions[
+                            motor_index
+                        ],
+                        color="tab:purple",
+                        linestyle="--",
+                        linewidth=1.5,
+                        label=(
+                            "Predicted encoder position"
+                        ),
+                    )
+
+                    # ==============================================
+                    # ROW 2 — POSITION RESIDUAL
+                    # ==============================================
+
+                    ax_position_residual = axes[
+                        2,
+                        column_index,
+                    ]
+
+                    ax_position_residual.plot(
+                        t_replay,
+                        replay_encoder_deviation[
+                            motor_index
+                        ],
+                        color="#4C78A8",
+                        linewidth=1.2,
+                        label="Position residual",
+                    )
+
+                    ax_position_residual.axhline(
+                        0.0,
+                        color="black",
+                        linewidth=1.0,
+                    )
+
+                    # ==============================================
+                    # ROW 3 — CURRENT
+                    # ==============================================
+
+                    ax_current.plot(
+                        t_replay,
+                        replay_filtered_currents[
+                            motor_index
+                        ],
+                        color="orange",
+                        linewidth=1.4,
+                        label=(
+                            "Filtered measured current"
+                        ),
+                    )
+
+                    ax_current.plot(
+                        t_replay,
+                        replay_predicted_currents[
+                            motor_index
+                        ],
+                        color="tab:purple",
+                        linestyle="--",
+                        linewidth=1.4,
+                        label="Predicted current",
+                    )
+
+                    # ==============================================
+                    # ROW 4 — CURRENT RESIDUAL
+                    # ==============================================
+
+                    ax_current_residual = axes[
+                        4,
+                        column_index,
+                    ]
+
+                    ax_current_residual.plot(
+                        t_replay,
+                        replay_current_deviation[
+                            motor_index
+                        ],
+                        color="#4C78A8",
+                        linewidth=1.2,
+                        label="Current residual",
+                    )
+
+                    ax_current_residual.axhline(
+                        0.0,
+                        color="black",
+                        linewidth=1.0,
+                    )
+
+                # --------------------------------------------------
+                # Axis labels
+                # --------------------------------------------------
+
+                axes[
+                    1,
+                    column_index,
+                ].set_ylabel(
+                    "Position [pulses]"
+                )
+
+                axes[
+                    2,
+                    column_index,
+                ].set_ylabel(
+                    "Position residual [pulses]"
+                )
+
+                axes[
+                    3,
+                    column_index,
+                ].set_ylabel(
+                    "Current [mA]"
+                )
+
+                axes[
+                    4,
+                    column_index,
+                ].set_ylabel(
+                    "Current residual [mA]"
+                )
+
+                axes[
+                    4,
+                    column_index,
+                ].set_xlabel(
+                    "Time [s]"
+                )
+
+                # --------------------------------------------------
+                # Grid + legends
+                # --------------------------------------------------
+
+                for row_index in range(
+                    1,
+                    5,
+                ):
+                    axes[
+                        row_index,
+                        column_index,
+                    ].grid(True)
+
+                    handles, labels = (
+                        axes[
+                            row_index,
+                            column_index,
+                        ].get_legend_handles_labels()
+                    )
+
+                    if handles:
+                        axes[
+                            row_index,
+                            column_index,
+                        ].legend(
+                            fontsize=8
+                        )
+
+            # ------------------------------------------------------
+            # Keep x-axis beginning at zero
+            # ------------------------------------------------------
+
+            for row_index in range(5):
+                for column_index in range(2):
+                    if (
+                        axes[
+                            row_index,
+                            column_index,
+                        ].axison
+                    ):
+                        axes[
+                            row_index,
+                            column_index,
+                        ].set_xlim(
+                            left=0.0
+                        )
+
+            plt.tight_layout(
+                rect=[
+                    0,
+                    0,
+                    1,
+                    0.96,
+                ]
+            )
+
+            filename = (
+                f"dof_{dof_number}_"
+                f"motor_{motor_index}_"
+                f"freq_"
+                f"{safe_name(f'{frequency:g}')}_"
+                f"range_"
+                f"{safe_name(f'{range_factor:g}')}"
+                f".png"
+            )
+
+            plot_path = (
+                dof_dir
+                / filename
+            )
+
+            fig.savefig(
+                plot_path,
+                dpi=200,
+            )
+
+            plt.close(fig)
+
+            print(
+                "Saved DOF-pattern plot: "
+                f"{plot_path}"
+            )
+
+def plot_dof_overall_residuals(
+    segments,
+    output_dir,
+    replay_by_task_label,
+):
+    if replay_by_task_label is None or not segments:
+        return
+
+    dof_number = segments[0]["dof_number"]
+
+    # Determine which motors were actually commanded.
+    all_patterns = {
+        f"{segment['pattern_type']}_{segment['pattern_index']}": segment
+        for segment in segments
+    }
+
+    active_motors = get_commanded_motors_for_dof_patterns(
+        all_patterns,
+        replay_by_task_label,
+    )
+
+    if not active_motors:
+        return
+
+    segments = sorted(
+        segments,
+        key=lambda segment: segment["segment_start_time_s"],
+    )
+
+    output_dir = (
+        Path(output_dir)
+        / "overall_residuals"
+    )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    for motor_index in active_motors:
+
+        time_all = []
+        measured_position_all = []
+        predicted_position_all = []
+        position_residual_all = []
+
+        measured_current_all = []
+        predicted_current_all = []
+        current_residual_all = []
+
+        elapsed_time = 0.0
+
+        for segment in segments:
+            replay_arrays = get_replay_arrays_for_segment(
+                segment,
+                replay_by_task_label,
+            )
+
+            if replay_arrays is None:
+                continue
+
+            (
+                t,
+                commanded_target,
+                predicted_positions,
+                predicted_currents,
+                filtered_currents,
+                encoder_deviation,
+                current_deviation,
+            ) = replay_arrays
+
+            t = np.asarray(t, dtype=float)
+
+            if len(t) < 2:
+                continue
+
+            t = t - t[0]
+
+            if time_all:
+                positive_dt = np.diff(t)
+                positive_dt = positive_dt[positive_dt > 0]
+
+                dt = (
+                    float(np.median(positive_dt))
+                    if positive_dt.size > 0
+                    else 0.01
+                )
+
+                t = t + elapsed_time + dt
+
+            predicted_position = np.asarray(
+                predicted_positions[motor_index],
+                dtype=float,
+            )
+
+            position_residual = np.asarray(
+                encoder_deviation[motor_index],
+                dtype=float,
+            )
+
+            measured_position = (
+                predicted_position
+                + position_residual
+            )
+
+            measured_current = np.asarray(
+                filtered_currents[motor_index],
+                dtype=float,
+            )
+
+            predicted_current = np.asarray(
+                predicted_currents[motor_index],
+                dtype=float,
+            )
+
+            current_residual = np.asarray(
+                current_deviation[motor_index],
+                dtype=float,
+            )
+
+            time_all.extend(t)
+            measured_position_all.extend(measured_position)
+            predicted_position_all.extend(predicted_position)
+            position_residual_all.extend(position_residual)
+
+            measured_current_all.extend(measured_current)
+            predicted_current_all.extend(predicted_current)
+            current_residual_all.extend(current_residual)
+
+            elapsed_time = float(t[-1])
+
+            # Visual separation between individual patterns
+            time_all.append(np.nan)
+
+            measured_position_all.append(np.nan)
+            predicted_position_all.append(np.nan)
+            position_residual_all.append(np.nan)
+
+            measured_current_all.append(np.nan)
+            predicted_current_all.append(np.nan)
+            current_residual_all.append(np.nan)
+
+        t = np.asarray(time_all, dtype=float)
+
+        # ======================================================
+        # POSITION
+        # ======================================================
+
+        fig, axes = plt.subplots(
+            1,
+            2,
+            figsize=(16, 5),
+            sharex=True,
+        )
+
+        fig.suptitle(
+            f"Motor DT - DOF{dof_number} - Motor {motor_index} - position",
+            fontsize=15,
+        )
+
+        axes[0].plot(
+            t,
+            measured_position_all,
+            color="#6BAED6",
+            linewidth=1.4,
+            label="Measured encoder position",
+        )
+
+        axes[0].plot(
+            t,
+            predicted_position_all,
+            color="tab:purple",
+            linestyle="--",
+            linewidth=1.4,
+            label="Predicted encoder position",
+        )
+
+        axes[0].set_title(
+            "Encoder position: measured vs predicted"
+        )
+        axes[0].set_ylabel(
+            "Relative position [pulses]"
+        )
+        axes[0].set_xlabel("Time [s]")
+        axes[0].grid(True)
+        axes[0].legend(fontsize=8)
+
+        axes[1].plot(
+            t,
+            position_residual_all,
+            color="#4C78A8",
+            linewidth=1.2,
+            label="Position residual",
+        )
+
+        axes[1].axhline(
+            0.0,
+            color="black",
+            linewidth=1.0,
+        )
+
+        axes[1].set_title(
+            "Position residual = measured - predicted"
+        )
+        axes[1].set_ylabel(
+            "Position residual [pulses]"
+        )
+        axes[1].set_xlabel("Time [s]")
+        axes[1].grid(True)
+        axes[1].legend(fontsize=8)
+
+        plt.tight_layout(
+            rect=[0, 0, 1, 0.94]
+        )
+
+        plot_path = (
+            output_dir
+            / f"motor_{motor_index}_position_prediction_residual.png"
+        )
+
+        fig.savefig(
+            plot_path,
+            dpi=200,
+        )
+        plt.close(fig)
+
+        # ======================================================
+        # CURRENT
+        # ======================================================
+
+        fig, axes = plt.subplots(
+            1,
+            2,
+            figsize=(16, 5),
+            sharex=True,
+        )
+
+        fig.suptitle(
+            f"Motor DT - DOF{dof_number} - Motor {motor_index} - current",
+            fontsize=15,
+        )
+
+        axes[0].plot(
+            t,
+            measured_current_all,
+            color="orange",
+            linewidth=1.4,
+            label="Filtered measured current",
+        )
+
+        axes[0].plot(
+            t,
+            predicted_current_all,
+            color="tab:purple",
+            linestyle="--",
+            linewidth=1.4,
+            label="Predicted current",
+        )
+
+        axes[0].set_title(
+            "Motor current: measured vs predicted"
+        )
+        axes[0].set_ylabel(
+            "Current [mA]"
+        )
+        axes[0].set_xlabel("Time [s]")
+        axes[0].grid(True)
+        axes[0].legend(fontsize=8)
+
+        axes[1].plot(
+            t,
+            current_residual_all,
+            color="#4C78A8",
+            linewidth=1.2,
+            label="Current residual",
+        )
+
+        axes[1].axhline(
+            0.0,
+            color="black",
+            linewidth=1.0,
+        )
+
+        axes[1].set_title(
+            "Current residual = measured - predicted"
+        )
+        axes[1].set_ylabel(
+            "Current residual [mA]"
+        )
+        axes[1].set_xlabel("Time [s]")
+        axes[1].grid(True)
+        axes[1].legend(fontsize=8)
+
+        plt.tight_layout(
+            rect=[0, 0, 1, 0.94]
+        )
+
+        plot_path = (
+            output_dir
+            / f"motor_{motor_index}_current_prediction_residual.png"
+        )
+
+        fig.savefig(
+            plot_path,
+            dpi=200,
+        )
+        plt.close(fig)
+
 def plot_motor(file_path, output_dir, replay_file=None):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     rows = load_motor_log(file_path)
-    segments = split_into_segments(rows)
+    pattern_type = detect_pattern_type(rows)
+
+    if pattern_type == "motor":
+        print("Detected motor-pattern commands.")
+        segments = split_motor_pattern_segments(rows)
+
+    elif pattern_type == "dof":
+        print("Detected DOF-pattern commands.")
+        segments = split_dof_pattern_segments(rows)
+        print(f"Number of DOF pattern segments: {len(segments)}")
+
+        for segment in segments:
+            print(
+                f"  DOF{segment['dof_number']} | "
+                f"{segment['pattern_type']} | "
+                f"freq x{segment['frequency_factor']} | "
+                f"range x{segment['range_factor']} | "
+                f"{len(segment['rows'])} samples"
+            )
+
+    else:
+        raise RuntimeError(
+            "Could not determine whether this log contains "
+            "motor-pattern or DOF-pattern commands."
+        )
 
     if replay_file is None:
         replay_file = default_replay_file_from_log(file_path)
@@ -2627,39 +4035,34 @@ def plot_motor(file_path, output_dir, replay_file=None):
     else:
         print(f"Loaded offline Motor DT replay: {replay_file}")
 
-    plot_motor_overview(rows, output_dir)
-
-    for segment in segments:
-        plot_segment(
-            segment,
+    if pattern_type == "motor":
+        plot_motor_pattern_results(
+            segments,
             output_dir,
-            replay_by_task_label=replay_by_task_label,
+            replay_by_task_label,
         )
-        # plot_segment_command_debug(segment, output_dir)
+        plot_motor_overview(
+            rows, 
+            output_dir)
 
-    plot_test_type_grid(
-        segments,
-        output_dir,
-        replay_by_task_label=replay_by_task_label)
-
-    plot_motor_position_prediction_residuals(
-        segments=segments,
-        output_dir=output_dir,
-        replay_by_task_label=replay_by_task_label,
-    )
-
-    plot_motor_current_prediction_residuals(
-        segments=segments,
-        output_dir=output_dir,
-        replay_by_task_label=replay_by_task_label,
-    )
+    elif pattern_type == "dof":
+        plot_dof_pattern_results(
+            segments,
+            output_dir,
+            replay_by_task_label,
+        )
+        plot_dof_overall_residuals(
+            segments,
+            output_dir,
+            replay_by_task_label,
+        )
 
     write_motor_metrics(
-        segments, 
-        output_dir, 
-        replay_by_task_label=replay_by_task_label)
-
-    print(f"Saved motor-only plots in: {output_dir}")
+        segments,
+        output_dir,
+        replay_by_task_label=replay_by_task_label,
+    )
+        
 
 def main():
     parser = argparse.ArgumentParser(

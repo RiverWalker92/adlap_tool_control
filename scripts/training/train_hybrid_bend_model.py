@@ -8,12 +8,31 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+AUTOMATED_TRIALS_DIR = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+)
+
+DEFAULT_DOF2_DATA_DIR = (
+    AUTOMATED_TRIALS_DIR
+    / "trainings data V3"
+    / "full_setup"
+    / "DOF 2"
+)
+
+DEFAULT_DOF2_RESULT_DIR = (
+    DEFAULT_DOF2_DATA_DIR
+    / "bend_dt_results"
+)
 
 def load_jsonl(path: Path):
     rows = []
@@ -117,12 +136,12 @@ def filter_video_angle(df):
     df["video_angle"] = df["video_angle_filtered"]
     return df
 
-def add_history_features(df, feature_columns):
-    for col in feature_columns:
-        df[f"{col}_prev"] = df[col].shift(1)
-        df[f"{col}_delta"] = df[col].diff()
-        df[f"{col}_direction"] = np.sign(df[f"{col}_delta"])
-    return df
+# def add_history_features(df, feature_columns):
+#     for col in feature_columns:
+#         df[f"{col}_prev"] = df[col].shift(1)
+#         df[f"{col}_delta"] = df[col].diff()
+#         df[f"{col}_direction"] = np.sign(df[f"{col}_delta"])
+#     return df
 
 def find_ros_video_pairs(search_dir: Path):
     pairs = []
@@ -608,7 +627,8 @@ def write_model_comparison_txt(metrics_df, output_path: Path):
         f.write("-----------------\n")
         f.write("Target: prediction_error = video_angle - old_DT_prediction\n")
         f.write("Hybrid prediction: old_DT_prediction + ML_predicted_error\n")
-        f.write("Evaluation split: random 25% test samples\n\n")
+        f.write("Evaluation split: trial-based hold-out\n")
+        f.write("Complete trials were separated between training and testing.\n\n")
 
         f.write("Model ranking by Hybrid MAE\n")
         f.write("---------------------------\n")
@@ -649,19 +669,36 @@ def train_and_evaluate(df, output_dir: Path):
     for col in feature_cols:
         print(f"  {col}")
     print(f"Total features: {len(feature_cols)}")
-
     X = df[feature_cols]
     y = df["prediction_error"]
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.25,
-        shuffle=True,
-        random_state=42,
-    )
+    trial_ids = sorted(df["trial_id"].unique())
+
+    if len(trial_ids) < 2:
+        raise RuntimeError(
+            "At least two trials are required for trial-based train/test splitting."
+        )
+
+    test_trial = trial_ids[-1]
+    train_trials = trial_ids[:-1]
+    train_mask = df["trial_id"].isin(train_trials)
+    test_mask = df["trial_id"] == test_trial
+
+    X_train = X.loc[train_mask]
+    y_train = y.loc[train_mask]
+
+    X_test = X.loc[test_mask]
+    y_test = y.loc[test_mask]
 
     test_index = X_test.index
+
+    print("\nTrial-based train/test split:")
+    print(f"  Training trials ({len(train_trials)}):")
+    for trial in train_trials:
+        print(f"    {trial}")
+
+    print(f"  Test trial:")
+    print(f"    {test_trial}")
 
     models = make_models()
     all_metrics = []
@@ -723,8 +760,15 @@ def plot_results(test_df, output_path: Path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", required=True)
-    parser.add_argument("--output-dir", required=True)
+    parser.add_argument(
+        "--data-dir",
+        default=str(DEFAULT_DOF2_DATA_DIR),
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_DOF2_RESULT_DIR),
+    )
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir).expanduser()

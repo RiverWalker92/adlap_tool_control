@@ -1,0 +1,850 @@
+#include "adlap_tool_control/instrument_controller.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
+
+
+
+InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logger, rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher) 
+    : gearbox(gearbox), logger_(logger), task_publisher_(task_publisher)
+
+{
+}
+
+double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
+  double sample,
+  std::size_t max_size,
+  double min_value,
+  double max_value)
+{
+    // Clamp sample to provided range
+    if (sample < min_value) sample = min_value;
+    else if (sample > max_value) sample = max_value;
+    history.push_front(sample);
+    while (history.size() > max_size) {
+        history.pop_back();
+    }
+
+    double sum = 0.0;
+    for (const double& v : history) {
+        sum += v;
+    }
+    return history.empty() ? 0.0 : (sum / static_cast<double>(history.size()));
+}
+void InstrumentController::publish_task(const std::string& task_name)
+{
+    if (!task_publisher_) {
+        return;
+    }
+
+    auto msg = std_msgs::msg::String();
+    msg.data = task_name;
+    task_publisher_->publish(msg);
+
+    RCLCPP_INFO(logger_, "Published task label: %s", task_name.c_str());
+}
+
+void InstrumentController::set_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose)
+{
+    // Add to history + compute smoothed values (same helper called 4 times)
+    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, roll, smoothing_factor_, -INFINITY, INFINITY);
+    smoothed_pitch_ = update_history_and_get_mean(pitch_history_, pitch, smoothing_factor_, -M_PI/4, M_PI/4);
+    smoothed_yaw_ = update_history_and_get_mean(yaw_history_, yaw, smoothing_factor_, -M_PI/4, M_PI/4);
+    smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
+    if (verbose) RCLCPP_DEBUG(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', articulation: '%f'", smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
+    gearbox.motor_controller.send_motor_positions(calculate_motor_positions_from_euler_angles(smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_, verbose), true);
+}
+
+void InstrumentController::set_joint_angles(double shaft_roll, double bend, double tip_rotation, double articulation, bool verbose)
+{
+    // Add to history + compute smoothed values (same helper called 4 times)
+    smoothed_shaft_roll_ = update_history_and_get_mean(shaft_roll_history_, shaft_roll, smoothing_factor_, -INFINITY, INFINITY);
+    smoothed_bend_ = update_history_and_get_mean(bend_history_, bend, smoothing_factor_, -M_PI/4, M_PI/4);
+    smoothed_tip_rotation_ = update_history_and_get_mean(tip_rotation_history_, tip_rotation, smoothing_factor_, -INFINITY, INFINITY);
+    smoothed_articulation_ = update_history_and_get_mean(articulation_history_, articulation, smoothing_factor_, 0, M_PI/6);
+    if (verbose) RCLCPP_DEBUG(logger_, "Smoothed angles - shaft_roll: '%f', bend: '%f', tip_rotation: '%f', articulation: '%f'", smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_);
+    gearbox.motor_controller.send_motor_positions(calculate_motor_positions_from_joint_angles(smoothed_shaft_roll_, smoothed_bend_, smoothed_tip_rotation_, smoothed_articulation_, verbose), true);
+}
+
+int InstrumentController::get_motor2_value_for_angle(double radians, bool verbose){
+  double degrees = radians * 180.0 / M_PI;
+  if (degrees > MAX_BEND_ANGLE_DEGREES) {
+    degrees = MAX_BEND_ANGLE_DEGREES;
+  } else if (degrees < -MAX_BEND_ANGLE_DEGREES) {
+    degrees = -MAX_BEND_ANGLE_DEGREES;
+  }
+
+  int starting_difference = gearbox.motor_controller.get_starting_positions()[2] - gearbox.motor_controller.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
+  //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
+  
+  // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
+  std::array<int, 4> current_positions = gearbox.motor_controller.get_positions();
+  int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
+  int current_difference = current_positions[2] - current_positions[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
+
+  int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
+  int relative_difference = wanted_difference - current_difference;
+
+  int deadband_threshold = static_cast<int>(std::round(gearbox.get_pulses_per_degree(1) * 2.5)); // deadband threshold in pulses
+  if (verbose) RCLCPP_DEBUG(logger_, "relative_difference: '%d', real_play: '%d', deadband_threshold: '%d', bend_play_compensation_: '%d', current_difference: '%d', wanted_difference: '%d'", relative_difference, real_play, deadband_threshold, bend_play_compensation_, current_difference, wanted_difference);
+
+
+  if ( bend_play_compensation_ > 0) {
+    if (relative_difference < -deadband_threshold) {
+      // Moving in the opposite direction, so apply deadband compensation
+      bend_play_compensation_ = -gearbox.get_pulses_lower_motors_play();
+    }
+    else if (relative_difference <= 0) { 
+      // In the deadband region
+      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
+      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
+    }
+  }
+  else{
+    if (relative_difference > deadband_threshold) {
+      // Moving in the opposite direction, so apply deadband compensation
+      bend_play_compensation_ = gearbox.get_pulses_lower_motors_play();
+    }
+    else if (relative_difference >= 0) { 
+      // In the deadband region
+      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
+      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
+    }
+  }
+
+  if (verbose) RCLCPP_DEBUG(logger_, "play_compensation_: '%d'", bend_play_compensation_);
+
+  return wanted_difference;
+}
+
+std::array<int, 4> InstrumentController::calculate_motor_positions_from_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose)
+{
+  // Drive the lower motors with the pitch and yaw. 
+  // Motor 2 angles the shaft.
+  // Motor 1 and 2 together change the direction of the bend.
+
+  double h = -std::tan(smoothed_pitch_);
+  double w = -std::tan(smoothed_yaw_);
+  double shaft_roll = std::atan2(w, h) + M_PI; // direction of the bend
+  double l1 = std::sqrt(h*h + w*w);
+  double bend = std::atan(l1); // angle of the bend
+  // TODO: implement bending the other way and and solve singularity handling
+
+  return calculate_motor_positions_from_joint_angles(shaft_roll, bend, roll, articulation, verbose);
+}
+
+
+std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_angles(double shaft_roll, double bend, double tip_rotation, double articulation, bool verbose)
+{
+  // Calculate the shortest rotation for shaft_roll
+  // We need to choose the new shaft_roll to be the closest to the current position to prevent unnecessary full rotations
+  // The motors are driven with absolute positions, so we need to keep track of the absolute shaft_roll
+  double delta_shaft_roll = shaft_roll - absolute_shaft_roll_;
+  double diff = std::fmod(delta_shaft_roll, TWO_PI);
+  if (diff < - M_PI) {
+      diff += TWO_PI;
+  } else if (diff >= M_PI) {
+      diff -= TWO_PI;
+  }
+  absolute_shaft_roll_ += diff; // Update absolute_shaft_roll_ with the shortest rotation
+  
+  int shaft_rotation_pulses = absolute_shaft_roll_ * gearbox.get_pulses_per_rotation(1) / (TWO_PI);
+  int m2_bend_pulses = get_motor2_value_for_angle(bend, verbose);
+  int tip_rotation_pulses = - static_cast<int>(std::round(tip_rotation * gearbox.get_pulses_per_rotation(0) / (TWO_PI)));
+  int articulation_pulses = static_cast<int>(std::round(ARTICULATION_FACTOR * articulation * gearbox.get_pulses_per_rotation(3) / (TWO_PI)));
+
+  if (verbose) {
+    RCLCPP_DEBUG(
+      logger_,
+      "### Calculated motor positions ###\n"
+      "  shaft_rotation_pulses: '%d'\n"
+      "  m2_bend_pulses: '%d'\n"
+      "  tip_rotation_pulses: '%d'\n"
+      "  articulation_pulses: '%d'\n",
+      shaft_rotation_pulses, m2_bend_pulses, tip_rotation_pulses, articulation_pulses);
+  }
+
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
+  std::array<int, 4>  new_positions = {
+    static_cast<int>(std::round(starting_positions[0] + tip_rotation_pulses)),
+    static_cast<int>(std::round(starting_positions[1] + shaft_rotation_pulses - bend_play_compensation_)),
+    static_cast<int>(std::round(starting_positions[2] + shaft_rotation_pulses + m2_bend_pulses + bend_play_compensation_)), 
+    static_cast<int>(std::round(starting_positions[3] + tip_rotation_pulses + articulation_pulses))    
+  };
+  return new_positions;
+}
+
+// TODO: make this trigger on each recieved message in motor thread, otherwise we cannot reliably use m1_m2_offset_ variable.
+// Now kinda fixed by calling this each time we recieve a new command in the node during motor position calculation.
+int InstrumentController::calculate_real_play(const std::array<int, 4>& current_positions){
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
+  int play =  gearbox.get_pulses_lower_motors_play();
+  int starting_diff = starting_positions[2] - starting_positions[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
+
+  int diff = current_positions[2] - current_positions[1] - starting_diff; // Current difference between motor 2 and motor 1, not yet compensated for play
+  if (diff > 0) {
+    if (diff > m1_m2_offset_+ 2*play){
+      m1_m2_offset_ = diff - 2*play; 
+    }
+    else if (diff < m1_m2_offset_ - 2*play) {
+      m1_m2_offset_ = diff + 2*play; 
+    }
+  }
+  else{
+    if (diff < m1_m2_offset_ - 2*play){
+      m1_m2_offset_ = diff + 2*play;
+    }
+    else if (diff > m1_m2_offset_ + 2*play) {
+      m1_m2_offset_ = diff - 2*play; 
+    }
+  }
+
+  int real_play = (diff - m1_m2_offset_)/2; // Calculate the real play based on the current offset
+  return real_play;
+}
+
+std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::array<int, 4>& current_positions)
+{
+  std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
+
+  double tip_rotation = (static_cast<double>(starting_positions[0] - current_positions[0]) * TWO_PI / gearbox.get_pulses_per_rotation(0)); // Invert the roll calculation
+  double articulation_angle = (static_cast<double>(current_positions[3] - starting_positions[3] - current_positions[0] + starting_positions[0]) * TWO_PI / gearbox.get_pulses_per_rotation(3)) / ARTICULATION_FACTOR; // Invert the articulation calculation
+
+  int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
+  double shaft_rot = (static_cast<double>(current_positions[1] - starting_positions[1] + real_play)); 
+  double m2_bend = (static_cast<double>(current_positions[2] - starting_positions[2] - shaft_rot - real_play));
+
+  double bend_degrees = m1_m2_offset_ / (gearbox.get_pulses_per_degree(1) * BEND_FACTOR);
+  double bend_rad = bend_degrees * M_PI / 180.0;
+
+  double shaft_roll = shaft_rot * TWO_PI / gearbox.get_pulses_per_rotation(1);
+
+  return std::array<double, 4>{shaft_roll, bend_rad, tip_rotation, articulation_angle};
+}
+
+std::array<double, 4> InstrumentController::euler_angles_from_motors(const std::array<int, 4>& m_array)
+{
+  std::array<double, 4> joint_angles = joint_angles_from_motors(m_array);
+  double shaft_roll = joint_angles[0];
+  double bend = joint_angles[1];
+  double tip_rotation = joint_angles[2];
+#!/usr/bin/env python3
+
+import argparse
+import json
+from pathlib import Path
+
+import joblib
+import numpy as np
+
+# Default directory for the stored motor digital twin model depending on the setup.
+# DEFAULT_MOTOR_ONLY_MODEL_DIR = (
+#     Path.home()
+#     / "ros2_ws"
+#     / "test_data"
+#     / "automated_trials"
+#     / "setup_01_motors"
+#     / "training motor data NEW"
+#     / "motor_dt_results"
+#     / "models"
+# )
+
+DEFAULT_MOTOR_ONLY_MODEL_DIR = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+    / "trainings data V3"
+    / "motors only"
+    / "motor_dt_results"
+    / "models"
+)
+
+# Tijdelijke fallback totdat het gearbox-only model is getraind
+DEFAULT_GEARBOX_MODEL_DIR = DEFAULT_MOTOR_ONLY_MODEL_DIR
+
+# DEFAULT_GEARBOX_MODEL_DIR = (
+#     Path.home()
+#     / "ros2_ws"
+#     / "test_data"
+#     / "automated_trials"
+#     / "trainings data V3"
+#     / "Motors only"
+#     / "motor_dt_results"
+#     / "models"
+# )
+
+DEFAULT_FULL_SETUP_MODEL_DIR = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+    / "trainings data V3"
+    / "instrument_current_dt_results"
+)
+
+
+def safe_float(value):
+    if value is None:
+        return None
+
+    value = float(value)
+
+    if not np.isfinite(value):
+        return None
+
+    return value
+
+def safe_list(values):
+    return [safe_float(value) for value in values]
+
+def get_time_value(data):
+    if "time" in data:
+        return data["time"]
+
+    if "timestamp" in data:
+        return data["timestamp"]
+
+    if "ros_timestamp" in data:
+        return data["ros_timestamp"]
+
+    return None
+
+
+def parse_task_label(label):
+    if not label:
+        return {
+            "setup": "unknown_setup",
+            "test_type": "unknown_test",
+            "motor_name": "unknown_motor",
+            "trial": "unknown_trial",
+            "timestamp": "unknown_time",
+        }
+
+    parts = label.split("|")
+
+    return {
+        "setup": parts[0] if len(parts) > 0 else "unknown_setup",
+        "test_type": parts[1] if len(parts) > 1 else "unknown_test",
+        "motor_name": parts[2] if len(parts) > 2 else "unknown_motor",
+        "trial": parts[3] if len(parts) > 3 else "unknown_trial",
+        "timestamp": parts[4] if len(parts) > 4 else "unknown_time",
+    }
+
+
+def load_motor_log(file_path):
+    rows = []
+    current_task_label = None
+
+    with open(file_path, "r") as f:
+        for line in f:
+            if not line.strip():
+                continue
+
+            data = json.loads(line)
+
+            if data.get("task_label") is not None:
+                current_task_label = data.get("task_label")
+            elif data.get("task") is not None:
+                current_task_label = data.get("task")
+
+            t_value = get_time_value(data)
+
+            positions = data.get("measured_motor_positions")
+            currents = data.get("measured_currents")
+
+            commands = data.get("commanded_motor_positions")
+            if commands is None:
+                commands = data.get("commands")
+
+
+            instrument_dof_commands = data.get("commanded_instrument_angles")
+            if instrument_dof_commands is None or len(instrument_dof_commands) < 4:
+                instrument_dof_commands = [np.nan, np.nan, np.nan, np.nan]
+
+            if t_value is None or positions is None or currents is None:
+                continue
+
+            if len(positions) < 4 or len(currents) < 4:
+                continue
+
+            if commands is None or len(commands) < 4:
+                commands = [0, 0, 0, 0]
+
+            rows.append({
+                "time": float(t_value),
+                "task_label": current_task_label,
+                "positions": [float(x) for x in positions[:4]],
+                "currents": [float(x) for x in currents[:4]],
+                "commands": [float(x) for x in commands[:4]],
+                "instrument_dof_commands": [float(x) for x in instrument_dof_commands[:4]],
+            })
+
+    if not rows:
+        raise RuntimeError(f"No usable motor samples found in {file_path}")
+
+    t0 = rows[0]["time"]
+
+    for row in rows:
+        row["time"] -= t0
+
+    return rows
+
+
+def split_into_segments(rows):
+    segments = []
+    current_segment = []
+    current_label = None
+
+    for row in rows:
+        label = row["task_label"]
+
+        if label != current_label:
+            if current_segment:
+                segments.append({
+                    "task_label": current_label,
+                    "rows": current_segment,
+                    "info": parse_task_label(current_label),
+                })
+
+            current_label = label
+            current_segment = []
+
+        current_segment.append(row)
+
+    if current_segment:
+        segments.append({
+            "task_label": current_label,
+            "rows": current_segment,
+            "info": parse_task_label(current_label),
+        })
+
+    clean_segments = []
+
+    for segment in segments:
+        label = segment["task_label"]
+        test_type = segment["info"]["test_type"]
+
+        if label is None:
+            continue
+
+        if label in ["unlabeled", "motor_tests_finished", "tests_finished"]:
+            continue
+
+        if test_type in ["unknown_test", "motor_tests_finished", "tests_finished"]:
+            continue
+
+        clean_segments.append(segment)
+
+    return clean_segments
+
+
+def relative_commands_to_target(commands):
+    """
+    Convert relative step commands into cumulative target positions.
+
+    Example:
+    raw command:        0, +300, 0, -300, 0
+    commanded target:   0, +300, +300, 0, 0
+
+    This reconstructed target is the command input used by the Motor DT.
+    """
+    commands = np.asarray(commands, dtype=float)
+    target = np.zeros_like(commands)
+
+    for motor_index in range(commands.shape[0]):
+        cumulative_target = 0.0
+        previous_command = 0.0
+
+        for sample_index in range(commands.shape[1]):
+            command = commands[motor_index, sample_index]
+
+            if command != previous_command:
+                if command != 0.0:
+                    cumulative_target += command
+
+                previous_command = command
+
+            target[motor_index, sample_index] = cumulative_target
+
+    return target
+
+
+def time_since_signal_change(t, signal, threshold=0.0):
+    result = np.zeros_like(t, dtype=float)
+
+    if len(t) == 0:
+        return result
+
+    last_change_time = t[0]
+    previous_signal = signal[0]
+
+    for i in range(len(t)):
+        if abs(signal[i] - previous_signal) > threshold:
+            last_change_time = t[i]
+            previous_signal = signal[i]
+
+        result[i] = t[i] - last_change_time
+
+    return result
+
+
+def causal_moving_average(signal, window_size=5):
+    signal = np.asarray(signal, dtype=float)
+    filtered = np.full_like(signal, np.nan)
+
+    for index in range(len(signal)):
+        start_index = max(0, index - window_size + 1)
+        window = signal[start_index:index + 1]
+
+        finite = np.isfinite(window)
+
+        if np.any(finite):
+            filtered[index] = np.mean(window[finite])
+
+    return filtered
+
+
+def segment_to_arrays(segment):
+    rows = segment["rows"]
+
+    t_global = np.array([row["time"] for row in rows], dtype=float)
+    t_segment = t_global - t_global[0]
+
+    positions = np.array(
+        [row["positions"] for row in rows],
+        dtype=float,
+    ).T
+
+    currents = np.array(
+        [row["currents"] for row in rows],
+        dtype=float,
+    ).T
+
+    commands = np.array(
+        [row["commands"] for row in rows],
+        dtype=float,
+    ).T
+
+    instrument_dof_commands = np.array(
+        [row["instrument_dof_commands"] for row in rows],
+        dtype=float,
+    ).T
+
+    for motor_index in range(4):
+        positions[motor_index] = positions[motor_index] - positions[motor_index][0]
+
+    return (
+    t_global,
+    t_segment,
+    commands,
+    instrument_dof_commands,
+    positions,
+    currents,
+)
+
+def load_motor_dt_models(model_dir):
+    model_dir = Path(model_dir).expanduser()
+    models = {}
+
+    for motor_index in range(4):
+        model_path = model_dir / f"motor_dt_m{motor_index}.pkl"
+
+        if not model_path.exists():
+            raise RuntimeError(f"Missing Motor DT model: {model_path}")
+
+        models[motor_index] = joblib.load(model_path)
+
+    return models
+
+def build_motor_dt_features(t_segment, target):
+    """
+    Build the same input features as used during Motor DT training.
+
+    The motor controller sends relative step commands. These are first
+    reconstructed into a cumulative commanded target. From that target,
+    the model uses position, step size, direction and timing features.
+
+    Feature order must match the saved model package:
+    1. commanded_target_pulses
+    2. abs_commanded_target_pulses
+    3. target_delta_pulses
+    4. abs_target_delta_pulses
+    5. target_direction
+    6. time_since_target_change_s
+    7. is_moving
+    """
+    abs_target = np.abs(target)
+
+    # Step in commanded target at the exact moment the target changes.
+    instant_target_delta = np.zeros_like(target)
+    instant_target_delta[1:] = target[1:] - target[:-1]
+
+    # Keep the last non-zero target step during the motor response phase.
+    # This tells the model which movement caused the response.
+    target_delta = np.zeros_like(target)
+    last_delta = 0.0
+
+    for sample_index in range(len(target)):
+        if instant_target_delta[sample_index] != 0.0:
+            last_delta = instant_target_delta[sample_index]
+
+        target_delta[sample_index] = last_delta
+
+    abs_target_delta = np.abs(target_delta)
+    target_direction = np.sign(target_delta)
+    time_since_target_change = time_since_signal_change(t_segment, target)
+
+    movement_memory_s = 1.2
+    target_based_is_moving = (
+        (np.abs(target_delta) > 0.0)
+        & (time_since_target_change < movement_memory_s)
+    ).astype(float)
+
+    return np.column_stack([
+        target,
+        abs_target,
+        target_delta,
+        abs_target_delta,
+        target_direction,
+        time_since_target_change,
+        target_based_is_moving,
+    ])
+
+
+def build_instrument_current_features(t, target):
+    """
+    Build the same 7 command-only features as used during
+    instrument current training.
+
+    Feature order:
+    1. target
+    2. abs_target
+    3. target_delta
+    4. abs_target_delta
+    5. target_direction
+    6. time_after_change
+    7. target_based_is_moving
+    """
+    command_change_threshold = 1e-5
+
+    abs_target = np.abs(target)
+
+    instant_target_delta = np.zeros_like(target)
+    instant_target_delta[1:] = target[1:] - target[:-1]
+
+    target_delta = np.zeros_like(target)
+    last_delta = 0.0
+
+    for sample_index in range(len(target)):
+        if abs(instant_target_delta[sample_index]) > command_change_threshold:
+            last_delta = instant_target_delta[sample_index]
+
+        target_delta[sample_index] = last_delta
+
+    abs_target_delta = np.abs(target_delta)
+    target_direction = np.sign(target_delta)
+
+    time_after_change = time_since_signal_change(
+        t,
+        target,
+        threshold=command_change_threshold,
+    )
+
+    movement_memory_s = 1.2
+    target_based_is_moving = (
+        (np.abs(target_delta) > command_change_threshold)
+        & (time_after_change < movement_memory_s)
+    ).astype(float)
+
+    return np.column_stack([
+        target,
+        abs_target,
+        target_delta,
+        abs_target_delta,
+        target_direction,
+        time_after_change,
+        target_based_is_moving,
+    ]), target_based_is_moving
+
+
+def load_instrument_current_model(model_file):
+    model_file = Path(model_file).expanduser()
+
+    if not model_file.exists():
+        raise RuntimeError(f"Missing Instrument Current DT model: {model_file}")
+
+    model_package = joblib.load(model_file)
+
+    expected_features = [
+        "target",
+        "abs_target",
+        "target_delta",
+        "abs_target_delta",
+        "target_direction",
+        "time_after_change",
+        "target_based_is_moving",
+    ]
+
+    feature_names = model_package.get("feature_names")
+
+    if feature_names != expected_features:
+        raise RuntimeError(
+            "The loaded model does not use the expected command-only features.\n"
+            f"Expected: {expected_features}\n"
+            f"Found:    {feature_names}"
+        )
+
+    return model_package
+
+def full_setup_current_model_file(active_dof):
+    return (
+        DEFAULT_FULL_SETUP_MODEL_DIR
+        / f"dof{active_dof}"
+        / "models"
+        / f"instrument_current_dt_dof{active_dof}_all_motors.pkl"
+    )
+
+def predict_segment_offline(
+    t_segment,
+    raw_commands,
+    instrument_dof_commands,
+    position_models,
+    coupling_mode,
+    full_setup_current_package=None,
+    active_dof=None,
+):
+    raw_commands = np.asarray(raw_commands, dtype=float)
+
+    commanded_target = relative_commands_to_target(raw_commands)
+
+    predicted_positions = np.full_like(
+        raw_commands,
+        np.nan,
+        dtype=float,
+    )
+
+    predicted_currents = np.full_like(
+        raw_commands,
+        np.nan,
+        dtype=float,
+    )
+
+    # Position prediction currently uses the normal Motor-DT packages.
+    for motor_index in range(4):
+        target = commanded_target[motor_index]
+        motor_features = build_motor_dt_features(t_segment, target)
+        model_package = position_models[motor_index]
+
+        predicted_positions[motor_index] = (
+            model_package["encoder_model"].predict(motor_features)
+        )
+
+        if coupling_mode != "full_setup":
+            predicted_currents[motor_index] = (
+                model_package["current_model"].predict(motor_features)
+            )
+
+    # For a full setup, replace the motor-only current prediction
+    # with the DOF-specific loaded-current prediction.
+    if coupling_mode == "full_setup":
+        if active_dof is None:
+            raise RuntimeError(
+                "--dof is required for coupling mode full_setup."
+            )
+
+        target = instrument_dof_commands[active_dof - 1]
+
+        if not np.all(np.isfinite(target)):
+            raise RuntimeError(
+                "The ROS log does not contain usable "
+                "commanded_instrument_angles."
+            )
+
+        features, _ = build_instrument_current_features(
+            t=t_segment,
+            target=target,
+        )
+
+        models_by_motor = full_setup_current_package["models_by_motor"]
+
+        for motor_index in range(4):
+            current_model = models_by_motor.get(motor_index)
+
+            if current_model is None:
+                current_model = models_by_motor.get(str(motor_index))
+
+            if current_model is None:
+                raise RuntimeError(
+                    f"Missing full-setup current model for motor {motor_index}"
+                )
+
+            predicted_currents[motor_index] = current_model.predict(
+                features
+            )
+
+    return commanded_target, predicted_positions, predicted_currents
+
+def default_output_file(input_file):
+    input_file = Path(input_file)
+    name = input_file.name
+
+    if name.endswith("_ros_log.jsonl"):
+        output_name = name.replace("_ros_log.jsonl", "_motor_dt_replay.jsonl")
+    else:
+        output_name = input_file.stem + "_motor_dt_replay.jsonl"
+
+    return input_file.with_name(output_name)
+
+
+def replay_motor_digital_twin(
+    input_file,
+    output_file,
+    coupling_mode,
+    active_dof=None,
+    current_filter_window_size=5,
+):
+    input_file = Path(input_file).expanduser()
+    output_file = Path(output_file).expanduser()
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"Loading log: {input_file}")
+    rows = load_motor_log(input_file)
+
+    print("Splitting into segments...")
+    segments = split_into_segments(rows)
+
+    print(f"Found {len(segments)} valid segments.")
+
+    if coupling_mode == "motor_only":
+        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
+
+    elif coupling_mode == "gearbox_only":
+        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
+
+    elif coupling_mode == "full_setup":
+        # Temporary: the full-setup position model does not exist yet.
+        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
+
+    else:
+        raise RuntimeError(
+            f"Unsupported coupling mode: {coupling_mode}"
+        )
+
+    print(f"Loading Motor DT models from: {position_model_dir}")
+    position_models = load_motor_dt_models(position_model_dir)
+
+    full_setup_current_package = None
+
+    if coupling_mode == "full_setup":
+        if active_dof is None:
+            raise RuntimeError(
+                "--dof is required for coupling mode full_setup."
+            )
+
+        current_model_file = full_setup_current_model_file(active_dof)
+
+        print(
+            "Loading full-setup current model from: "
+            f"{current_model_file}"
+        )

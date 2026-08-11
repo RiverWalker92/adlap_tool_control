@@ -709,12 +709,12 @@ def main(output_path_override=None, ros_log_path_override=None):
         cv2.putText(display, f"frame: {frame_idx}", (30, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         cv2.putText(display, f"LED: {led_on}", (30, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(display, f"red marker: {red_marker_angle:.2f}", (30, 130),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        cv2.putText(display, f"red marker: {red_marker_angle:.2f}", (30, 170),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.putText(display, f"measured red marker vs shaft angle: {measured_angle_red_shaft:.2f}", (30, 210),
+        cv2.putText(display, f"red marker vs shaft angle: {measured_angle_red_shaft:.2f}", (30, 210),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.putText(display, f"shaft: {shaft_angle:.2f}", (30, 170),
+        cv2.putText(display, f"shaft: {shaft_angle:.2f}", (30, 130),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
         # cv2.putText(display, f"yellow marker: {yellow_marker_angle:.2f}", (30, 250),
         #             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
@@ -724,7 +724,7 @@ def main(output_path_override=None, ros_log_path_override=None):
         cv2.putText(display, f"green marker: {green_marker_angle:.2f}", (30, 250), 
         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         if measured_angle_green_shaft is not None:
-            cv2.putText(display, f"measured green marker vs shaft angle: "f"{measured_angle_green_shaft:.2f}", (30, 290),
+            cv2.putText(display, f"green marker vs shaft angle: "f"{measured_angle_green_shaft:.2f}", (30, 290),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 
         
@@ -738,10 +738,10 @@ def main(output_path_override=None, ros_log_path_override=None):
             not open_jaws_debug_frame_saved
             and measured_angle_green_shaft is not None
             and not np.isnan(measured_angle_green_shaft)
-            and abs(measured_angle_green_shaft) > 3.0
+            and abs(measured_angle_green_shaft) > 20.0
             and ros_time_s is not None
         ):
-            cv2.imwrite(str(open_jaws_debug_frame_path), small)
+            cv2.imwrite(str(open_jaws_debug_frame_path), display)
             print(f"Saved open jaws debug frame: {open_jaws_debug_frame_path}")
             open_jaws_debug_frame_saved = True
 
@@ -757,7 +757,7 @@ def main(output_path_override=None, ros_log_path_override=None):
         debug_writer.stdin.write(small.tobytes())
 
         if frame_idx == led_on_frame or frame_idx == 0:
-            cv2.imwrite(str(debug_frame_path), small)
+            cv2.imwrite(str(debug_frame_path), display)
         cv2.imshow("video angle detector", small)
 
         key = cv2.waitKey(1)

@@ -9,3 +9,4 @@ instrument_state_node:
     hybrid_bend_enabled: true
     hybrid_bend_model_file: "/home/leanne/ros2_ws/test_data/automated_trials/trainings data V3/hybrid_bend_dt_results/random_forest/random_forest_bend_hybrid_model.joblib"
     
+    

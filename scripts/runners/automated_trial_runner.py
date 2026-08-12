@@ -209,7 +209,7 @@ def pattern_mode_from_coupling_mode(coupling_mode: str) -> str:
     )
 def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
     """
-    Infers active DOF from tool_params.yaml.
+    Infers active DOF from dof_pattern_params.yaml.
     Returns 2 or 4, because the current video detector supports DOF2 and DOF4.
     """
     with open(params_file, "r") as f:
@@ -311,7 +311,7 @@ def main():
         help="Instrument configuration from marker_detection.yaml.",
     )
     parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
-    parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "tool_params.yaml"), 
+    parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "dof_pattern_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
     parser.add_argument("--camera", default="/dev/video0")
     parser.add_argument("--focus", type=int, default=150)
@@ -370,7 +370,7 @@ def main():
 
     parser.add_argument(
         "--pattern-cmd",
-        default="ros2 launch adlap_tool_control pattern_runner.launch.py",
+        default="ros2 launch adlap_tool_control dof_pattern_runner.launch.py",
         help="Command that starts the pattern runner. It should block until the trial is done.",
     )
 
@@ -490,7 +490,7 @@ def main():
                 require_video_supported=False,
             )
             print(
-                f"Inferred active DOF from tool_params.yaml: "
+                f"Inferred active DOF from dof_pattern_params.yaml: "
                 f"DOF{args.dof}"
             )
         else:
@@ -556,7 +556,7 @@ def main():
         )
     else:
         args.pattern_cmd = (
-            "ros2 launch adlap_tool_control pattern_runner.launch.py "
+            "ros2 launch adlap_tool_control dof_pattern_runner.launch.py "
             f"output_dir:={shlex.quote(str(output_dir))} "
             f"log_file_name:={shlex.quote(ros_log_path.name)} "
             f"coupling_mode:={shlex.quote(coupling_mode)}"

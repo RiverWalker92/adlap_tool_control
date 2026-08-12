@@ -1,0 +1,25 @@
+# Root directory containing all training data.
+# Relative training paths below are resolved from training_data_root.
+test_data_root: "~/ros2_ws/test_data"
+training_data_root: "automated_trials/trainings data V3"
+
+
+motor_dt:
+  configurations:
+
+    motor_only:
+      input_dir: "motors_only"
+      output_dir: "motors_only/motors_only_results"
+
+    gearbox_only:
+      input_dir: "motors_gearbox"
+      output_dir: "motors_gearbox/motors_gearbox_results"
+
+    full_setup:
+      input_dir: "full_setup"
+      output_dir: "full_setup/full_setup_results"
+
+
+hybrid_bend_dt:
+  input_dir: "full_setup/DOF 2"
+  output_dir: "full_setup/DOF 2/bend_dt_results"

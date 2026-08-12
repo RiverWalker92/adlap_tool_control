@@ -9,10 +9,10 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Int32MultiArray, String, Bool
 
 
-class ToolReader(Node):
+class TrialLogger(Node):
 
     def __init__(self):
-        super().__init__('tool_reader_node')
+        super().__init__('trial_logger_node')
         self.get_logger().error("FOR MOTOR-ONLY TESTS: instrument should NOT be coupled.")
 
         # General state variables
@@ -201,7 +201,7 @@ class ToolReader(Node):
 
     def control_callback(self, msg):
         if msg.data == "stop_logging":
-            self.get_logger().info("Stopping ToolReader")
+            self.get_logger().info("Stopping TrialLogger node as requested by control message.")
             self.stop_requested = True
 
     def task_callback(self, msg):
@@ -342,7 +342,7 @@ class ToolReader(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    node = ToolReader()
+    node = TrialLogger()
 
     try:
         rclpy.spin(node)

@@ -226,53 +226,38 @@ def load_video_angle_file(file_path, motor_ros_t0):
     t_video = []
     red_shaft_angle = []
     jaw_angle = []
-    # yellow_shaft_angle = []
-    green_shaft_angle = []
+    secondary_shaft_angle = []
 
     detected_dof = None
+    secondary_marker_color = None
 
     with open(file_path, "r") as f:
         for line in f:
             data = json.loads(line)
+            if secondary_marker_color is None:
+                secondary_marker_color = data.get(
+                    "secondary_marker_color"
+                )
 
             if detected_dof is None:
                 detected_dof = data.get("active_dof")
 
             ros_time = data.get("ros_time_s")
 
-            # red_angle = data.get("measured_angle_red_shaft_zeroed")
-            # if red_angle is None:
-            #     red_angle = data.get("relative_marker_to_shaft_zeroed_deg")
-            # raw_red_shaft = data.get("measured_angle_red_shaft")
-
-            # yellow_angle = data.get("measured_angle_yellow_shaft_zeroed")
-            # if yellow_angle is None:
-            #     yellow_angle = data.get("yellow_relative_angle_zeroed_deg")
-            # raw_yellow_shaft = data.get("measured_angle_yellow_shaft")
-
-            # measured_jaw_angle = data.get("measured_angle_between_jaws")
-            # Use only the filtered video measurements for validation,
-            
             # Filtered DOF2 video reference
             red_angle = data.get(
                 "measured_angle_red_shaft_zeroed_filtered"
             )
 
-            # Filtered additional DOF4 diagnostic signal
-            # yellow_angle = data.get(
-            #     "measured_angle_yellow_shaft_zeroed_filtered"
-            # )
-
-            # Nieuwe groene veldnaam
-            green_angle = data.get(
-                "measured_angle_green_shaft_zeroed_filtered"
+            secondary_angle = data.get(
+                f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
             )
 
-            # Ondersteun ook oudere bestanden waarin de groene marker
-            # nog onder de legacy yellow-veldnaam werd opgeslagen.
-            if green_angle is None:
-                green_angle = data.get(
-                    "measured_angle_yellow_shaft_zeroed_filtered"
+            secondary_angle = None
+
+            if secondary_marker_color is not None:
+                secondary_angle = data.get(
+                    f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
                 )
 
             # Filtered DOF4 validation reference
@@ -291,8 +276,7 @@ def load_video_angle_file(file_path, motor_ros_t0):
             t_video.append(t_rel)
             red_shaft_angle.append(red_angle)
             jaw_angle.append(measured_jaw_angle)
-            # yellow_shaft_angle.append(yellow_angle)
-            green_shaft_angle.append(green_angle)
+            secondary_shaft_angle.append(secondary_angle)
 
     if detected_dof == 4:
         valid_filtered = sum(
@@ -332,8 +316,8 @@ def load_video_angle_file(file_path, motor_ros_t0):
         t_video,
         red_shaft_angle,
         jaw_angle,
-        # yellow_shaft_angle,
-        green_shaft_angle,
+        secondary_shaft_angle,
+        secondary_marker_color,
     )
 
 
@@ -1485,7 +1469,7 @@ def plot_gripper_video_measurements(
     plot_dir,
     video_t,
     jaw_video_angle,
-    green_shaft_video_angle, #yellow_shaft_video_angle,
+    secondary_shaft_video_angle,
     red_shaft_video_angle,
 ):
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
@@ -1504,12 +1488,12 @@ def plot_gripper_video_measurements(
 
     axes[1].plot(
         video_t,
-        green_shaft_video_angle, #yellow_shaft_video_angle,
+        secondary_shaft_video_angle, 
         linestyle="-",
         linewidth=2,
-        label="measured green marker vs shaft [deg]",
+        label="measured " + secondary_marker_color + " marker vs shaft [deg]",
     )
-    axes[1].set_ylabel("Green-shaft [deg]")
+    axes[1].set_ylabel(secondary_marker_color.capitalize() + "-shaft [deg]")
     axes[1].grid(True)
     axes[1].legend(fontsize=8)
 
@@ -2772,8 +2756,8 @@ def plot_continuous_file(
             video_t,
             red_shaft_video_angle,
             jaw_video_angle,
-            # yellow_shaft_video_angle,
-            green_shaft_video_angle,
+            secondary_shaft_video_angle,
+            secondary_marker_color,
         ) = load_video_angle_file(
             video_angle_file,
             motor_ros_t0,
@@ -2782,8 +2766,8 @@ def plot_continuous_file(
         video_t = []
         red_shaft_video_angle = []
         jaw_video_angle = []
-        # yellow_shaft_video_angle = []
-        green_shaft_video_angle = []
+        secondary_shaft_video_angle = []
+        secondary_marker_color = None
 
 
     plot_motor_positions(
@@ -2842,8 +2826,9 @@ def plot_continuous_file(
                 plot_dir,
                 video_t,
                 jaw_video_angle,
-                green_shaft_video_angle,
+                secondary_shaft_video_angle, 
                 red_shaft_video_angle,
+                secondary_marker_color
             )
     
 
@@ -2888,75 +2873,7 @@ def plot_continuous_file(
         evaluation_window=evaluation_window
     )
 
-    # plot_instrument_current_prediction_per_motor(
-    #     plot_dir=plot_dir,
-    #     instrument_current_dt=instrument_current_dt,
-    #     active_dof_name=active_dof_name,
-    #     evaluation_window=evaluation_window,
-    # )
 
-    # plot_instrument_position_prediction_residual(
-    #     plot_dir=plot_dir,
-    #     t=t,
-    #     active_dof=active_dof,
-    #     predicted_angles=predicted_angles,
-    #     hybrid_predicted_angles=hybrid_predicted_angles,
-    #     video_t=video_t,
-    #     red_shaft_video_angle=red_shaft_video_angle,
-    #     jaw_video_angle=jaw_video_angle,
-    #     evaluation_window=evaluation_window
-    # )
-
-
-    # if active_dof == 1:
-    #     plot_dof2_video_validation(
-    #     plot_dir,
-    #     t,
-    #     commanded,
-    #     current_angles,
-    #     motor_pos,
-    #     video_t,
-    #     red_shaft_video_angle,
-    #     predicted_angles,
-    #     hybrid_predicted_angles,
-    # )
-
-    # # if active_dof == 0:
-    # #     plot_current_vs_wrapped_angle(
-    # #         plot_dir=plot_dir,
-    # #         t=t,
-    # #         angle_deg=gearbox[4],
-    # #         motor_current=currents[2],
-    # #         filename="dof1_current_vs_wrapped_angle.png",
-    # #         title="DOF1: motor current vs wrapped outer shaft rotation",
-    # #         current_label="Motor 2 current [mA]",
-    # #         y_limit=(0, 250),
-    # #     )
-    # # if active_dof == 2:
-    # #     plot_current_vs_wrapped_angle(
-    # #         plot_dir=plot_dir,
-    # #         t=t,
-    # #         angle_deg=gearbox[0],
-    # #         motor_current=currents[0],
-    # #         filename="dof3_current_vs_wrapped_angle.png",
-    # #         title="DOF3: motor current vs wrapped inner shaft rotation",
-    # #         current_label="Motor 0 current [mA]",
-    # #         y_limit=(0, 250),
-    # #     )
-
-    #     # plot_dof3_instrument_current_prediction(
-    #     #     plot_dir,
-    #     #     instrument_current_dt,
-    #     # )
-
-    # if active_dof == 3:
-    #     plot_gripper_video_measurements(
-    #         plot_dir,
-    #         video_t,
-    #         jaw_video_angle,
-    #         green_shaft_video_angle, #yellow_shaft_video_angle,
-    #         red_shaft_video_angle,
-    #     )    
     print(f"Saved plots in: {plot_dir}")
 
 
@@ -2980,7 +2897,7 @@ if __name__ == "__main__":
             / "src"
             / "adlap_tool_control"
             / "config"
-            / "tool_params.yaml"
+            / "dof_pattern_params.yaml"
         ),
     )
     args = parser.parse_args()

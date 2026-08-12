@@ -8,17 +8,20 @@ from launch.events import Shutdown
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
-
+# Configuration files for the nodes
 def generate_launch_description():
+
+    # Parameters for the DOF pattern runner node
     params_file = (
         Path.home()
         / "ros2_ws"
         / "src"
         / "adlap_tool_control"
         / "config"
-        / "tool_params.yaml"
+        / "dof_pattern_params.yaml"
     )
 
+    # Parameters for the instrument state node
     instrument_params_file = (
         Path.home()
         / "ros2_ws"
@@ -28,13 +31,23 @@ def generate_launch_description():
         / "instrument_state_node.yaml"
     )
 
+    # Output directory and log file name for the ROS data
     output_dir = LaunchConfiguration("output_dir")
     log_file_name = LaunchConfiguration("log_file_name")
 
+    # Hardware configuration detected before starting the trial.
+    #
+    # coupling_mode:
+    #   motor_only   -> Motor DT only
+    #   gearbox_only -> Motor DT + Gearbox DT
+    #   full_setup   -> Motor DT + Gearbox DT + Instrument DT
     coupling_mode = LaunchConfiguration("coupling_mode")
+
+    # Selects the gearbox and instrument configuration
     gearbox_variant = LaunchConfiguration("gearbox_variant")
     instrument_config = LaunchConfiguration("instrument_config")
 
+    # Executes the DOF pattern runner node with the specified parameters and configuration.
     dof_pattern_runner_node = Node(
         package="adlap_tool_control",
         executable="dof_pattern_runner_node.py",
@@ -47,9 +60,11 @@ def generate_launch_description():
         ],
         output="screen",
     )
-    dof_reader_node = Node(
+
+    # Records the ROS data generated during the trials.
+    trial_logger_node = Node(
         package="adlap_tool_control",
-        executable="dof_reader_node.py",
+        executable="trial_logger_node.py",
         output="screen",
         parameters=[
             {
@@ -59,6 +74,7 @@ def generate_launch_description():
         ],
     )
 
+    # Executes the gearbox state node with the specified gearbox variant configuration.
     gearbox_state_node = Node(
         package="adlap_tool_control",
         executable="gearbox_state_node.py",
@@ -68,43 +84,21 @@ def generate_launch_description():
                 "gearbox_variant": gearbox_variant,
             }
         ],
+        condition=IfCondition(
+            PythonExpression([
+                "'", coupling_mode, "' == 'gearbox_only' or '", coupling_mode, "' == 'full_setup'"
+            ])
+        )
     )
 
+    # The Instrument DT is only required when instrument is coupled and thus when the complete setup is used.
     instrument_state_node = Node(
         package="adlap_tool_control",
         executable="instrument_state_node.py",
         parameters=[
             str(instrument_params_file),
-            # {
-            #     "instrument_config": instrument_config,
-            #     "hybrid_bend_enabled": True,
-            #     "hybrid_bend_model_file": str(
-            #         Path.home()
-            #         / "ros2_ws"
-            #         / "test_data"
-            #         / "automated_trials"
-            #         / "trainings data V2"
-            #         / "hybrid_bend_dt_results"
-            #         / "dof2"
-            #         / "gradient_boosting"
-            #         / "gradient_boosting_bend_hybrid_model.joblib"
-            #     ),
-            # },
             {
                 "instrument_config": instrument_config,
-                "hybrid_bend_enabled": True,
-                "hybrid_bend_model_file": str(
-                    Path.home()
-                    / "ros2_ws"
-                    / "test_data"
-                    / "automated_trials"
-                    / "trainings data V3"
-                    / "full_setup"
-                    / "DOF 2"
-                    / "bend_dt_results"
-                    / "gradient_boosting"
-                    / "gradient_boosting_bend_hybrid_model.joblib"
-                ),
             }
 
         ],
@@ -115,6 +109,8 @@ def generate_launch_description():
             ])
         ),
     )
+
+    # Shut down the complete launch when the pattern has finished.
     shutdown_when_pattern_is_done = RegisterEventHandler(
         OnProcessExit(
             target_action=dof_pattern_runner_node,
@@ -131,7 +127,7 @@ def generate_launch_description():
         DeclareLaunchArgument("log_file_name"),
         DeclareLaunchArgument(
             "coupling_mode",
-            description="Detected coupling mode: gearbox_only or full_setup.",
+            description="Detected coupling mode: motor_only, gearbox_only or full_setup.",
         ),
 
         DeclareLaunchArgument(
@@ -147,7 +143,7 @@ def generate_launch_description():
         ),
 
         dof_pattern_runner_node,
-        dof_reader_node,
+        trial_logger_node,
         gearbox_state_node,
         instrument_state_node,
         shutdown_when_pattern_is_done,

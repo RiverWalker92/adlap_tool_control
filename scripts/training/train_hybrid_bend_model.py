@@ -3,11 +3,14 @@
 import argparse
 import json
 from pathlib import Path
+import yaml
 
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ament_index_python.packages import get_package_share_directory
+
 # from sklearn.model_selection import train_test_split
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
@@ -15,24 +18,53 @@ from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-AUTOMATED_TRIALS_DIR = (
-    Path.home()
-    / "ros2_ws"
-    / "test_data"
-    / "automated_trials"
+DEFAULT_TRAINING_CONFIG_PATH = (
+    Path(get_package_share_directory("adlap_tool_control"))
+    / "config"
+    / "training_config.yaml"
+)
+DEFAULT_DOF_PATTERN_CONFIG_PATH = (
+    Path(get_package_share_directory("adlap_tool_control"))
+    / "config"
+    / "dof_pattern_params.yaml"
 )
 
-DEFAULT_DOF2_DATA_DIR = (
-    AUTOMATED_TRIALS_DIR
-    / "trainings data V3"
-    / "full_setup"
-    / "DOF 2"
-)
 
-DEFAULT_DOF2_RESULT_DIR = (
-    DEFAULT_DOF2_DATA_DIR
-    / "bend_dt_results"
-)
+def load_training_config(config_path: Path):
+    config_path = Path(config_path).expanduser()
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    test_data_root = Path(
+        config["test_data_root"]
+    ).expanduser()
+
+    training_data_root = Path(
+        config["training_data_root"]
+    ).expanduser()
+
+    if not training_data_root.is_absolute():
+        training_data_root = (
+            test_data_root / training_data_root
+        )
+
+    return config, training_data_root
+
+
+def resolve_training_path(training_data_root: Path, path_value: str) -> Path:
+    path = Path(path_value).expanduser()
+
+    if path.is_absolute():
+        return path
+
+    return training_data_root / path
+
+def load_dof2_pattern_config(config_path: Path):
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    return config["dof_pattern_runner_node"]["ros__parameters"]["dof2"]
 
 def load_jsonl(path: Path):
     rows = []
@@ -314,32 +346,7 @@ def select_feature_columns(df):
             feature_cols.append(col)
 
     return feature_cols
-    
-# def select_feature_columns(df):
-#     allowed_prefixes = (
-#         "motor_pos_",
-#         # "current_",
-#         "gearbox_",
-#         "dt_prediction",
-#     )
 
-#     forbidden_columns = {
-#         "time",
-#         "video_angle",
-#         "prediction_error",
-#     }
-
-#     feature_cols = []
-
-#     for col in df.columns:
-#         if col in forbidden_columns:
-#             continue
-
-#         if any(col.startswith(prefix) for prefix in allowed_prefixes):
-#             if pd.api.types.is_numeric_dtype(df[col]):
-#                 feature_cols.append(col)
-
-#     return feature_cols
 
 def plot_test_scatter(test_df, output_path: Path):
     test_df = test_df.sort_values("time").reset_index(drop=True)
@@ -374,17 +381,26 @@ def plot_full_timeline(df, output_path: Path):
     plt.savefig(output_path, dpi=200)
     plt.close()
 
-def get_dof2_sequence_blocks():
-    base_frequency = 0.5
-    frequency_factors = [0.5, 1.0, 2.0]
-    range_factors = [0.25, 0.5, 1.0]
-    modes = ["sinusoid", "triangle"]
-    cycles = [3, 3]
+def get_dof2_sequence_blocks(dof2_config):
+    base_frequency = float(dof2_config["frequency"])
+    frequency_factors = dof2_config["sequence_frequency_factors"]
+    range_factors = dof2_config["sequence_range_factors"]
+    modes = dof2_config["sequence_modes"]
+    cycles = dof2_config["sequence_cycles"]
 
-    sequence_pause_duration = 5.0
-    between_frequency_pause = 5.0
-    between_range_pause = 5.0
-    final_pause_duration = 5.0
+    sequence_pause_duration = float(
+        dof2_config["sequence_pause_duration"]
+    )
+    between_frequency_pause = float(
+        dof2_config["sequence_between_frequency_pause"]
+    )
+    between_range_pause = float(
+        dof2_config["sequence_between_range_pause"]
+    )
+    final_pause_duration = float(
+        dof2_config["sequence_final_pause_duration"]
+    )
+
 
     blocks = []
     t = 0.0
@@ -422,12 +438,13 @@ def get_dof2_sequence_blocks():
 
     t += final_pause_duration
     return blocks
-def plot_sequence_blocks(df, output_dir: Path):
+
+def plot_sequence_blocks(df, output_dir: Path, dof2_config):
     df = df.sort_values("time").reset_index(drop=True)
     block_dir = output_dir / "sequence_block_plots"
     block_dir.mkdir(parents=True, exist_ok=True)
 
-    blocks = get_dof2_sequence_blocks()
+    blocks = get_dof2_sequence_blocks(dof2_config)
 
     for i, block in enumerate(blocks):
         margin = 0.5
@@ -523,6 +540,7 @@ def train_single_model(
     test_index,
     feature_cols,
     output_dir: Path,
+    dof2_config
 ):
     model_output_dir = output_dir / model_name
     model_output_dir.mkdir(parents=True, exist_ok=True)
@@ -612,7 +630,7 @@ def train_single_model(
     full_plot_path = model_output_dir / f"{model_name}_full_timeline.png"
     plot_full_timeline(result_df, full_plot_path)
 
-    plot_sequence_blocks(result_df, model_output_dir)
+    plot_sequence_blocks(result_df, model_output_dir, dof2_config)
 
     return metrics
 
@@ -662,7 +680,7 @@ def write_model_comparison_txt(metrics_df, output_path: Path):
             f"({best_rmse['hybrid_dt_rmse_deg']:.3f} deg)\n"
         )
 
-def train_and_evaluate(df, output_dir: Path):
+def train_and_evaluate(df, output_dir: Path, dof2_config):
     feature_cols = select_feature_columns(df)
 
     print("\nModel input features:")
@@ -717,6 +735,7 @@ def train_and_evaluate(df, output_dir: Path):
             test_index=test_index,
             feature_cols=feature_cols,
             output_dir=output_dir,
+            dof2_config=dof2_config
         )
         all_metrics.append(metrics)
 
@@ -760,19 +779,55 @@ def plot_results(test_df, output_path: Path):
 
 def main():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--training-config",
+        default=str(DEFAULT_TRAINING_CONFIG_PATH),
+        help="Training configuration YAML.",
+    )
+
     parser.add_argument(
         "--data-dir",
-        default=str(DEFAULT_DOF2_DATA_DIR),
+        default=None,
+        help="Optional override for the Hybrid Bend training data directory.",
     )
 
     parser.add_argument(
         "--output-dir",
-        default=str(DEFAULT_DOF2_RESULT_DIR),
+        default=None,
+        help="Optional override for the Hybrid Bend result directory.",
     )
+    
     args = parser.parse_args()
 
-    data_dir = Path(args.data_dir).expanduser()
-    output_dir = Path(args.output_dir).expanduser()
+    config, training_data_root = load_training_config(
+        args.training_config
+    )
+
+    hybrid_config = config["hybrid_bend_dt"]
+
+    dof2_config = load_dof2_pattern_config(
+        DEFAULT_DOF_PATTERN_CONFIG_PATH
+    )
+
+    data_dir = (
+        Path(args.data_dir).expanduser()
+        if args.data_dir is not None
+        else resolve_training_path(
+            training_data_root,
+            hybrid_config["input_dir"],
+        )
+    )
+
+    output_dir = (
+        Path(args.output_dir).expanduser()
+        if args.output_dir is not None
+        else resolve_training_path(
+            training_data_root,
+            hybrid_config["output_dir"],
+        )
+    )
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     dataset = build_dataset(data_dir)
@@ -783,7 +838,7 @@ def main():
     print(f"\nSaved dataset: {dataset_path}")
     print(f"Total rows: {len(dataset)}")
 
-    train_and_evaluate(dataset, output_dir)
+    train_and_evaluate(dataset, output_dir, dof2_config)
 
 
 if __name__ == "__main__":

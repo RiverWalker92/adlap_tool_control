@@ -20,7 +20,7 @@ class PatternRunner(Node):
             / "src"
             / "adlap_tool_control"
             / "config"
-            / "tool_params.yaml"
+            / "dof_pattern_params.yaml"
         )
         self.declare_parameter("topic", "/right/tool_control_node/instrument_angles")
         self.declare_parameter("publish_rate", 100.0)
@@ -273,7 +273,7 @@ class PatternRunner(Node):
 
         if parameter.type_ == Parameter.Type.NOT_SET:
             raise RuntimeError(
-                f"Required parameter '{parameter_name}' is missing from tool_params.yaml"
+                f"Required parameter '{parameter_name}' is missing from dof_pattern_params.yaml"
             )
 
         return parameter.value

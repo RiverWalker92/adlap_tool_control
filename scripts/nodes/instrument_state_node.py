@@ -3,6 +3,7 @@
 import math
 from pathlib import Path
 import sys
+from ament_index_python.packages import get_package_share_directory
 
 # Make imports work after moving files into scripts/nodes and scripts/digital_twins.
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -25,11 +26,11 @@ from std_msgs.msg import Float64MultiArray
 
 from instrument_digital_twin import InstrumentDigitalTwin
 
+# Helper class to load a trained hybrid bend residual model and predict the residual from gearbox output.
 class HybridBendResidualModel:
     """
     Loads a trained gearbox-only no-history residual model.
-
-    The model predicts:
+    This model predicts:
         residual_deg = video_angle_deg - physics_DT_pitch_deg
 
     Forward prediction:
@@ -58,6 +59,7 @@ class HybridBendResidualModel:
                 f"{unsupported_columns}"
             )
 
+    # Predict the residual in degrees from the gearbox output.
     def predict_residual_deg(self, gearbox_output):
         feature_values = {
             f"gearbox_{i}": float(gearbox_output[i])
@@ -74,22 +76,18 @@ class HybridBendResidualModel:
 
         return residual_deg
 
-def resolve_instrument_params_file(instrument_config: str, fallback_path: Path) -> Path:
+
+# Determine the instrument parameters file from the detected instrument configuration.
+def resolve_instrument_params_file(instrument_config: str) -> Path:
     """
-    Converts a detected instrument config name to the corresponding parameter file.
-    If no instrument_config is provided, the fallback instrument_params_file is used.
+    Converts the detected instrument configuration to its parameter file.
     """
+
     instruments_dir = (
-        Path.home()
-        / "ros2_ws"
-        / "src"
-        / "adlap_tool_control"
+        Path(get_package_share_directory("adlap_tool_control"))
         / "config"
         / "instruments"
     )
-
-    if instrument_config == "":
-        return fallback_path
 
     mapping = {
         "gripper": instruments_dir / "gripper_params.yaml",
@@ -97,46 +95,73 @@ def resolve_instrument_params_file(instrument_config: str, fallback_path: Path) 
     }
 
     if instrument_config not in mapping:
-        available = list(mapping.keys())
         raise RuntimeError(
-            f"Unknown instrument_config '{instrument_config}'. "
-            f"Available options are: {available}"
+            f"Unknown or missing instrument_config '{instrument_config}'. "
+            f"Available options are: {list(mapping.keys())}"
         )
 
     selected_path = mapping[instrument_config]
 
     if not selected_path.exists():
         raise RuntimeError(
-            f"Instrument config '{instrument_config}' maps to missing file: {selected_path}"
+            f"Instrument config '{instrument_config}' maps to missing file: "
+            f"{selected_path}"
         )
 
     return selected_path
+
 
 class InstrumentStateNode(Node):
     def __init__(self):
         super().__init__("instrument_state_node")
 
+        # -------------------------------------------------------------------------
+        # Declare parameters
+        # -------------------------------------------------------------------------
+
         self.declare_parameter(
             "gearbox_output_topic",
             "/right/tool_control_node/gearbox_state",
         )
+
         self.declare_parameter(
             "predicted_instrument_angles_topic",
             "/right/instrument_digital_twin/predicted_instrument_angles",
         )
+
         self.declare_parameter(
             "hybrid_predicted_instrument_angles_topic",
             "/right/instrument_digital_twin/hybrid_predicted_instrument_angles",
         )
-#!!!!!!!!!!!!PAS DIT AAN
-        self.declare_parameter("hybrid_bend_enabled", True) #!!!! hierin aanpassen
+
+        self.declare_parameter(
+            "test_data_root",
+            "~/ros2_ws/test_data",
+        )
+
+        self.declare_parameter(
+            "hybrid_bend_enabled",
+            False,
+        )
 
         self.declare_parameter(
             "hybrid_bend_model_file",
             "",
         )
 
-        self.gearbox_output_topic = self.get_parameter("gearbox_output_topic").value
+        self.declare_parameter(
+            "instrument_config",
+            "",
+        )
+
+        # -------------------------------------------------------------------------
+        # Read parameter values
+        # -------------------------------------------------------------------------
+
+        self.gearbox_output_topic = self.get_parameter(
+            "gearbox_output_topic"
+        ).value
+
         self.predicted_topic = self.get_parameter(
             "predicted_instrument_angles_topic"
         ).value
@@ -145,56 +170,61 @@ class InstrumentStateNode(Node):
             "hybrid_predicted_instrument_angles_topic"
         ).value
 
+        self.test_data_root = Path(
+            self.get_parameter("test_data_root").value
+        ).expanduser()
+
         self.hybrid_bend_enabled = bool(
             self.get_parameter("hybrid_bend_enabled").value
         )
 
-        self.hybrid_bend_model_file = self.get_parameter(
+        hybrid_bend_model_file_raw = self.get_parameter(
             "hybrid_bend_model_file"
         ).value
 
-        self.declare_parameter("instrument_config", "")
+        if self.hybrid_bend_enabled and not hybrid_bend_model_file_raw:
+            raise RuntimeError(
+                "hybrid_bend_enabled is True, but hybrid_bend_model_file is empty"
+            )
 
-        self.declare_parameter(
-            "instrument_params_file",
-            str(
-                Path.home()
-                / "ros2_ws"
-                / "src"
-                / "adlap_tool_control"
-                / "config"
-                / "instruments"
-                / "gripper_params.yaml"
-            ),
-        )
+        hybrid_bend_model_file = Path(
+            hybrid_bend_model_file_raw
+        ).expanduser()
 
-        instrument_config = self.get_parameter("instrument_config").value
+        instrument_config = self.get_parameter(
+            "instrument_config"
+        ).value
 
-        fallback_instrument_params_file = Path(
-            self.get_parameter("instrument_params_file").value
-        )
+        # -------------------------------------------------------------------------
+        # Resolve paths
+        # -------------------------------------------------------------------------
+
+        if hybrid_bend_model_file.is_absolute():
+            self.hybrid_bend_model_file = hybrid_bend_model_file
+        else:
+            self.hybrid_bend_model_file = (
+                self.test_data_root / hybrid_bend_model_file
+            )
+
 
         self.instrument_params_file = resolve_instrument_params_file(
-            instrument_config=instrument_config,
-            fallback_path=fallback_instrument_params_file,
+            instrument_config=instrument_config
         )
-
-        self.get_logger().info(
-            f"Instrument config from launch parameter: {instrument_config}"
-        )
-        self.get_logger().info(
-            f"Resolved instrument params file: {self.instrument_params_file}"
-        )
+                
+        # -------------------------------------------------------------------------
+        # Initialize Digital Twin models
+        # -------------------------------------------------------------------------
 
         self.instrument_dt = InstrumentDigitalTwin(
             config_path=self.instrument_params_file
         )
+
         self.hybrid_bend_model = None
 
         if self.hybrid_bend_enabled:
-            if self.hybrid_bend_model_file == "":
+            if not self.hybrid_bend_model_file.exists():
                 raise RuntimeError(
-                    "hybrid_bend_enabled is True, but hybrid_bend_model_file is empty"
+                    f"Hybrid bend model not found: {self.hybrid_bend_model_file}"
                 )
 
             self.hybrid_bend_model = HybridBendResidualModel(
@@ -202,8 +232,13 @@ class InstrumentStateNode(Node):
             )
 
             self.get_logger().info(
-                f"Loaded hybrid bend residual model from {self.hybrid_bend_model_file}"
+                f"Loaded hybrid bend residual model from "
+                f"{self.hybrid_bend_model_file}"
             )
+        
+        # -------------------------------------------------------------------------
+        # Publishers and subscribers
+        # -------------------------------------------------------------------------
 
         self.predicted_pub = self.create_publisher(
             Float64MultiArray,
@@ -231,9 +266,10 @@ class InstrumentStateNode(Node):
             f"Loaded instrument parameters from {self.instrument_params_file}"
         )
 
+    # -------------------------------------------------------------------------
+    # Callback for gearbox output messages
+    # -------------------------------------------------------------------------
     def gearbox_output_callback(self, msg):
-        self.get_logger().info(f"Received gearbox output: {list(msg.data)}")
-
         if len(msg.data) != 6:
             self.get_logger().warn(
                 f"Expected 6 gearbox output values, got {len(msg.data)}"
@@ -255,8 +291,6 @@ class InstrumentStateNode(Node):
         ]
 
         self.predicted_pub.publish(out)
-        self.get_logger().info(f"Published predicted angles: {list(out.data)}")
-
         if self.hybrid_bend_enabled:
             residual_deg = self.hybrid_bend_model.predict_residual_deg(msg.data)
             residual_rad = math.radians(residual_deg)
@@ -265,8 +299,8 @@ class InstrumentStateNode(Node):
 
             hybrid_pitch = float(predicted["pitch"]) + residual_rad
 
-            # Voor jouw DOF2 bend model corrigeren we ook bend met dezelfde residual.
-            # De training gebruikte pred_instr_1, dus pitch is de belangrijkste output.
+            # Apply the learned DOF2 residual to both bend and pitch.
+            # The residual model was trained against the pitch-related output.
             hybrid_bend = float(predicted["bend"]) + residual_rad
 
             hybrid_out.data = [
@@ -281,10 +315,10 @@ class InstrumentStateNode(Node):
             ]
             self.hybrid_predicted_pub.publish(hybrid_out)
 
-            self.get_logger().info(
-                f"Published hybrid predicted angles: {list(hybrid_out.data)}, "
-                f"residual={residual_deg:.3f} deg"
-            )
+            # self.get_logger().info(
+            #     f"Published hybrid predicted angles: {list(hybrid_out.data)}, "
+            #     f"residual={residual_deg:.3f} deg"
+            # )
 
 def main(args=None):
     rclpy.init(args=args)

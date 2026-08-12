@@ -7,6 +7,8 @@ import math
 import re
 from pathlib import Path
 
+from ament_index_python.packages import get_package_share_directory
+
 import joblib
 import matplotlib
 matplotlib.use("Agg")
@@ -21,65 +23,20 @@ from sklearn.ensemble import (
 from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-AUTOMATED_TRIALS_DIR = (
-    Path.home()
-    / "ros2_ws"
-    / "test_data"
-    / "automated_trials"
+VALID_CONFIGURATIONS = (
+    "motor_only",
+    "gearbox_only",
+    "full_setup",
 )
 
-DEFAULT_MOTORS_ONLY_DATA_DIR = (
-    AUTOMATED_TRIALS_DIR
-    / "trainings data V3"
-    / "motors_only"
-)
-DEFAULT_GEARBOX_DATA_DIR = (
-    AUTOMATED_TRIALS_DIR
-    / "trainings data V3"
-    / "motors_gearbox"
-)
-DEFAULT_FULL_SETUP_DATA_DIR = (
-    AUTOMATED_TRIALS_DIR
-    / "trainings data V3"
-    / "full_setup"
-)
-
-DEFAULT_MOTORS_ONLY_RESULT_DIR = (
-    DEFAULT_MOTORS_ONLY_DATA_DIR
-    / "motors_only_results"
-)
-DEFAULT_GEARBOX_RESULT_DIR = (
-    DEFAULT_GEARBOX_DATA_DIR
-    / "motors_gearbox_results"
-)
-DEFAULT_FULL_SETUP_RESULT_DIR = (
-    DEFAULT_FULL_SETUP_DATA_DIR
-    / "full_setup_results"
-)
-
-TRAINING_CONFIGURATIONS = {
-    "motor_only": {
-        "input_dir": DEFAULT_MOTORS_ONLY_DATA_DIR,
-        "output_dir": DEFAULT_MOTORS_ONLY_RESULT_DIR,
-    },
-    "gearbox_only": {
-        "input_dir": DEFAULT_GEARBOX_DATA_DIR,
-        "output_dir": DEFAULT_GEARBOX_RESULT_DIR,
-    },
-    "full_setup": {
-        "input_dir": DEFAULT_FULL_SETUP_DATA_DIR,
-        "output_dir": DEFAULT_FULL_SETUP_RESULT_DIR,
-    },
-}
 RUN_SPLIT_SEED = 42
 EVENT_TAIL_S = 1.0
 STATIONARY_ENCODER_VELOCITY_THRESHOLD = 5.0
 
 DEFAULT_GEARBOX_CONFIG_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(get_package_share_directory("adlap_tool_control"))
     / "config"
     / "gearbox_params.yaml"
 )
@@ -90,6 +47,44 @@ MOTOR_COLORS = {
     2: "tab:green",
     3: "tab:red",
 }
+
+DEFAULT_TRAINING_CONFIG_PATH = (
+    Path(get_package_share_directory("adlap_tool_control"))
+    / "config"
+    / "training_config.yaml"
+)
+
+
+def load_training_config(config_path: Path):
+    config_path = Path(config_path).expanduser()
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    test_data_root = Path(
+        config["test_data_root"]
+    ).expanduser()
+
+    training_data_root = Path(
+        config["training_data_root"]
+    ).expanduser()
+
+    if not training_data_root.is_absolute():
+        training_data_root = (
+            test_data_root / training_data_root
+        )
+
+    return config, training_data_root
+
+
+def resolve_training_path(training_data_root: Path, path_value: str) -> Path:
+    path = Path(path_value).expanduser()
+
+    if path.is_absolute():
+        return path
+
+    return training_data_root / path
+
 
 def make_current_models():
     models = {
@@ -3371,9 +3366,14 @@ def main():
 
     parser.add_argument(
         "--configuration",
-        choices=["all", *TRAINING_CONFIGURATIONS.keys()],
+        choices=["all", *VALID_CONFIGURATIONS],
         default="all",
         help="Configuration to train. Default: train all three configurations.",
+    )
+    parser.add_argument(
+        "--training-config",
+        default=str(DEFAULT_TRAINING_CONFIG_PATH),
+        help="Training configuration YAML.",
     )
 
     parser.add_argument(
@@ -3430,19 +3430,43 @@ def main():
 
     args = parser.parse_args()
 
+    training_config, training_data_root = load_training_config(
+        args.training_config
+    )
+
+    motor_configurations_raw = training_config[
+        "motor_dt"
+    ]["configurations"]
+
+    training_configurations = {}
+
+    for coupling_mode in VALID_CONFIGURATIONS:
+        config_entry = motor_configurations_raw[coupling_mode]
+
+        training_configurations[coupling_mode] = {
+            "input_dir": resolve_training_path(
+                training_data_root,
+                config_entry["input_dir"],
+            ),
+            "output_dir": resolve_training_path(
+                training_data_root,
+                config_entry["output_dir"],
+            ),
+        }
+
     if args.configuration == "all":
         if args.file is not None or args.input_dir is not None or args.output_dir is not None:
             raise RuntimeError(
                 "--file, --input-dir and --output-dir require one specific "
-                "--configuration. Edit TRAINING_CONFIGURATIONS to change "
-                "the default paths used by --configuration all."
+                "--configuration. Edit training_config.yaml to change the default paths "
+                "used by --configuration all."
             )
-        selected_configurations = list(TRAINING_CONFIGURATIONS)
+        selected_configurations = list(VALID_CONFIGURATIONS)
     else:
         selected_configurations = [args.configuration]
 
     for coupling_mode in selected_configurations:
-        defaults = TRAINING_CONFIGURATIONS[coupling_mode]
+        defaults = training_configurations[coupling_mode]
         input_dir = (
             Path(args.input_dir).expanduser()
             if args.input_dir is not None

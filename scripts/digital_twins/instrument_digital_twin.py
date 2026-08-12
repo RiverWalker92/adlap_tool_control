@@ -30,7 +30,7 @@ class InstrumentDigitalTwin:
 
     # Load instrument calibration parameters from the YAML 
     # configuration file.
-    def __init__(self, config_path="config/tool_params.yaml"):
+    def __init__(self, config_path="config/dof_pattern_params.yaml"):
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)["instrument"]
 

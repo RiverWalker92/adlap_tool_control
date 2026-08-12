@@ -1,0 +1,65 @@
+video_angle_detector:
+
+  detection:
+    use_red_marker: true
+    use_yellow_marker: false
+    use_green_marker: true
+    use_blue_marker: false
+    use_shaft: true
+
+  filtering:
+    median_window: 5
+
+  led:
+    roi: [1457, 380, 454, 180]
+    red_pixel_threshold: 100
+
+    hsv_lower_1: [0, 120, 180]
+    hsv_upper_1: [10, 255, 255]
+
+    hsv_lower_2: [170, 120, 180]
+    hsv_upper_2: [180, 255, 255]
+
+  markers:
+    roi: [537, 331, 554, 448]
+    min_area: 60
+
+    red:
+      hsv_lower_1: [0, 40, 40]
+      hsv_upper_1: [15, 255, 255]
+      hsv_lower_2: [165, 40, 40]
+      hsv_upper_2: [180, 255, 255]
+      min_aspect_ratio: 2.5
+
+    yellow:
+      hsv_lower: [20, 80, 80]
+      hsv_upper: [40, 255, 255]
+      min_aspect_ratio: 2.0
+
+    green:
+      hsv_lower: [45, 85, 60]
+      hsv_upper: [85, 255, 255]
+      min_aspect_ratio: 2.0
+
+    blue:
+      hsv_lower: [95, 40, 50]
+      hsv_upper: [120, 255, 255]
+
+  shaft:
+    roi: [1194, 451, 691, 165]
+    min_points: 50
+    gaussian_kernel_size: 5
+    canny_low: 50
+    canny_high: 150
+    edge_margin: 10
+
+  morphology:
+    kernel_size: 5
+
+  debug:
+    preview_scale: 0.35
+    open_jaws_threshold_deg: 20.0
+
+  video_writer:
+    preset: "veryfast"
+    crf: 23

@@ -1,7 +1,7 @@
 # Root directory containing all training data.
 # Relative training paths below are resolved from training_data_root.
 test_data_root: "~/ros2_ws/test_data"
-training_data_root: "automated_trials/trainings data V3"
+training_data_root: "automated_trials/trainings data V4"
 
 
 motor_dt:

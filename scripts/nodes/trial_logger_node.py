@@ -26,6 +26,7 @@ class TrialLogger(Node):
         self.last_instrument_angles = []            # Commanded instrument angles
         self.last_measured_instrument_angles = []    # Encoder-based instrument angles
         self.last_motor_commands = []
+        self.last_motor_target_positions = []
         self.last_led_command = None
 
         # Latest Digital Twin variables
@@ -39,6 +40,7 @@ class TrialLogger(Node):
         self.last_currents_time = None
         self.last_positions_time = None
         self.last_motor_commands_time = None
+        self.last_motor_target_positions_time = None
         self.last_predicted_motor_positions_time = None
         self.last_predicted_motor_currents_time = None
 
@@ -106,6 +108,13 @@ class TrialLogger(Node):
             Int32MultiArray,
             '/right/tool_control_node/commanded_motor_positions',
             self.motor_command_callback,
+            10
+        )
+
+        self.motor_target_position_sub = self.create_subscription(
+            Int32MultiArray,
+            '/right/tool_control_node/motor_target_positions',
+            self.motor_target_position_callback,
             10
         )
 
@@ -225,6 +234,10 @@ class TrialLogger(Node):
     def motor_command_callback(self, msg):
         self.last_motor_commands = list(msg.data)
         self.last_motor_commands_time = self.now_s()
+
+    def motor_target_position_callback(self, msg):
+        self.last_motor_target_positions = list(msg.data)
+        self.last_motor_target_positions_time = self.now_s()
     
     def led_callback(self, msg):
         self.last_led_command = msg.data
@@ -276,7 +289,9 @@ class TrialLogger(Node):
 
                 "commanded_instrument_angles": self.last_instrument_angles if len(self.last_instrument_angles) == 4 else None,
                 "commanded_motor_positions": self.last_motor_commands if len(self.last_motor_commands) == 4 else None,
-                
+
+                "motor_target_positions": self.last_motor_target_positions if len(self.last_motor_target_positions) == 4 else None,
+
                 "measured_instrument_angles": self.last_measured_instrument_angles if len(self.last_measured_instrument_angles) == 4 else None,
                 "measured_motor_positions": self.last_positions,
                 "measured_currents": self.last_currents,
@@ -296,36 +311,13 @@ class TrialLogger(Node):
                 "hybrid_predicted_instrument_angles": (
                     self.last_hybrid_predicted_instrument_angles
                     if self.last_hybrid_predicted_instrument_angles else None),
-                # "motor_dt_debug_command_state": (
-                #     self.last_motor_dt_debug_command_state
-                #     if len(self.last_motor_dt_debug_command_state) == 20 else None),
-                # "motor_dt_state": (
-                #     self.last_predicted_motor_state
-                #     if len(self.last_predicted_motor_state) >= 24 else None),
-                
+
                 "measured_currents_timestamp": self.last_currents_time,
                 "measured_motor_positions_timestamp": self.last_positions_time,
                 "commanded_motor_positions_timestamp": self.last_motor_commands_time,
+                "motor_target_positions_timestamp": self.last_motor_target_positions_time,
                 "predicted_motor_positions_timestamp": self.last_predicted_motor_positions_time,
                 "predicted_motor_currents_timestamp": self.last_predicted_motor_currents_time,
-                # "motor_dt_state_timestamp": self.last_motor_dt_state_time,
-                # "motor_dt_debug_command_state_timestamp": self.last_motor_dt_debug_command_state_time,
-            #     "measured_currents_age": (
-            #         timestamp - self.last_currents_time
-            #         if self.last_currents_time is not None else None
-            #     ),
-            #     "measured_motor_positions_age": (
-            #         timestamp - self.last_positions_time
-            #         if self.last_positions_time is not None else None
-            #     ),
-            #     "commanded_motor_positions_age": (
-            #         timestamp - self.last_motor_commands_time
-            #         if self.last_motor_commands_time is not None else None
-            #     ),
-            #     "motor_dt_state_age": (
-            #         timestamp - self.last_motor_dt_state_time
-            #         if self.last_motor_dt_state_time is not None else None
-            #     ),
             }
 
             sample["task"] = self.last_task

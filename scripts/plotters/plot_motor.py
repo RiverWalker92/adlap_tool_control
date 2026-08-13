@@ -109,9 +109,20 @@ def load_motor_log(file_path):
             currents = data.get("measured_currents")
             commands = data.get("commanded_motor_positions")
 
+            motor_targets = data.get(
+                "motor_target_positions"
+            )
+
             instrument_commands = data.get(
                 "commanded_instrument_angles"
             )
+            if motor_targets is None or len(motor_targets) < 4:
+                motor_targets = [
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                    np.nan,
+                ]
 
             if (
                 instrument_commands is None
@@ -130,6 +141,7 @@ def load_motor_log(file_path):
             measured_positions_timestamp = data.get("measured_motor_positions_timestamp")
             measured_currents_timestamp = data.get("measured_currents_timestamp")
             commanded_motor_positions_timestamp = data.get("commanded_motor_positions_timestamp")
+            motor_target_positions_timestamp = data.get("motor_target_positions_timestamp")
             predicted_positions_timestamp = data.get("predicted_motor_positions_timestamp")
             predicted_currents_timestamp = data.get("predicted_motor_currents_timestamp")
 
@@ -168,6 +180,9 @@ def load_motor_log(file_path):
                 "positions": [float(x) for x in positions[:4]],
                 "currents": [float(x) for x in currents[:4]],
                 "commands": [float(x) for x in commands[:4]],
+                "motor_targets": [
+                    float(x) for x in motor_targets[:4]
+                ],
                 "instrument_commands": [
                     float(x) for x in instrument_commands[:4]
                 ],
@@ -176,6 +191,7 @@ def load_motor_log(file_path):
                 "measured_positions_timestamp": float_or_none(measured_positions_timestamp),
                 "measured_currents_timestamp": float_or_none(measured_currents_timestamp),
                 "commanded_motor_positions_timestamp": float_or_none(commanded_motor_positions_timestamp),
+                "motor_target_positions_timestamp": float_or_none(motor_target_positions_timestamp),
                 "predicted_positions_timestamp": float_or_none(predicted_positions_timestamp),
                 "predicted_currents_timestamp": float_or_none(predicted_currents_timestamp),
 
@@ -1017,7 +1033,7 @@ def get_metric_window(segment, replay_time):
     final_hold = FINAL_HOLD_DURATION_S.get(test_type)
 
     if final_hold is None:
-        if test_type == "gearbox_instrument":
+        if "segment_start_time_s" in segment:
             # Bij DOF-/instrumenttrials bevat het replaysegment de volledige
             # sequence, inclusief de afsluitende hold.
             evaluation_start = float(replay_time[0])
@@ -1970,127 +1986,55 @@ def get_metric_phase_target(
     motor_target,
 ):
     """
-    Kies het commandosignaal waarmee dynamic/stationary
-    wordt bepaald.
-
-    Motor-only:
-        cumulatief motorcommando in pulses.
-
-    Gearbox/instrument:
-        commanded_instrument_angles van de actieve DOF
-        in radialen.
+    Use the motor target for dynamic/stationary phase detection
+    in both motor-only and DOF-controlled trials.
     """
-    replay_time = np.asarray(replay_time, dtype=float)
-    motor_target = np.asarray(motor_target, dtype=float)
 
-    if segment["info"]["test_type"] != "gearbox_instrument":
-        return motor_target, "offline_motor_target", "pulses"
-
-    rows = segment["rows"]
-
-    instrument_commands = np.asarray(
-        [
-            row.get(
-                "instrument_commands",
-                [np.nan, np.nan, np.nan, np.nan],
-            )
-            for row in rows
-        ],
+    replay_time = np.asarray(
+        replay_time,
         dtype=float,
     )
 
-    if instrument_commands.ndim != 2:
-        return None, "missing_instrument_command", "rad"
-
-    if instrument_commands.shape[1] < 4:
-        return None, "missing_instrument_command", "rad"
-
-    # Bepaal de actieve DOF eerst uit het task label.
-    motor_name = str(
-        segment["info"].get("motor_name", "")
-    ).lower()
-
-    active_dof_index = None
-
-    for dof_index in range(4):
-        if f"dof{dof_index + 1}" in motor_name:
-            active_dof_index = dof_index
-            break
-
-    # Fallback: kies het instrumentkanaal met de grootste range.
-    if active_dof_index is None:
-        command_ranges = []
-
-        for dof_index in range(4):
-            values = instrument_commands[:, dof_index]
-            values = values[np.isfinite(values)]
-
-            if values.size == 0:
-                command_ranges.append(-np.inf)
-            else:
-                command_ranges.append(
-                    float(np.max(values) - np.min(values))
-                )
-
-        active_dof_index = int(np.argmax(command_ranges))
-
-    instrument_target = instrument_commands[
-        :,
-        active_dof_index,
-    ]
-
-    row_time = np.asarray(
-        [row["time"] for row in rows],
+    motor_target = np.asarray(
+        motor_target,
         dtype=float,
     )
 
-    if row_time.size > 0:
-        row_time = row_time - row_time[0]
+    if (
+        motor_target.ndim != 1
+        or motor_target.size != replay_time.size
+    ):
+        return None, "missing_motor_target", "pulses"
 
-    valid = (
-        np.isfinite(row_time)
-        & np.isfinite(instrument_target)
+    finite = (
+        np.isfinite(replay_time)
+        & np.isfinite(motor_target)
     )
 
-    if np.sum(valid) < 2:
-        return None, "missing_instrument_command", "rad"
-
-    valid_time = row_time[valid]
-    valid_target = instrument_target[valid]
-
-    # np.interp vereist oplopende, unieke tijdstippen.
-    order = np.argsort(valid_time)
-    valid_time = valid_time[order]
-    valid_target = valid_target[order]
-
-    valid_time, unique_indices = np.unique(
-        valid_time,
-        return_index=True,
-    )
-    valid_target = valid_target[unique_indices]
-
-    if valid_time.size < 2:
-        return None, "missing_instrument_command", "rad"
+    if np.sum(finite) < 2:
+        return None, "missing_motor_target", "pulses"
 
     target_range = float(
-        np.max(valid_target) - np.min(valid_target)
+        np.max(motor_target[finite])
+        - np.min(motor_target[finite])
     )
 
-    if target_range <= COMMAND_CHANGE_THRESHOLD:
-        return None, "constant_instrument_command", "rad"
+    if (
+        "segment_start_time_s" in segment
+        and target_range <= 1.0
+    ):
+        return None, "constant_motor_target", "pulses"
 
-    phase_target = np.interp(
-        replay_time,
-        valid_time,
-        valid_target,
-        left=valid_target[0],
-        right=valid_target[-1],
+    phase_source = (
+        "motor_target_positions"
+        if "segment_start_time_s" in segment
+        else "offline_motor_target"
     )
 
     return (
-        phase_target,
-        "commanded_instrument_angles",
-        "rad",
+        motor_target,
+        phase_source,
+        "pulses",
     )
 
 def make_metric_zone_masks(
@@ -2217,6 +2161,20 @@ def finite_min(values):
 
     return float(np.min(values))
 
+
+def percent_of_target_range(value, target_range_pulses):
+    """Express a pulse error as percentage of one full target excursion."""
+    if (
+        value is None
+        or target_range_pulses is None
+        or not np.isfinite(value)
+        or not np.isfinite(target_range_pulses)
+        or target_range_pulses <= 1.0
+    ):
+        return None
+
+    return float(100.0 * value / target_range_pulses)
+
 def write_motor_metrics(
     segments,
     output_dir,
@@ -2326,6 +2284,21 @@ def write_motor_metrics(
                     & full_window_mask[1:]
                 )
             )
+
+            # Use the complete evaluation window for the denominator in every
+            # metric zone. This keeps full/dynamic/stationary comparable and
+            # prevents a partial dynamic mask from shrinking the target range.
+            full_phase_command = phase_target[
+                full_window_mask & np.isfinite(phase_target)
+            ]
+
+            if phase_unit == "pulses" and full_phase_command.size >= 2:
+                command_range_pulses = float(
+                    np.max(full_phase_command)
+                    - np.min(full_phase_command)
+                )
+            else:
+                command_range_pulses = None
 
             position_error_all = np.asarray(
                 encoder_deviation[idx],
@@ -2507,6 +2480,7 @@ def write_motor_metrics(
                         if phase_unit == "pulses"
                         else None
                     ),
+                    "command_range_pulses": command_range_pulses,
 
                     "instrument_command_min_rad": (
                         finite_min(phase_command_eval)
@@ -2533,6 +2507,24 @@ def write_motor_metrics(
                     ),
                     "position_prediction_residual_sd_pulses": (
                         position_stats["sd"]
+                    ),
+                    "position_prediction_nmae_percent": (
+                        percent_of_target_range(
+                            position_stats["mae"],
+                            command_range_pulses,
+                        )
+                    ),
+                    "position_prediction_nrmse_percent": (
+                        percent_of_target_range(
+                            position_stats["rmse"],
+                            command_range_pulses,
+                        )
+                    ),
+                    "position_prediction_max_abs_error_percent": (
+                        percent_of_target_range(
+                            position_stats["max_abs"],
+                            command_range_pulses,
+                        )
                     ),
 
                     "filtered_current_prediction_mae_mA": (
@@ -3116,18 +3108,11 @@ def plot_motor_pattern_results(
 def get_commanded_motors_for_dof_patterns(
     patterns,
     replay_by_task_label,
-    minimum_position_range_pulses=5.0,
+    minimum_target_range_pulses=1.0,
 ):
     """
-    Determine which motors are actually involved in a DOF pattern.
-
-    For DOF-controlled trials the offline motor commanded_target is
-    not always a useful indicator of motor activity. Therefore use
-    the measured encoder motion instead.
-
-    A motor is considered active when its measured encoder position
-    changes by more than minimum_position_range_pulses in at least
-    one waveform segment.
+    Determine which motors received a changing motor target
+    during a DOF-controlled motion pattern.
     """
 
     active_motors = set()
@@ -3141,45 +3126,43 @@ def get_commanded_motors_for_dof_patterns(
         if len(rows) < 2:
             continue
 
-        positions = np.asarray(
+        motor_targets = np.asarray(
             [
-                row["positions"]
+                row.get(
+                    "motor_targets",
+                    [np.nan, np.nan, np.nan, np.nan],
+                )
                 for row in rows
             ],
             dtype=float,
         )
 
         if (
-            positions.ndim != 2
-            or positions.shape[1] < 4
+            motor_targets.ndim != 2
+            or motor_targets.shape[1] < 4
         ):
             continue
 
         for motor_index in range(4):
-            motor_position = positions[
+            target = motor_targets[
                 :,
                 motor_index,
             ]
 
-            finite = motor_position[
-                np.isfinite(motor_position)
+            finite = target[
+                np.isfinite(target)
             ]
 
             if finite.size < 2:
                 continue
 
-            position_range = float(
+            target_range = float(
                 np.max(finite)
                 - np.min(finite)
             )
 
-            if (
-                position_range
-                > minimum_position_range_pulses
-            ):
-                active_motors.add(
-                    motor_index
-                )
+            if target_range > minimum_target_range_pulses:
+                active_motors.add(motor_index)
 
     return sorted(active_motors)
 
@@ -3343,6 +3326,30 @@ def plot_dof_pattern_results(
                     dtype=float,
                 )
 
+                raw_motor_target = np.asarray(
+                    [
+                        row["motor_targets"][
+                            motor_index
+                        ]
+                        for row in rows
+                    ],
+                    dtype=float,
+                )
+
+                finite_target = np.flatnonzero(
+                    np.isfinite(raw_motor_target)
+                )
+
+                if finite_target.size > 0:
+                    motor_target_reference = float(
+                        raw_motor_target[finite_target[0]]
+                    )
+
+                    raw_motor_target = (
+                        raw_motor_target
+                        - motor_target_reference
+                    )
+
                 raw_position = np.asarray(
                     [
                         row["positions"][
@@ -3425,6 +3432,15 @@ def plot_dof_pattern_results(
                     1,
                     column_index,
                 ]
+
+                ax_position.plot(
+                    t_raw,
+                    raw_motor_target,
+                    color="black",
+                    linestyle=":",
+                    linewidth=1.2,
+                    label="Logged motor target",
+                )
 
                 ax_position.plot(
                     t_raw,

@@ -723,6 +723,7 @@ def load_motor_log(file_path, coupling_mode, command_converter=None):
             positions = data.get("measured_motor_positions")
             currents = data.get("measured_currents")
             motor_commands = data.get("commanded_motor_positions")
+            motor_targets = data.get("motor_target_positions")
             instrument_commands = data.get("commanded_instrument_angles")
 
             if t_value is None or positions is None or currents is None:
@@ -733,6 +734,9 @@ def load_motor_log(file_path, coupling_mode, command_converter=None):
 
             motor_commands_valid = (
                 motor_commands is not None and len(motor_commands) >= 4
+            )
+            motor_targets_valid = (
+                motor_targets is not None and len(motor_targets) >= 4
             )
             instrument_commands_valid = (
                 instrument_commands is not None and len(instrument_commands) >= 4
@@ -749,12 +753,21 @@ def load_motor_log(file_path, coupling_mode, command_converter=None):
                     motor_commands = [0.0, 0.0, 0.0, 0.0]
                 command_source = "motor_relative"
                 command_values = motor_commands[:4]
-            elif instrument_commands_valid:
-                # For both coupled configurations, use the command that was
-                # actually logged. Reconstructing motor targets would require
-                # controller/backlash states that are absent from the logs.
-                command_source = "instrument_angles"
-                command_values = instrument_commands[:4]
+            # elif instrument_commands_valid:
+            #     # For both coupled configurations, use the command that was
+            #     # actually logged. Reconstructing motor targets would require
+            #     # controller/backlash states that are absent from the logs.
+            #     command_source = "instrument_angles"
+            #     command_values = instrument_commands[:4]
+            # else:
+            #     continue
+            elif motor_targets_valid and instrument_commands_valid:
+                # For coupled configurations, the Motor DT uses the absolute
+                # targets that were actually sent to the motor controller.
+                # Instrument commands are retained for DOF-pattern segmentation
+                # and visualization only.
+                command_source = "motor_absolute"
+                command_values = motor_targets[:4]
             else:
                 continue
 
@@ -765,6 +778,11 @@ def load_motor_log(file_path, coupling_mode, command_converter=None):
                 "currents": [float(x) for x in currents[:4]],
                 "command_source": command_source,
                 "command_values": [float(x) for x in command_values],
+                "motor_targets": (
+                    [float(x) for x in motor_targets[:4]]
+                    if motor_targets_valid
+                    else None
+                ),
                 # Kept separately for explicit coupled-configuration features.
                 "instrument_commands": (
                     [float(x) for x in instrument_commands[:4]]
@@ -1389,42 +1407,35 @@ def instrument_commands_from_segment(segment):
     return np.asarray(commands, dtype=float).T
 
 
-def coupled_instrument_feature_names():
+def coupled_motor_target_feature_names():
     names = []
-    for dof_index in range(4):
-        prefix = f"dof{dof_index + 1}"
+
+    for motor_index in range(4):
+        prefix = f"m{motor_index}"
+
         names.extend([
-            f"{prefix}_command_rad",
-            f"{prefix}_previous_command_rad",
-            f"{prefix}_command_delta_rad",
-            f"abs_{prefix}_command_delta_rad",
-            f"{prefix}_command_direction",
-            f"{prefix}_command_velocity_rad_per_s",
-            f"time_since_{prefix}_command_change_s",
-            f"{prefix}_is_moving",
+            f"{prefix}_target_relative_pulses",
+            f"{prefix}_previous_target_relative_pulses",
+            f"{prefix}_target_delta_pulses",
+            f"abs_{prefix}_target_delta_pulses",
+            f"{prefix}_target_direction",
+            f"{prefix}_target_velocity_pulses_per_s",
+            f"time_since_{prefix}_target_change_s",
+            f"{prefix}_target_is_moving",
         ])
+
     return names
 
 def build_coupled_samples_from_segment(segment, motor_index):
     """
-    Build gearbox/full-setup Motor-DT samples from logged instrument commands.
+    Build gearbox/full-setup Motor-DT samples from logged motor targets.
 
-    Encoder prediction:
-        The encoder target is relative to the start of each individual
-        sinusoid/triangle pattern.
+    All four logged motor_target_positions channels are used as input
+    features. Targets and encoder positions are expressed relative to
+    the start of each individual motion pattern.
 
-        Example:
-            absolute encoder:  -3508 -> -2692
-            training target:       0 ->   816
-
-        This means the Motor DT learns motor displacement caused by the
-        commanded DOF motion, independent of the absolute encoder position
-        at which the experiment started.
-
-    Current prediction:
-        Current remains the filtered measured motor current.
-
-    Command features are still calculated from the logged instrument commands.
+    Commanded instrument angles are retained only for DOF segmentation
+    and plotting.
     """
 
     # ----------------------------------------------------------
@@ -1468,30 +1479,54 @@ def build_coupled_samples_from_segment(segment, motor_index):
     ).T
 
     # ----------------------------------------------------------
-    # 3. Full-run instrument commands
+    # 3. Full-run motor targets and instrument commands
     # ----------------------------------------------------------
 
+    motor_target_rows = []
     instrument_command_rows = []
 
     for row in run_rows:
-        values = row.get("instrument_commands")
+        motor_values = row.get("motor_targets")
 
-        if values is None or len(values) < 4:
+        if motor_values is None or len(motor_values) < 4:
             raise RuntimeError(
                 "Coupled Motor-DT training requires all four "
+                "motor_target_positions in "
+                f"{segment.get('source_file', 'unknown file')}."
+            )
+
+        instrument_values = row.get("instrument_commands")
+
+        if instrument_values is None or len(instrument_values) < 4:
+            raise RuntimeError(
+                "DOF segmentation and plotting require all four "
                 "commanded_instrument_angles in "
                 f"{segment.get('source_file', 'unknown file')}."
             )
 
-        instrument_command_rows.append(
-            [float(value) for value in values[:4]]
+        motor_target_rows.append(
+            [float(value) for value in motor_values[:4]]
         )
+        instrument_command_rows.append(
+            [float(value) for value in instrument_values[:4]]
+        )
+
+    motor_targets_absolute_run = np.asarray(
+        motor_target_rows,
+        dtype=float,
+    ).T
 
     instrument_commands_run = np.asarray(
         instrument_command_rows,
         dtype=float,
     ).T
 
+    # Pattern-start reference used later to express the absolute
+    # target channels relative to the start of this motion pattern.
+    motor_target_reference = motor_targets_absolute_run[
+        :,
+        start_index,
+    ].copy()
     # ----------------------------------------------------------
     # 4. Current preprocessing over complete run
     # ----------------------------------------------------------
@@ -1508,18 +1543,23 @@ def build_coupled_samples_from_segment(segment, motor_index):
     # ----------------------------------------------------------
 
     feature_columns = []
-    dof_moving_masks = []
+    motor_moving_masks = []
 
-    for dof_index in range(4):
-        command = instrument_commands_run[dof_index]
+    for target_motor_index in range(4):
+        absolute_target = motor_targets_absolute_run[target_motor_index]
 
-        previous_command = command.copy()
+        relative_target = (
+            absolute_target
+            - motor_target_reference[target_motor_index]
+        )
 
-        if len(command) > 1:
-            previous_command[1:] = command[:-1]
+        previous_relative_target = relative_target.copy()
+
+        if len(relative_target) > 1:
+            previous_relative_target[1:] = relative_target[:-1]
 
         instantaneous_delta, held_delta = held_command_delta(
-            command
+            absolute_target
         )
 
         direction = np.sign(
@@ -1527,13 +1567,13 @@ def build_coupled_samples_from_segment(segment, motor_index):
         )
 
         velocity = safe_gradient(
-            command,
+            absolute_target,
             t_run,
         )
 
         time_after_change = time_since_signal_change(
             t_run,
-            command,
+            absolute_target,
         )
 
         moving = (
@@ -1541,13 +1581,13 @@ def build_coupled_samples_from_segment(segment, motor_index):
             & (time_after_change < EVENT_TAIL_S)
         ).astype(float)
 
-        dof_moving_masks.append(
+        motor_moving_masks.append(
             moving.astype(bool)
         )
 
         feature_columns.extend([
-            command,
-            previous_command,
+            relative_target,
+            previous_relative_target,
             instantaneous_delta,
             np.abs(instantaneous_delta),
             direction,
@@ -1561,7 +1601,7 @@ def build_coupled_samples_from_segment(segment, motor_index):
     )
 
     dynamic_mask_run = np.logical_or.reduce(
-        dof_moving_masks
+        motor_moving_masks
     )
 
     # ----------------------------------------------------------
@@ -1577,6 +1617,13 @@ def build_coupled_samples_from_segment(segment, motor_index):
         pattern_slice
     ]
 
+    motor_targets = (
+        motor_targets_absolute_run[
+            :,
+            pattern_slice,
+        ]
+        - motor_target_reference[:, np.newaxis]
+    )
     instrument_commands = instrument_commands_run[
         :,
         pattern_slice,
@@ -1697,15 +1744,26 @@ def build_coupled_samples_from_segment(segment, motor_index):
 
         "time": t,
 
-        "target": None,
+        "target":
+            motor_targets[motor_index],
 
         "model_command_source": (
-            "commanded_instrument_angles"
+            "motor_target_positions"
         ),
 
         "encoder_reference": (
             "relative_to_motion_pattern_start"
         ),
+
+        "motor_target_reference": (
+            "relative_to_motion_pattern_start"
+        ),
+
+        "motor_target_reference_pulses":
+            motor_target_reference,
+
+        "motor_target_positions_relative":
+            motor_targets,
 
         "instrument_commands_rad":
             instrument_commands,
@@ -1753,7 +1811,7 @@ def build_coupled_samples_from_segment(segment, motor_index):
             encoder_velocity,
 
         "encoder_error":
-            None,
+            motor_targets[motor_index] - encoder,
 
         "is_moving":
             dynamic_mask.astype(float),
@@ -2117,6 +2175,121 @@ def compute_phase_metrics(y_true, y_pred, dynamic_mask, stationary_mask):
     return phase_metrics
 
 
+def add_target_range_normalization(metrics, target_range_pulses):
+    """Add encoder errors as percentages of one full motor-target excursion."""
+    normalized = dict(metrics)
+    normalized["target_range_pulses"] = (
+        float(target_range_pulses)
+        if np.isfinite(target_range_pulses)
+        else None
+    )
+
+    if not np.isfinite(target_range_pulses) or target_range_pulses <= 1.0:
+        normalized["nmae_percent_of_target_range"] = None
+        normalized["nrmse_percent_of_target_range"] = None
+        normalized["max_abs_error_percent_of_target_range"] = None
+        return normalized
+
+    scale = 100.0 / float(target_range_pulses)
+    normalized["nmae_percent_of_target_range"] = float(
+        metrics["mae"] * scale
+    )
+    normalized["nrmse_percent_of_target_range"] = float(
+        metrics["rmse"] * scale
+    )
+    normalized["max_abs_error_percent_of_target_range"] = float(
+        metrics["max_abs_error"] * scale
+    )
+    return normalized
+
+
+def compute_range_normalized_phase_metrics(
+    y_true,
+    y_pred,
+    motor_target,
+    dynamic_mask,
+    stationary_mask,
+):
+    """Normalize every phase with the full range of its own test segment."""
+    motor_target = np.asarray(motor_target, dtype=float)
+    finite_target = motor_target[np.isfinite(motor_target)]
+
+    target_range_pulses = (
+        float(np.max(finite_target) - np.min(finite_target))
+        if finite_target.size >= 2
+        else np.nan
+    )
+
+    by_phase = {
+        "overall": add_target_range_normalization(
+            compute_metrics(y_true, y_pred),
+            target_range_pulses,
+        ),
+    }
+
+    if np.any(dynamic_mask):
+        by_phase["dynamic"] = add_target_range_normalization(
+            compute_metrics(y_true[dynamic_mask], y_pred[dynamic_mask]),
+            target_range_pulses,
+        )
+
+    if np.any(stationary_mask):
+        by_phase["stationary"] = add_target_range_normalization(
+            compute_metrics(
+                y_true[stationary_mask],
+                y_pred[stationary_mask],
+            ),
+            target_range_pulses,
+        )
+
+    return by_phase
+
+
+def summarize_range_normalized_segments(segment_results):
+    """Summarize segment percentages without mixing their pulse ranges."""
+    summary = {}
+    percent_fields = (
+        "nmae_percent_of_target_range",
+        "nrmse_percent_of_target_range",
+        "max_abs_error_percent_of_target_range",
+    )
+
+    for phase in ("overall", "dynamic", "stationary"):
+        phase_summary = {}
+        phase_rows = [
+            segment["by_phase"][phase]
+            for segment in segment_results
+            if phase in segment["by_phase"]
+        ]
+
+        for field in percent_fields:
+            values = np.asarray([
+                row[field]
+                for row in phase_rows
+                if row.get(field) is not None
+            ], dtype=float)
+
+            if values.size == 0:
+                continue
+
+            phase_summary[field] = {
+                "mean": float(np.mean(values)),
+                "sd": float(
+                    np.std(values, ddof=1)
+                    if values.size > 1
+                    else 0.0
+                ),
+                "min": float(np.min(values)),
+                "max": float(np.max(values)),
+                "n_segments": int(values.size),
+            }
+
+        if phase_summary:
+            summary[phase] = phase_summary
+
+    return summary
+
+
 def compute_current_zone_metrics(
     y_true,
     y_pred,
@@ -2175,6 +2348,7 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
             "dynamic_mask": [],
             "stationary_mask": [],
             "source_runs": set(),
+            "range_normalized_segments": [],
         })
         entry["y_true"].append(np.asarray(y_true, dtype=float))
         entry["y_pred"].append(np.asarray(y_pred, dtype=float))
@@ -2185,6 +2359,28 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
             np.asarray(metadata["stationary_mask"], dtype=bool)
         )
         entry["source_runs"].add(metadata["run_name"])
+
+        if response_kind == "encoder":
+            motor_target = np.asarray(metadata["target"], dtype=float)
+            if motor_target.size != length:
+                raise RuntimeError(
+                    "Motor target length does not match held-out encoder sample."
+                )
+
+            entry["range_normalized_segments"].append({
+                "source_run": metadata["run_name"],
+                "trial": metadata.get("trial"),
+                "pattern_type": metadata.get("pattern_type"),
+                "frequency_factor": metadata.get("frequency_factor"),
+                "range_factor": metadata.get("range_factor"),
+                "by_phase": compute_range_normalized_phase_metrics(
+                    np.asarray(y_true, dtype=float),
+                    np.asarray(y_pred, dtype=float),
+                    motor_target,
+                    np.asarray(metadata["dynamic_mask"], dtype=bool),
+                    np.asarray(metadata["stationary_mask"], dtype=bool),
+                ),
+            })
 
     if offset != len(prediction):
         raise RuntimeError("Unused predictions remain after per-DOF evaluation.")
@@ -2211,6 +2407,15 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
                 y_pred,
                 dynamic_mask,
                 stationary_mask,
+            )
+        else:
+            result["range_normalized_by_segment"] = (
+                entry["range_normalized_segments"]
+            )
+            result["range_normalized_summary_percent"] = (
+                summarize_range_normalized_segments(
+                    entry["range_normalized_segments"]
+                )
             )
         results[protocol] = result
 
@@ -2298,7 +2503,7 @@ def load_segments_from_files(
     if coupling_mode != "motor_only":
         print(
             "Coupled Motor-DT input: all four logged "
-            "commanded_instrument_angles (no motor-target reconstruction)."
+            "motor_target_positions."
         )
 
     for file_path in ordered_file_paths:
@@ -2386,8 +2591,8 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
         ]
         feature_schema = "motor_relative_command_v1"
     else:
-        encoder_feature_names = coupled_instrument_feature_names()
-        feature_schema = "all_instrument_commands_v1"
+        encoder_feature_names = coupled_motor_target_feature_names()
+        feature_schema = "all_motor_targets_v1"
     current_feature_names = list(encoder_feature_names)
 
     for motor_index, samples in samples_by_motor.items():
@@ -2578,6 +2783,18 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
                 )),
                 "encoder_response_by_phase_pulses": (
                     encoder_protocol_metrics.get(protocol, {}).get("by_phase", {})
+                ),
+                "encoder_response_normalized_by_target_range": (
+                    encoder_protocol_metrics.get(protocol, {}).get(
+                        "range_normalized_by_segment",
+                        [],
+                    )
+                ),
+                "encoder_response_normalized_summary_percent": (
+                    encoder_protocol_metrics.get(protocol, {}).get(
+                        "range_normalized_summary_percent",
+                        {},
+                    )
                 ),
                 "motor_current_by_phase_mA": (
                     current_protocol_metrics.get(protocol, {}).get("by_phase", {})
@@ -3024,6 +3241,11 @@ def plot_dof_pattern_predictions(
                     dtype=float,
                 )
 
+                motor_target = np.asarray(
+                    metadata["target"],
+                    dtype=float,
+                )
+
                 raw_current = np.asarray(
                     metadata["raw_current"],
                     dtype=float,
@@ -3064,7 +3286,15 @@ def plot_dof_pattern_predictions(
                 # --------------------------------------------------
                 # 2. ENCODER POSITION
                 # --------------------------------------------------
-
+                axes[1, column_index].plot(
+                    t,
+                    motor_target,
+                    linestyle=":",
+                    linewidth=1.2,
+                    color="black",
+                    label="Commanded motor target",
+                )
+                
                 axes[1, column_index].plot(
                     t,
                     y_encoder,
@@ -3298,15 +3528,19 @@ def train_motor_digital_twin(
 
     if coupling_mode != "motor_only":
         command_input_metadata = {
-            "method": "logged_instrument_command_features",
+            "method": "logged_motor_target_features",
             "applies_to": ["gearbox_only", "full_setup"],
             "model_input": (
-                "all_four_commanded_instrument_angles_"
+                "all_four_motor_target_positions_"
                 "with_continuous_run_history"
+            ),
+            "target_reference": (
+                "relative_to_motion_pattern_start"
             ),
             "encoder_target": (
                 "encoder_displacement_relative_to_motion_pattern_start"
             ),
+            "logged_motor_targets_used": True,
             "reconstructed_motor_targets_used": False,
             "controller_starting_positions_required": False,
             "gearbox_variant": (
@@ -3314,14 +3548,20 @@ def train_motor_digital_twin(
                 if conversion_parameters is not None
                 else None
             ),
-            "feature_names": coupled_instrument_feature_names(),
+            "feature_names": coupled_motor_target_feature_names(),
             "log_order": [
                 str(path)
                 for path in sorted(
                     file_paths,
                     key=lambda path: (
-                        re.search(r"(\d{8})_(\d{6})", Path(path).stem).groups()
-                        if re.search(r"(\d{8})_(\d{6})", Path(path).stem)
+                        re.search(
+                            r"(\d{8})_(\d{6})",
+                            Path(path).stem,
+                        ).groups()
+                        if re.search(
+                            r"(\d{8})_(\d{6})",
+                            Path(path).stem,
+                        )
                         else ("99999999", "999999")
                     ),
                 )
@@ -3424,7 +3664,7 @@ def main():
         default=None,
         help=(
             "Deprecated compatibility option. Coupled models now use logged "
-            "instrument commands and do not require controller start positions."
+            "motor target positions and do not require controller start positions."
         ),
     )
 

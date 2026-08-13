@@ -116,6 +116,7 @@ def load_motor_log(file_path, coupling_mode):
             if commands is None:
                 commands = data.get("commands")
 
+            motor_targets = data.get("motor_target_positions")
 
             instrument_dof_commands = data.get("commanded_instrument_angles")
             # if instrument_dof_commands is None or len(instrument_dof_commands) < 4:
@@ -131,6 +132,14 @@ def load_motor_log(file_path, coupling_mode):
             if coupling_mode == "motor_only":
                 instrument_dof_commands = [0.0, 0.0, 0.0, 0.0]
 
+            if (
+                coupling_mode != "motor_only"
+                and (
+                    motor_targets is None
+                    or len(motor_targets) < 4
+                )
+            ):
+                continue
 
             if t_value is None or positions is None or currents is None:
                 continue
@@ -147,6 +156,11 @@ def load_motor_log(file_path, coupling_mode):
                 "positions": [float(x) for x in positions[:4]],
                 "currents": [float(x) for x in currents[:4]],
                 "commands": [float(x) for x in commands[:4]],
+                "motor_targets": (
+                    [float(x) for x in motor_targets[:4]]
+                    if motor_targets is not None and len(motor_targets) >= 4
+                    else [0.0, 0.0, 0.0, 0.0]
+                ),
                 "instrument_dof_commands": [float(x) for x in instrument_dof_commands[:4]],
             })
 
@@ -299,81 +313,105 @@ def held_command_delta(command):
 
     return instantaneous_delta, held_delta
 
-
 def build_coupled_motor_dt_features(
     t_segment,
-    instrument_commands,
+    absolute_motor_targets,
+    motor_target_reference,
 ):
     """
-    Build the 32 features used for gearbox-only and full-setup training.
-
-    instrument_commands must have shape:
-        (4 DOFs, number of samples)
+    Build the 32 all_motor_targets_v1 features used during
+    gearbox-only and full-setup training.
     """
-    instrument_commands = np.asarray(
-        instrument_commands,
+
+    absolute_motor_targets = np.asarray(
+        absolute_motor_targets,
         dtype=float,
     )
 
-    if instrument_commands.ndim != 2:
+    motor_target_reference = np.asarray(
+        motor_target_reference,
+        dtype=float,
+    )
+
+    if (
+        absolute_motor_targets.ndim != 2
+        or absolute_motor_targets.shape[0] != 4
+    ):
         raise RuntimeError(
-            "Instrument commands must be a two-dimensional array."
+            "Expected four motor_target_positions channels, "
+            f"but received shape {absolute_motor_targets.shape}."
         )
 
-    if instrument_commands.shape[0] != 4:
+    if motor_target_reference.shape != (4,):
         raise RuntimeError(
-            "Expected four commanded instrument-angle channels, "
-            f"but received shape {instrument_commands.shape}."
+            "Expected four motor-target reference values."
         )
 
-    if np.any(~np.isfinite(instrument_commands)):
+    if np.any(~np.isfinite(absolute_motor_targets)):
         raise RuntimeError(
             "The ROS log contains missing or invalid "
-            "commanded_instrument_angles."
+            "motor_target_positions."
         )
 
     feature_columns = []
 
-    for dof_index in range(4):
-        command = instrument_commands[dof_index]
+    for target_motor_index in range(4):
+        absolute_target = absolute_motor_targets[
+            target_motor_index
+        ]
 
-        previous_command = command.copy()
-        previous_command[1:] = command[:-1]
-
-        instantaneous_delta, held_delta = held_command_delta(
-            command
+        relative_target = (
+            absolute_target
+            - motor_target_reference[target_motor_index]
         )
 
-        command_direction = np.sign(held_delta)
-        command_velocity = safe_gradient(command, t_segment)
+        previous_relative_target = relative_target.copy()
+
+        if len(relative_target) > 1:
+            previous_relative_target[1:] = relative_target[:-1]
+
+        instantaneous_delta, held_delta = held_command_delta(
+            absolute_target
+        )
+
+        target_direction = np.sign(
+            held_delta
+        )
+
+        target_velocity = safe_gradient(
+            absolute_target,
+            t_segment,
+        )
 
         time_after_change = time_since_signal_change(
             t_segment,
-            command,
+            absolute_target,
             threshold=0.0,
         )
 
-        is_moving = (
+        target_is_moving = (
             (np.abs(held_delta) > 1e-12)
             & (time_after_change < EVENT_TAIL_S)
         ).astype(float)
 
         feature_columns.extend([
-            command,
-            previous_command,
+            relative_target,
+            previous_relative_target,
             instantaneous_delta,
             np.abs(instantaneous_delta),
-            command_direction,
-            command_velocity,
+            target_direction,
+            target_velocity,
             time_after_change,
-            is_moving,
+            target_is_moving,
         ])
 
-    features = np.column_stack(feature_columns)
+    features = np.column_stack(
+        feature_columns
+    )
 
     if features.shape[1] != 32:
         raise RuntimeError(
-            f"Expected 32 coupled Motor-DT features, "
+            f"Expected 32 all_motor_targets_v1 features, "
             f"but created {features.shape[1]}."
         )
 
@@ -420,6 +458,11 @@ def segment_to_arrays(segment, coupling_mode):
         dtype=float,
     ).T
 
+    motor_targets = np.array(
+        [row["motor_targets"] for row in rows],
+        dtype=float,
+    ).T
+
     instrument_dof_commands = np.array(
         [row["instrument_dof_commands"] for row in rows],
         dtype=float,
@@ -442,10 +485,12 @@ def segment_to_arrays(segment, coupling_mode):
         t_global,
         t_segment,
         commands,
+        motor_targets,
         instrument_dof_commands,
         positions,
         currents,
     )
+
 def make_coupled_pattern_relative_positions(
     t_segment,
     instrument_commands,
@@ -458,8 +503,8 @@ def make_coupled_pattern_relative_positions(
     Convert measured coupled encoder positions to the same reference
     used during Motor-DT training.
 
-    Each individual DOF motion pattern is referenced to the last
-    neutral encoder sample immediately before that pattern starts.
+    Each individual DOF motion pattern is referenced to the first
+    sample of that motion pattern, matching Motor-DT training.
     """
 
     t_segment = np.asarray(
@@ -478,7 +523,7 @@ def make_coupled_pattern_relative_positions(
     )
 
     if len(t_segment) < 3:
-        return absolute_positions.copy()
+        return absolute_positions.copy(), []
 
     # ----------------------------------------------------------
     # 1. Determine active DOF
@@ -685,12 +730,7 @@ def make_coupled_pattern_relative_positions(
     )
 
     for start_index, end_index in motion_blocks:
-
-        # EXACTLY the same reference definition as training.
-        reference_index = max(
-            0,
-            start_index - 1,
-        )
+        reference_index = start_index
 
         reference_position = (
             absolute_positions[
@@ -716,7 +756,7 @@ def make_coupled_pattern_relative_positions(
         "for pattern-relative encoder replay."
     )
 
-    return relative_positions
+    return relative_positions, motion_blocks
 
 def load_motor_dt_models(model_dir):
     model_dir = Path(model_dir).expanduser()
@@ -891,11 +931,20 @@ def build_motor_dt_features(t_segment, target):
 def predict_segment_offline(
     t_segment,
     raw_commands,
-    instrument_commands,
+    motor_targets,
+    motion_blocks,
     motor_models,
     coupling_mode,
 ):
-    raw_commands = np.asarray(raw_commands, dtype=float)
+    raw_commands = np.asarray(
+        raw_commands,
+        dtype=float,
+    )
+
+    motor_targets = np.asarray(
+        motor_targets,
+        dtype=float,
+    )
 
     predicted_positions = np.full_like(
         raw_commands,
@@ -923,35 +972,84 @@ def predict_segment_offline(
             package = motor_models[motor_index]
 
             predicted_positions[motor_index] = (
-                package["encoder_model"].predict(motor_features)
+                package["encoder_model"].predict(
+                    motor_features
+                )
             )
 
             predicted_currents[motor_index] = (
-                package["current_model"].predict(motor_features)
+                package["current_model"].predict(
+                    motor_features
+                )
             )
 
     else:
-        # Only retained for output/diagnostics.
-        commanded_target = (
-            raw_commands - raw_commands[:, [0]]
+        commanded_target = np.full_like(
+            motor_targets,
+            np.nan,
+            dtype=float,
         )
 
-        # All coupled models receive the same 32 instrument-command features.
-        coupled_features = build_coupled_motor_dt_features(
-            t_segment,
-            instrument_commands,
-        )
-
-        for motor_index in range(4):
-            package = motor_models[motor_index]
-
-            predicted_positions[motor_index] = (
-                package["encoder_model"].predict(coupled_features)
+        for start_index, end_index in motion_blocks:
+            pattern_slice = slice(
+                start_index,
+                end_index + 1,
             )
 
-            predicted_currents[motor_index] = (
-                package["current_model"].predict(coupled_features)
+            motor_target_reference = motor_targets[
+                :,
+                start_index,
+            ].copy()
+
+            coupled_features_run = (
+                build_coupled_motor_dt_features(
+                    t_segment=t_segment,
+                    absolute_motor_targets=motor_targets,
+                    motor_target_reference=motor_target_reference,
+                )
             )
+
+            pattern_features = coupled_features_run[
+                pattern_slice
+            ]
+
+            commanded_target[
+                :,
+                pattern_slice,
+            ] = (
+                motor_targets[
+                    :,
+                    pattern_slice,
+                ]
+                - motor_target_reference[:, np.newaxis]
+            )
+
+            for motor_index in range(4):
+                package = motor_models[motor_index]
+
+                if (
+                    package.get("feature_schema")
+                    != "all_motor_targets_v1"
+                ):
+                    raise RuntimeError(
+                        f"Motor {motor_index} model uses feature schema "
+                        f"{package.get('feature_schema')!r}; expected "
+                        "'all_motor_targets_v1'."
+                    )
+
+                predicted_positions[
+                    motor_index,
+                    pattern_slice,
+                ] = package["encoder_model"].predict(
+                    pattern_features
+                )
+
+                predicted_currents[
+                    motor_index,
+                    pattern_slice,
+                ] = package["current_model"].predict(
+                    pattern_features
+                )
 
     return (
         commanded_target,
@@ -1020,6 +1118,7 @@ def replay_motor_digital_twin(
                 t_global,
                 t_segment,
                 raw_commands,
+                motor_targets,
                 instrument_dof_commands,
                 measured_positions,
                 raw_currents,
@@ -1036,27 +1135,35 @@ def replay_motor_digital_twin(
                 for motor_index in range(4)
             ])
 
-            (
-                commanded_target,
-                predicted_positions,
-                predicted_currents,
-                ) = predict_segment_offline(
-                    t_segment=t_segment,
-                    raw_commands=raw_commands,
-                    instrument_commands=instrument_dof_commands,
-                    motor_models=motor_models,
-                    coupling_mode=coupling_mode,
-                )
-            # For gearbox/full-setup models the encoder model was trained on
-            # displacement relative to the neutral position immediately before
-            # each individual DOF pattern.
+            motion_blocks = []
+
             if coupling_mode != "motor_only":
-                measured_positions = make_coupled_pattern_relative_positions(
+                (
+                    measured_positions,
+                    motion_blocks,
+                ) = make_coupled_pattern_relative_positions(
                     t_segment=t_segment,
                     instrument_commands=instrument_dof_commands,
                     absolute_positions=measured_positions,
                     active_dof=active_dof,
                 )
+
+                if not motion_blocks:
+                    raise RuntimeError(
+                        "No DOF motion patterns detected for coupled Motor-DT replay."
+                    )
+            (
+                commanded_target,
+                predicted_positions,
+                predicted_currents,
+            ) = predict_segment_offline(
+                t_segment=t_segment,
+                raw_commands=raw_commands,
+                motor_targets=motor_targets,
+                motion_blocks=motion_blocks,
+                motor_models=motor_models,
+                coupling_mode=coupling_mode,
+            )
 
 
             encoder_deviation = measured_positions - predicted_positions
@@ -1079,6 +1186,9 @@ def replay_motor_digital_twin(
 
                     "raw_commands": safe_list(raw_commands[:, sample_index]),
                     "offline_commanded_target": safe_list(commanded_target[:, sample_index]),
+                    "logged_motor_target_positions": safe_list(
+                        motor_targets[:, sample_index]
+                    ),
 
                     "measured_positions": safe_list(measured_positions[:, sample_index]),
                     "raw_measured_currents": safe_list(raw_currents[:, sample_index]),

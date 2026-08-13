@@ -249,10 +249,6 @@ def load_video_angle_file(file_path, motor_ros_t0):
                 "measured_angle_red_shaft_zeroed_filtered"
             )
 
-            secondary_angle = data.get(
-                f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
-            )
-
             secondary_angle = None
 
             if secondary_marker_color is not None:
@@ -1471,6 +1467,7 @@ def plot_gripper_video_measurements(
     jaw_video_angle,
     secondary_shaft_video_angle,
     red_shaft_video_angle,
+    secondary_marker_color,
 ):
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
     fig.suptitle("Gripper video measurements", fontsize=16)
@@ -1480,7 +1477,10 @@ def plot_gripper_video_measurements(
         jaw_video_angle,
         linestyle="-",
         linewidth=2,
-        label="measured jaw angle: green vs red [deg]",
+        label=(
+            f"measured jaw angle: "
+            f"{secondary_marker_color} vs red [deg]"
+        ),
     )
     axes[0].set_ylabel("Jaw angle [deg]")
     axes[0].grid(True)
@@ -1491,7 +1491,9 @@ def plot_gripper_video_measurements(
         secondary_shaft_video_angle, 
         linestyle="-",
         linewidth=2,
-        label="measured " + secondary_marker_color + " marker vs shaft [deg]",
+        label=(
+            f"measured {secondary_marker_color} marker vs shaft [deg]"
+        ),
     )
     axes[1].set_ylabel(secondary_marker_color.capitalize() + "-shaft [deg]")
     axes[1].grid(True)
@@ -1502,7 +1504,9 @@ def plot_gripper_video_measurements(
         red_shaft_video_angle,
         linestyle="-",
         linewidth=2,
-        label="measured red marker vs shaft [deg]",
+        label=(
+            f"measured red marker vs shaft [deg]"
+        ),
     )
     axes[2].set_ylabel("Red-shaft [deg]")
     axes[2].set_xlabel("Time [s]")

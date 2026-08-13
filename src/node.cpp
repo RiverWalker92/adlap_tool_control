@@ -23,6 +23,7 @@ const std::string CONTROL_MODE = "joints";  // euler, joints
 
 const std::string MOTOR_CURRENTS_TOPIC = "/motor_currents";
 const std::string MOTOR_POSITIONS_TOPIC = "/motor_positions";
+const std::string MOTOR_TARGET_POSITIONS_TOPIC = "/motor_target_positions";
 const std::string COMMANDED_MOTOR_POSITIONS_TOPIC = "/commanded_motor_positions";
 const std::string TASK_TOPIC = "/task_label";
 const std::string LED_CONTROL_TOPIC = "/led_control";
@@ -65,6 +66,10 @@ public:
     motor_positions_publisher_ =
         this->create_publisher<std_msgs::msg::Float64MultiArray>(
             "~" + MOTOR_POSITIONS_TOPIC, 10);
+    
+    motor_target_positions_publisher_ =
+        this->create_publisher<std_msgs::msg::Int32MultiArray>(
+            "~" + MOTOR_TARGET_POSITIONS_TOPIC, 10);       
 
     motor_command_subscription_ =
         this->create_subscription<std_msgs::msg::Int32MultiArray>(
@@ -86,6 +91,11 @@ public:
             instrument_controller_.manual_adjustment();
         });
         // instrument_controller_.manual_adjustment();
+    
+    motor_target_positions_timer_ =
+        this->create_wall_timer(
+            10ms,
+            std::bind(&ToolController::publish_motor_target_positions, this));
 
     led_control_subscription_ =
         this->create_subscription<std_msgs::msg::Bool>(
@@ -228,6 +238,21 @@ public:
       motor_positions_publisher_->publish(position_msg);
   }
 
+  void publish_motor_target_positions()
+  {
+      auto targets = motor_controller.get_target_positions();
+
+      auto target_msg = std_msgs::msg::Int32MultiArray();
+      target_msg.data = {
+          static_cast<int32_t>(targets[0]),
+          static_cast<int32_t>(targets[1]),
+          static_cast<int32_t>(targets[2]),
+          static_cast<int32_t>(targets[3])
+      };
+
+      motor_target_positions_publisher_->publish(target_msg);
+  }
+
   void led_control_callback(const std_msgs::msg::Bool::SharedPtr msg)
   {
       if (msg->data) {
@@ -253,6 +278,9 @@ public:
 
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_positions_publisher_;
   rclcpp::TimerBase::SharedPtr motor_positions_timer_;
+
+  rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr motor_target_positions_publisher_;
+  rclcpp::TimerBase::SharedPtr motor_target_positions_timer_;
 
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr led_control_subscription_;
 

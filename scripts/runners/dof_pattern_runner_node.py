@@ -26,8 +26,17 @@ class PatternRunner(Node):
         self.declare_parameter("publish_rate", 100.0)
         self.declare_parameter("duration", 11.0)
         self.declare_parameter("coupling_mode", "full_setup")
+        self.declare_parameter("active_dof", 0)
 
         self.coupling_mode = str(self.get_parameter("coupling_mode").value)
+        self.active_dof_override = int(
+            self.get_parameter("active_dof").value
+        )
+
+        if self.active_dof_override not in [0, 1, 2, 3, 4]:
+            raise ValueError(
+                "active_dof must be 0, 1, 2, 3 or 4"
+            )
         self.duration = float(self.get_parameter("duration").value)
 
         for i in range(1, 5):
@@ -87,7 +96,14 @@ class PatternRunner(Node):
 
         for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
             mode = self.get_parameter(f"{dof_name}.mode").value
-            self.sequence_enabled[dof_name] = mode == "sequence"
+            dof_number = int(dof_name[-1])
+
+            if self.active_dof_override != 0:
+                self.sequence_enabled[dof_name] = (
+                    dof_number == self.active_dof_override
+                )
+            else:
+                self.sequence_enabled[dof_name] = mode == "sequence"
 
             if self.sequence_enabled[dof_name]:
                 self.sequence_modes[dof_name] = list(
@@ -293,7 +309,13 @@ class PatternRunner(Node):
         for i in range(1, 5):
             mode = self.get_parameter(f"dof{i}.mode").value
 
-            if mode == "sequence":
+            sequence_active = (
+                i == self.active_dof_override
+                if self.active_dof_override != 0
+                else mode == "sequence"
+            )
+
+            if sequence_active:
                 modes = list(self.get_parameter(f"dof{i}.sequence_modes").value)
                 frequency_factors = list(
                     self.get_parameter(f"dof{i}.sequence_frequency_factors").value
@@ -329,6 +351,12 @@ class PatternRunner(Node):
     def compute_dof(self, dof_name, t):
         mode = self.get_parameter(f"{dof_name}.mode").value
         value = float(self.get_parameter(f"{dof_name}.value").value)
+        if (
+            self.active_dof_override != 0
+            and dof_name != f"dof{self.active_dof_override}"
+        ):
+            return value
+        
         min_value = float(self.get_parameter(f"{dof_name}.min").value)
         max_value = float(self.get_parameter(f"{dof_name}.max").value)
         frequency = float(self.get_parameter(f"{dof_name}.frequency").value)

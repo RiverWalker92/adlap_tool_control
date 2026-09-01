@@ -576,6 +576,29 @@ def train_single_model(
         result_df.loc[test_index, "hybrid_prediction"],
         squared=False,
     )
+    test_video_angle = (
+        result_df.loc[test_index, "video_angle"]
+        .to_numpy(dtype=float)
+    )
+
+    finite_test_video_angle = test_video_angle[
+        np.isfinite(test_video_angle)
+    ]
+
+    if finite_test_video_angle.size >= 2:
+        video_angle_min_deg = float(
+            np.min(finite_test_video_angle)
+        )
+        video_angle_max_deg = float(
+            np.max(finite_test_video_angle)
+        )
+        video_angle_range_deg = (
+            video_angle_max_deg - video_angle_min_deg
+        )
+    else:
+        video_angle_min_deg = None
+        video_angle_max_deg = None
+        video_angle_range_deg = None
 
     # Predict over volledige dataset voor leesbare tijdlijnplots
     result_df["ml_error_prediction_all"] = model.predict(X)
@@ -600,6 +623,56 @@ def train_single_model(
         "n_features": len(feature_cols),
     }
 
+    normalized_metrics = dict(metrics)
+
+    normalized_metrics["video_angle_range"] = {
+        "minimum_deg": video_angle_min_deg,
+        "maximum_deg": video_angle_max_deg,
+        "range_deg": video_angle_range_deg,
+        "samples": int(finite_test_video_angle.size),
+    }
+
+    normalized_metrics["normalization_source"] = (
+        "measured_video_angle_range_of_held_out_test_trial"
+    )
+
+    if (
+        video_angle_range_deg is not None
+        and np.isfinite(video_angle_range_deg)
+        and video_angle_range_deg > 0.0
+    ):
+        scale = 100.0 / video_angle_range_deg
+
+        normalized_metrics[
+            "old_dt_nmae_percent_of_video_range"
+        ] = float(old_mae * scale)
+
+        normalized_metrics[
+            "hybrid_dt_nmae_percent_of_video_range"
+        ] = float(hybrid_mae * scale)
+
+        normalized_metrics[
+            "old_dt_nrmse_percent_of_video_range"
+        ] = float(old_rmse * scale)
+
+        normalized_metrics[
+            "hybrid_dt_nrmse_percent_of_video_range"
+        ] = float(hybrid_rmse * scale)
+
+    else:
+        normalized_metrics[
+            "old_dt_nmae_percent_of_video_range"
+        ] = None
+        normalized_metrics[
+            "hybrid_dt_nmae_percent_of_video_range"
+        ] = None
+        normalized_metrics[
+            "old_dt_nrmse_percent_of_video_range"
+        ] = None
+        normalized_metrics[
+            "hybrid_dt_nrmse_percent_of_video_range"
+        ] = None
+
     print(f"\nModel: {model_name}")
     print(f"  Old DT MAE:     {old_mae:.3f} deg")
     print(f"  Hybrid DT MAE:  {hybrid_mae:.3f} deg")
@@ -613,6 +686,7 @@ def train_single_model(
             "model": model,
             "feature_columns": feature_cols,
             "metrics": metrics,
+            "target_normalized_metrics": normalized_metrics,
         },
         model_path,
     )
@@ -620,9 +694,22 @@ def train_single_model(
     result_csv = model_output_dir / f"{model_name}_bend_training_dataset_with_predictions.csv"
     result_df.to_csv(result_csv, index=False)
 
-    metrics_path = model_output_dir / f"{model_name}_metrics.json"
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2)
+    # metrics_path = model_output_dir / f"{model_name}_metrics.json"
+    # with open(metrics_path, "w") as f:
+    #     json.dump(metrics, f, indent=2)
+
+    # normalized_metrics_path = (
+    #     model_output_dir
+    #     / f"{model_name}_metrics_target_normalized.json"
+    # )
+
+    # with open(normalized_metrics_path, "w") as f:
+    #     json.dump(normalized_metrics, f, indent=2)
+
+    # print(
+    #     "Saved normalized metrics: "
+    #     f"{normalized_metrics_path}"
+    # )
 
     plot_path = model_output_dir / f"{model_name}_test_scatter.png"
     plot_test_scatter(result_df.loc[test_index], plot_path)
@@ -632,7 +719,7 @@ def train_single_model(
 
     plot_sequence_blocks(result_df, model_output_dir, dof2_config)
 
-    return metrics
+    return metrics, normalized_metrics
 
 def write_model_comparison_txt(metrics_df, output_path: Path):
     metrics_df = metrics_df.sort_values("hybrid_dt_mae_deg").reset_index(drop=True)
@@ -720,9 +807,10 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
 
     models = make_models()
     all_metrics = []
+    all_normalized_metrics = []
 
     for model_name, model in models.items():
-        metrics = train_single_model(
+        metrics, normalized_metrics = train_single_model(
             model_name=model_name,
             model=model,
             df=df,
@@ -738,7 +826,71 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
             dof2_config=dof2_config
         )
         all_metrics.append(metrics)
+        all_normalized_metrics.append(normalized_metrics)
 
+    selected_model = min(
+        all_metrics,
+        key=lambda row: row["hybrid_dt_mae_deg"],
+    )["model"]
+
+    metrics_output = {
+        "evaluation_split": "trial_based_hold_out",
+        "training_trials": train_trials,
+        "test_trial": test_trial,
+        "selection_metric": "hybrid_dt_mae_deg",
+        "selected_model": selected_model,
+        "models": {
+            row["model"]: row
+            for row in all_metrics
+        },
+    }
+
+    normalized_metrics_output = {
+        "evaluation_split": "trial_based_hold_out",
+        "training_trials": train_trials,
+        "test_trial": test_trial,
+        "selection_metric": "hybrid_dt_mae_deg",
+        "selected_model": selected_model,
+        "target_range_normalization": {
+            "formula": (
+                "100 * angle_error / "
+                "(max_video_angle - min_video_angle)"
+            ),
+            "denominator_scope": (
+                "measured video-angle range of "
+                "the complete held-out test trial"
+            ),
+            "unit": "degrees",
+            "model_retrained": False,
+            "predictions_recomputed": False,
+        },
+        "models": {
+            row["model"]: row
+            for row in all_normalized_metrics
+        },
+    }
+
+    metrics_path = (
+        output_dir
+        / "hybrid_bend_metrics.json"
+    )
+
+    normalized_metrics_path = (
+        output_dir
+        / "hybrid_bend_metrics_target_normalized.json"
+    )
+
+    with open(metrics_path, "w") as f:
+        json.dump(metrics_output, f, indent=2)
+
+    with open(normalized_metrics_path, "w") as f:
+        json.dump(normalized_metrics_output, f, indent=2)
+
+    print(f"\nSaved Hybrid Bend metrics: {metrics_path}")
+    print(
+        "Saved target-normalized Hybrid Bend metrics: "
+        f"{normalized_metrics_path}"
+    )
     metrics_df = pd.DataFrame(all_metrics)
     metrics_df = metrics_df.sort_values("hybrid_dt_mae_deg").reset_index(drop=True)
 

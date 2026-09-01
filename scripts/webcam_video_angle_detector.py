@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 import argparse
+from sympy import fps
 import yaml
 
 from ament_index_python.packages import get_package_share_directory
@@ -24,18 +25,31 @@ def load_detector_config(config_path: Path):
 
     return config["video_angle_detector"]
 
-def read_led_on_time_from_ros_log(path):
+def read_led_on_times_from_ros_log(path):
+    led_on_times = []
+    previous_led = False
+
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
 
             record = json.loads(line)
+            current_led = record.get("led_command") is True
 
-            if record.get("led_command") is True:
-                return float(record["ros_timestamp"])
+            if current_led and not previous_led:
+                led_on_times.append(
+                    float(record["ros_timestamp"])
+                )
 
-    raise RuntimeError(f"No LED ON timestamp found in {path}")
+            previous_led = current_led
+
+    if not led_on_times:
+        raise RuntimeError(
+            f"No LED ON timestamps found in {path}"
+        )
+
+    return led_on_times
 
 def normalize_angle_deg(angle):
     while angle > 90:
@@ -616,6 +630,9 @@ def process_video(
         raise RuntimeError(f"Could not open video: {video_path}")
 
     fps = cap.get(cv2.CAP_PROP_FPS)
+    video_led_on_frames = []
+    min_led_pulse_gap_frames = int(round(3.0 * fps))
+
     frame_idx = 0
 
     previous_led = False
@@ -635,8 +652,11 @@ def process_video(
     )
 
     debug_writer = None
-    motor_led_on_time_s = read_led_on_time_from_ros_log(ros_log_path)
-    
+    motor_led_on_times_s = read_led_on_times_from_ros_log(
+        ros_log_path
+    )
+    motor_led_on_time_s = motor_led_on_times_s[0]    
+
     print(f"Using ROS log: {ros_log_path}")
     print(f"Motor LED ON time: {motor_led_on_time_s}")
 
@@ -650,6 +670,13 @@ def process_video(
         video_time_s = frame_idx / fps
 
         led_on, led_red_pixels = detect_led(frame, led_config)
+        if led_on and not previous_led:
+            if (
+                not video_led_on_frames
+                or frame_idx - video_led_on_frames[-1]
+                >= min_led_pulse_gap_frames
+            ):
+                video_led_on_frames.append(frame_idx)
 
         if led_on_frame is None and led_on:
             led_on_frame = frame_idx
@@ -884,6 +911,67 @@ def process_video(
 
         previous_led = led_on
         frame_idx += 1
+
+    sync_correction_s = 0.0
+
+    print(
+        f"Detected LED pulses: "
+        f"ROS={len(motor_led_on_times_s)}, "
+        f"video={len(video_led_on_frames)}"
+    )
+
+    if (
+        len(motor_led_on_times_s) >= 2
+        and len(video_led_on_frames)
+            == len(motor_led_on_times_s)
+    ):
+        first_video_led_frame = video_led_on_frames[0]
+        corrections = []
+
+        for ros_led_time, video_led_frame in zip(
+            motor_led_on_times_s,
+            video_led_on_frames,
+        ):
+            currently_mapped_time = (
+                motor_led_on_time_s
+                + (
+                    video_led_frame
+                    - first_video_led_frame
+                ) / fps
+            )
+
+            corrections.append(
+                ros_led_time - currently_mapped_time
+            )
+
+        sync_correction_s = float(
+            np.median(corrections[1:])
+        )
+        for record in records:
+            if record["synced_time_s"] is not None:
+                record["synced_time_s"] += (
+                    sync_correction_s
+                )
+
+            if record["ros_time_s"] is not None:
+                record["ros_time_s"] += (
+                    sync_correction_s
+                )
+
+            record["sync_correction_s"] = (
+                sync_correction_s
+            )
+
+        print(
+            f"Applied multi-LED sync correction: "
+            f"{sync_correction_s:+.3f} s"
+        )
+
+    else:
+        print(
+            "WARNING: LED pulse counts do not match; "
+            "keeping original first-pulse synchronization."
+        )
 
     red_baseline_values = [
         r["measured_angle_red_shaft"]

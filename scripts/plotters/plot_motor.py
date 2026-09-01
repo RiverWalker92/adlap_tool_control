@@ -4093,6 +4093,7 @@ def main():
         default=None,
         help="Optional offline Motor DT replay jsonl file.",
     )
+    parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
 
     args = parser.parse_args()
 

@@ -5,6 +5,7 @@ import json
 import yaml
 import shlex
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime
@@ -142,6 +143,32 @@ def extract_ros_parameters(config: dict) -> dict:
         return config["ros__parameters"]
 
     return config
+
+def get_dof_sequence_settings(params_file: Path):
+    with open(params_file, "r") as f:
+        config = yaml.safe_load(f)
+
+    params = extract_ros_parameters(config)
+
+    run_all_dofs = bool(params.get("run_all_dofs", False))
+    dof_sequence_order = list(
+        params.get("dof_sequence_order", [1, 3, 4, 2])
+    )
+
+    dof_sequence_order = [int(x) for x in dof_sequence_order]
+
+    invalid_dofs = [
+        dof for dof in dof_sequence_order
+        if dof not in [1, 2, 3, 4]
+    ]
+
+    if invalid_dofs:
+        raise RuntimeError(
+            f"Invalid DOFs in dof_sequence_order: {invalid_dofs}"
+        )
+
+    return run_all_dofs, dof_sequence_order
+
 
 def run_marker_detection(args, output_path: Path) -> dict:
     """
@@ -311,6 +338,11 @@ def main():
         help="Instrument configuration from marker_detection.yaml.",
     )
     parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
+    parser.add_argument(
+        "--sequence-child",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "dof_pattern_params.yaml"), 
     help="Parameter file used to infer active DOF if --dof is not provided.",)
     parser.add_argument("--camera", default="/dev/video0")
@@ -387,9 +419,14 @@ def main():
         "--plot-cmd",
         default=(
             "ros2 run adlap_tool_control plot_dof.py "
-            "--file {ros_log} --video-angles {angles} --output-dir {plot_dir} --params-file {params_file} --coupling-mode {coupling_mode}"
+            "--file {ros_log} "
+            "--video-angles {angles} "
+            "--output-dir {plot_dir} "
+            "--params-file {params_file} "
+            "--coupling-mode {coupling_mode} "
+            "--dof {dof}"
         ),
-        help="Command for plotting. Available placeholders: {ros_log}, {angles}, {plot_dir}.",
+        help="Command for plotting. Available placeholders: {ros_log}, {angles}, {plot_dir}, {params_file}, {coupling_mode}, {dof}.",
     )
 
     parser.add_argument(
@@ -398,6 +435,13 @@ def main():
         default=1.0,
         help="Seconds to keep recording after the pattern command finishes.",
     )
+
+    parser.add_argument(
+        "--skip-diagnostics",
+        action="store_true",
+        help="Skip automatic Digital Twin fault diagnosis.",
+    )
+    
 
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
@@ -470,11 +514,104 @@ def main():
 
     print(f"  pattern mode:  {pattern_mode}")
 
-    wait_for_hardware_ready(
-        coupling_mode=coupling_mode,
-        detected_hardware=detected_hardware,
-    )
-            
+    # Only pause once before a full DOF sequence.
+    if not args.sequence_child:
+        wait_for_hardware_ready(
+            coupling_mode=coupling_mode,
+            detected_hardware=detected_hardware,
+        )
+
+    # ---------------------------------------------------------
+    # Automatically run all requested DOFs as separate trials
+    # ---------------------------------------------------------
+    if pattern_mode == "tool" and not args.sequence_child:
+        run_all_dofs, dof_sequence_order = get_dof_sequence_settings(
+            params_file
+        )
+
+        if run_all_dofs:
+            print(
+                "\nAutomatic DOF sequence enabled: "
+                + " -> ".join(f"DOF{dof}" for dof in dof_sequence_order)
+            )
+
+            for dof in dof_sequence_order:
+                print("\n" + "=" * 70)
+                print(f"STARTING DOF{dof}")
+                print("=" * 70)
+
+                child_cmd = [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--sequence-child",
+                    "--skip-marker-scan",
+                    "--coupling-mode",
+                    coupling_mode,
+                    "--dof",
+                    str(dof),
+                    "--params-file",
+                    str(params_file),
+                    "--camera",
+                    args.camera,
+                    "--focus",
+                    str(args.focus),
+                    "--sharpness",
+                    str(args.sharpness),
+                    "--width",
+                    str(args.width),
+                    "--height",
+                    str(args.height),
+                    "--fps",
+                    str(args.fps),
+                    "--output-dir",
+                    args.output_dir,
+                    "--test-data-dir",
+                    args.test_data_dir,
+                    "--motor-setup-name",
+                    args.motor_setup_name,
+                    "--gearbox-setup-name",
+                    args.gearbox_setup_name,
+                    "--tool-setup-name",
+                    args.tool_setup_name,
+                    "--extra-video-seconds",
+                    str(args.extra_video_seconds),
+                ]
+
+                if gearbox_variant:
+                    child_cmd.extend([
+                        "--gearbox-variant",
+                        gearbox_variant,
+                    ])
+
+                if instrument_config:
+                    child_cmd.extend([
+                        "--instrument-config",
+                        instrument_config,
+                    ])
+
+                if args.no_camera:
+                    child_cmd.append("--no-camera")
+
+                if args.skip_diagnostics:
+                    child_cmd.append("--skip-diagnostics")
+
+                result = subprocess.run(child_cmd)
+
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Automatic DOF sequence stopped because "
+                        f"DOF{dof} failed with return code "
+                        f"{result.returncode}."
+                    )
+
+                print(f"\nDOF{dof} completed.")
+
+            print("\n" + "=" * 70)
+            print("ALL DOF TESTS COMPLETED")
+            print("=" * 70)
+            return
+
+
     if pattern_mode == "motor":
         args.dof = None
         dof_label = "motor"
@@ -559,7 +696,8 @@ def main():
             "ros2 launch adlap_tool_control dof_pattern_runner.launch.py "
             f"output_dir:={shlex.quote(str(output_dir))} "
             f"log_file_name:={shlex.quote(ros_log_path.name)} "
-            f"coupling_mode:={shlex.quote(coupling_mode)}"
+            f"coupling_mode:={shlex.quote(coupling_mode)} "
+            f"active_dof:={args.dof}"
         )
 
         if gearbox_variant:
@@ -589,6 +727,7 @@ def main():
     detector_cmd = None
     motor_plot_cmd = None
     instrument_plot_cmd = None
+    diagnostics_cmd = None
 
     if use_camera:
         apply_camera_settings(
@@ -659,7 +798,15 @@ def main():
         f"--coupling-mode {shlex.quote(coupling_mode)}"
     )
 
-    if coupling_mode == "full_setup":
+    # Tool-pattern runs always have a known active DOF.
+    # Pass it explicitly to the Motor DT so coupled pattern
+    # segmentation uses the correct instrument command channel.
+    if pattern_mode != "motor":
+        if args.dof is None:
+            raise RuntimeError(
+                "Active DOF is required for coupled Motor DT replay."
+            )
+
         motor_dt_replay_cmd += f" --dof {args.dof}"
 
     run_command(motor_dt_replay_cmd, check=True)
@@ -674,10 +821,13 @@ def main():
 
     motor_plot_cmd = (
         f"ros2 run adlap_tool_control plot_motor.py "
-        f"--file {ros_log_path} "
-        f"--replay-file {motor_dt_replay_path} "
-        f"--output-dir {motor_plots_dir}"
+        f"--file {shlex.quote(str(ros_log_path))} "
+        f"--replay-file {shlex.quote(str(motor_dt_replay_path))} "
+        f"--output-dir {shlex.quote(str(motor_plots_dir))}"
     )
+
+    if pattern_mode != "motor":
+        motor_plot_cmd += f" --dof {args.dof}"
 
     run_command(motor_plot_cmd, check=True)
 
@@ -755,10 +905,21 @@ def main():
                 f"--output-dir {shlex.quote(str(instrument_plots_dir))} "
                 f"--params-file {shlex.quote(str(params_file))} "
                 f"--coupling-mode {shlex.quote(coupling_mode)} "
+                f"--dof {args.dof}"
             )
 
     if instrument_plot_cmd is not None:
         run_command(instrument_plot_cmd, check=True)
+
+    if (
+        coupling_mode in ["motor_only", "gearbox_only"]
+        and not args.skip_diagnostics
+    ):
+        diagnostics_cmd = (
+            "ros2 run adlap_tool_control digital_twin_diagnostics.py "
+            f"--replay-file {shlex.quote(str(motor_dt_replay_path))} "
+            f"--metadata-file {shlex.quote(str(metadata_path))}"
+        )
 
     metadata = {
         "coupling_mode": coupling_mode,
@@ -796,10 +957,16 @@ def main():
         "detector_cmd": detector_cmd,
         "motor_plot_cmd": motor_plot_cmd,
         "instrument_plot_cmd": instrument_plot_cmd,
+        "diagnostics_cmd": diagnostics_cmd,
     }
 
     with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
+
+    if diagnostics_cmd is not None:
+        print("\nStarting automatic Digital Twin diagnosis...")
+        run_command(diagnostics_cmd, check=True)
+        print("\nDigital Twin diagnosis completed.")
 
     print("\nFull automated trial completed.")
     # print(f"Video:      {video_path}")

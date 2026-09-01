@@ -42,6 +42,7 @@ def generate_launch_description():
     #   gearbox_only -> Motor DT + Gearbox DT
     #   full_setup   -> Motor DT + Gearbox DT + Instrument DT
     coupling_mode = LaunchConfiguration("coupling_mode")
+    active_dof = LaunchConfiguration("active_dof")
 
     # Selects the gearbox and instrument configuration
     gearbox_variant = LaunchConfiguration("gearbox_variant")
@@ -56,6 +57,7 @@ def generate_launch_description():
             str(params_file),
             {
                 "coupling_mode": coupling_mode,
+                "active_dof": active_dof,
             },
         ],
         output="screen",
@@ -140,6 +142,12 @@ def generate_launch_description():
             "instrument_config",
             default_value="",
             description="Instrument config selected by marker detection, e.g. gripper.",
+        ),
+
+        DeclareLaunchArgument(
+            "active_dof",
+            default_value="0",
+            description="DOF to run as sequence: 1, 2, 3 or 4. Use 0 for YAML-defined behavior.",
         ),
 
         dof_pattern_runner_node,

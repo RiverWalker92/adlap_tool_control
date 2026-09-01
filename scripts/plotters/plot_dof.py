@@ -2904,6 +2904,7 @@ if __name__ == "__main__":
             / "dof_pattern_params.yaml"
         ),
     )
+    parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
     args = parser.parse_args()
 
     plot_continuous_file(

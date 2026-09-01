@@ -3,6 +3,11 @@ dof_pattern_runner_node:
     # topic: "/robot_cmd"
     topic: "/right/tool_control_node/instrument_angles"
     publish_rate: 100.0
+    active_dof: 0
+    # Run one DOF or automatically run all DOFs
+    run_all_dofs: true
+    dof_sequence_order: [1, 3, 4, 2]
+  
 
     # mode can be: constant, triangle, sinusoid
     # value is ignored when mode is sinusoid/triangle
@@ -56,7 +61,7 @@ dof_pattern_runner_node:
       velocity: 1.0
       min: -12.566
       max: 12.566
-      frequency: 0.1
+      frequency: 0.05 #1.0 results in about 1900 pulses/s, max is about 1200
 
       sequence_modes: ["sinusoid_mid", "triangle_mid"]
       sequence_cycles: [3, 3]
@@ -73,7 +78,7 @@ dof_pattern_runner_node:
     
 
     dof4:
-      mode: "sequence"
+      mode: "constant"
       value: 0.0
       min: 0.0
       max: 0.4
@@ -84,7 +89,7 @@ dof_pattern_runner_node:
       sequence_frequency_factors: [0.5, 1.0, 2.0] 
       sequence_between_frequency_pause: 2.0 #maak 3
 
-      sequence_range_factors: [0.5] #voor laatste test nieuw gb > grotere opening/ 
+      sequence_range_factors: [0.5] #0.5 #voor laatste test nieuw gb > grotere opening/ 
       sequence_between_range_pause: 2.0 #maak 3
 
       sequence_pause_duration: 5.0

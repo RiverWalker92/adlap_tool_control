@@ -3,6 +3,7 @@
 import argparse
 import json
 import csv
+import copy
 import math
 import re
 from pathlib import Path
@@ -34,6 +35,7 @@ VALID_CONFIGURATIONS = (
 RUN_SPLIT_SEED = 42
 EVENT_TAIL_S = 1.0
 STATIONARY_ENCODER_VELOCITY_THRESHOLD = 5.0
+MOTOR_COMMAND_TOLERANCE_PULSES = 0.5
 
 DEFAULT_GEARBOX_CONFIG_PATH = (
     Path(get_package_share_directory("adlap_tool_control"))
@@ -53,6 +55,10 @@ DEFAULT_TRAINING_CONFIG_PATH = (
     / "config"
     / "training_config.yaml"
 )
+
+DYNAMIC_COMPLETION_HOLD_S = 0.1
+DYNAMIC_MIN_POSITION_TOLERANCE_PULSES = 5.0
+DYNAMIC_REL_POSITION_TOLERANCE = 0.01
 
 
 def load_training_config(config_path: Path):
@@ -1836,6 +1842,110 @@ def build_coupled_samples_from_segment(segment, motor_index):
         metadata,
     )
 
+def build_measured_phase_masks(
+    t,
+    target,
+    encoder,
+    encoder_velocity,
+):
+    dynamic_mask = np.zeros(len(t), dtype=bool)
+
+    positive_dt = np.diff(t)
+    positive_dt = positive_dt[positive_dt > 0.0]
+    median_dt = (
+        np.median(positive_dt)
+        if len(positive_dt)
+        else 0.01
+    )
+
+    hold_samples = max(
+        1,
+        int(np.ceil(
+            DYNAMIC_COMPLETION_HOLD_S / median_dt
+        )),
+    )
+
+    target_changes = np.flatnonzero(
+        np.r_[
+            False,
+            np.abs(np.diff(target))
+            > MOTOR_COMMAND_TOLERANCE_PULSES,
+        ]
+    )
+
+    for event_index, start_index in enumerate(target_changes):
+        next_command_index = (
+            target_changes[event_index + 1]
+            if event_index + 1 < len(target_changes)
+            else len(t)
+        )
+
+        target_step = (
+            target[start_index]
+            - target[start_index - 1]
+        )
+
+        position_tolerance = max(
+            DYNAMIC_MIN_POSITION_TOLERANCE_PULSES,
+            DYNAMIC_REL_POSITION_TOLERANCE
+            * abs(target_step),
+        )
+
+        settled = (
+            (
+                np.abs(
+                    encoder[start_index:next_command_index]
+                    - target[start_index]
+                )
+                <= position_tolerance
+            )
+            & (
+                np.abs(
+                    encoder_velocity[
+                        start_index:next_command_index
+                    ]
+                )
+                <= STATIONARY_ENCODER_VELOCITY_THRESHOLD
+            )
+        )
+
+        completion_index = None
+
+        for local_index in range(
+            0,
+            len(settled) - hold_samples + 1,
+        ):
+            if np.all(
+                settled[
+                    local_index:
+                    local_index + hold_samples
+                ]
+            ):
+                completion_index = (
+                    start_index + local_index
+                )
+                break
+
+        dynamic_end_index = (
+            completion_index
+            if completion_index is not None
+            else next_command_index
+        )
+
+        dynamic_mask[
+            start_index:dynamic_end_index
+        ] = True
+
+    stationary_mask = (
+        (~dynamic_mask)
+        & (
+            np.abs(encoder_velocity)
+            <= STATIONARY_ENCODER_VELOCITY_THRESHOLD
+        )
+    )
+
+    return dynamic_mask, stationary_mask
+
 def build_samples_from_segment(segment, motor_index, coupling_mode):
     if coupling_mode != "motor_only":
         return build_coupled_samples_from_segment(segment, motor_index)
@@ -1889,14 +1999,18 @@ def build_samples_from_segment(segment, motor_index, coupling_mode):
     encoder_velocity = safe_gradient(encoder, t)
     encoder_acceleration = safe_gradient(encoder_velocity, t)
 
-    # Evaluation windows used for the final held-out-test metrics.
-    # Dynamic starts at the first target change and extends EVENT_TAIL_S
-    # beyond the final target change. Stationary is deliberately stricter
-    # than simply "not dynamic": the measured encoder must also be still.
-    dynamic_mask = target_based_is_moving.astype(bool)
-    stationary_mask = (
-        (~dynamic_mask)
-        & (np.abs(encoder_velocity) <= STATIONARY_ENCODER_VELOCITY_THRESHOLD)
+    # Evaluation masks for held-out healthy data.
+    # Dynamic starts at a target change and ends when the measured
+    # encoder remains close to the target and stationary for 0.1 s.
+    # These masks affect metrics and model selection only;
+    # they do not filter the training samples or change model inputs.
+    dynamic_mask, stationary_mask = (
+        build_measured_phase_masks(
+            t=t,
+            target=target,
+            encoder=encoder,
+            encoder_velocity=encoder_velocity,
+        )
     )
 
     encoder_error = target - encoder
@@ -2202,6 +2316,46 @@ def add_target_range_normalization(metrics, target_range_pulses):
     )
     return normalized
 
+def add_protocol_target_range_normalization(
+    metrics,
+    target_range_pulses,
+):
+    """Normalize aggregated protocol errors using the full held-out target range."""
+    normalized = dict(metrics)
+
+    active_motor = (
+        target_range_pulses is not None
+        and np.isfinite(target_range_pulses)
+        and target_range_pulses > 0.0
+    )
+
+    normalized["motor_target_range_pulses"] = (
+        float(target_range_pulses)
+        if target_range_pulses is not None
+        and np.isfinite(target_range_pulses)
+        else None
+    )
+    normalized["active_motor_in_protocol"] = bool(active_motor)
+
+    if not active_motor:
+        normalized["nmae_percent_of_target_range"] = None
+        normalized["nrmse_percent_of_target_range"] = None
+        normalized["max_abs_error_percent_of_target_range"] = None
+        return normalized
+
+    scale = 100.0 / float(target_range_pulses)
+
+    normalized["nmae_percent_of_target_range"] = float(
+        metrics["mae"] * scale
+    )
+    normalized["nrmse_percent_of_target_range"] = float(
+        metrics["rmse"] * scale
+    )
+    normalized["max_abs_error_percent_of_target_range"] = float(
+        metrics["max_abs_error"] * scale
+    )
+
+    return normalized
 
 def compute_range_normalized_phase_metrics(
     y_true,
@@ -2348,6 +2502,7 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
             "dynamic_mask": [],
             "stationary_mask": [],
             "source_runs": set(),
+            "motor_target": [],
             "range_normalized_segments": [],
         })
         entry["y_true"].append(np.asarray(y_true, dtype=float))
@@ -2362,10 +2517,12 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
 
         if response_kind == "encoder":
             motor_target = np.asarray(metadata["target"], dtype=float)
+            
             if motor_target.size != length:
                 raise RuntimeError(
                     "Motor target length does not match held-out encoder sample."
                 )
+            entry["motor_target"].append(motor_target)
 
             entry["range_normalized_segments"].append({
                 "source_run": metadata["run_name"],
@@ -2409,6 +2566,31 @@ def compute_metrics_by_protocol(samples, prediction, response_kind):
                 stationary_mask,
             )
         else:
+            complete_motor_target = np.concatenate(
+                entry["motor_target"]
+            )
+
+            finite_motor_target = complete_motor_target[
+                np.isfinite(complete_motor_target)
+            ]
+
+            if finite_motor_target.size > 0:
+                target_minimum = float(np.min(finite_motor_target))
+                target_maximum = float(np.max(finite_motor_target))
+                target_range = target_maximum - target_minimum
+            else:
+                target_minimum = None
+                target_maximum = None
+                target_range = None
+
+            result["motor_target_range"] = {
+                "minimum": target_minimum,
+                "maximum": target_maximum,
+                "range": target_range,
+                "samples": int(finite_motor_target.size),
+            }
+            result["motor_target_range_source"] = "held_out_source_run"
+
             result["range_normalized_by_segment"] = (
                 entry["range_normalized_segments"]
             )
@@ -2546,6 +2728,69 @@ def load_segments_from_files(
         raise RuntimeError("No valid task segments found in the selected JSONL files.")
 
     return all_segments
+
+def create_target_normalized_metrics(metrics):
+    """Create a normalized copy without changing the original metrics."""
+    normalized_metrics = copy.deepcopy(metrics)
+
+    for motor_name, motor_data in normalized_metrics.items():
+        if not motor_name.startswith("motor_"):
+            continue
+
+        # Normaliseer de protocolmetrics van alle kandidaatmodellen.
+        for model_data in motor_data[
+            "encoder_model_comparison"
+        ].values():
+            for protocol_data in model_data[
+                "by_protocol"
+            ].values():
+                target_range = protocol_data[
+                    "motor_target_range"
+                ]["range"]
+
+                for phase, phase_metrics in protocol_data[
+                    "by_phase"
+                ].items():
+                    protocol_data["by_phase"][phase] = (
+                        add_protocol_target_range_normalization(
+                            phase_metrics,
+                            target_range,
+                        )
+                    )
+
+        # Normaliseer de metrics van het geselecteerde model.
+        for protocol_data in motor_data[
+            "evaluation_by_protocol"
+        ].values():
+            target_range = protocol_data[
+                "motor_target_range"
+            ]["range"]
+
+            encoder_phases = protocol_data[
+                "encoder_response_by_phase_pulses"
+            ]
+
+            for phase, phase_metrics in encoder_phases.items():
+                encoder_phases[phase] = (
+                    add_protocol_target_range_normalization(
+                        phase_metrics,
+                        target_range,
+                    )
+                )
+
+    normalized_metrics["target_range_normalization"] = {
+        "formula": (
+            "100 * pulse_error / "
+            "(max_motor_target - min_motor_target)"
+        ),
+        "denominator_scope": (
+            "complete held-out source run per protocol and motor"
+        ),
+        "model_retrained": False,
+        "predictions_recomputed": False,
+    }
+
+    return normalized_metrics
 
 def train_motor_models(samples_by_motor, output_dir, coupling_mode):
     models_dir = output_dir / "models"
@@ -2781,6 +3026,16 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
                     encoder_protocol_metrics.get(protocol, {}).get("source_runs", [])
                     + current_protocol_metrics.get(protocol, {}).get("source_runs", [])
                 )),
+                "motor_target_range": (
+                    encoder_protocol_metrics.get(protocol, {}).get(
+                        "motor_target_range"
+                    )
+                ),
+                "motor_target_range_source": (
+                    encoder_protocol_metrics.get(protocol, {}).get(
+                        "motor_target_range_source"
+                    )
+                ),
                 "encoder_response_by_phase_pulses": (
                     encoder_protocol_metrics.get(protocol, {}).get("by_phase", {})
                 ),
@@ -2839,10 +3094,20 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
             "encoder_feature_names": encoder_feature_names,
             "current_feature_names": current_feature_names,
             "evaluation_windows": {
-                "dynamic_tail_after_last_target_change_s": EVENT_TAIL_S,
+                "dynamic_definition": (
+                    "target_change_until_measured_target_settled"
+                ),
+                "completion_hold_s": DYNAMIC_COMPLETION_HOLD_S,
+                "minimum_position_tolerance_pulses": (
+                    DYNAMIC_MIN_POSITION_TOLERANCE_PULSES
+                ),
+                "relative_position_tolerance": (
+                    DYNAMIC_REL_POSITION_TOLERANCE
+                ),
                 "stationary_encoder_velocity_threshold_pulses_per_s": (
                     STATIONARY_ENCODER_VELOCITY_THRESHOLD
                 ),
+                "model_feature_memory_s": EVENT_TAIL_S,
             },
         }
 
@@ -2890,6 +3155,11 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
 
     metrics_path = output_dir / "motor_dt_metrics.json"
 
+    normalized_metrics_path = (
+        output_dir
+        / "motor_dt_metrics_target_normalized.json"
+    )
+
     combined_model_path = models_dir / "motor_dt_all_motors.pkl"
     joblib.dump({
         "coupling_mode": coupling_mode,
@@ -2904,6 +3174,13 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
         json.dump(metrics, f, indent=2)
 
     print(f"\nSaved metrics: {metrics_path}")
+
+    # Create and save normalized metrics
+    normalized_metrics = create_target_normalized_metrics(metrics)
+    with open(normalized_metrics_path, "w") as f:
+        json.dump(normalized_metrics, f, indent=2)
+    print(f"\nSaved normalized metrics: {normalized_metrics_path}")
+
     write_encoder_model_comparison(
         encoder_model_rows=encoder_model_comparison_rows,
         output_dir=output_dir,
@@ -3141,6 +3418,50 @@ def plot_motor_pattern_predictions(
 # DOF PATTERN PLOTTING
 # ============================================================
 
+def motor_target_is_commanded(
+    sample,
+    tolerance_pulses=MOTOR_COMMAND_TOLERANCE_PULSES,
+):
+    """
+    A motor is considered commanded only when its target repeatedly
+    changes direction during the motion pattern.
+    """
+    metadata = sample[4]
+
+    motor_target = np.asarray(
+        metadata["target"],
+        dtype=float,
+    )
+
+    finite_target = motor_target[
+        np.isfinite(motor_target)
+    ]
+
+    if finite_target.size < 2:
+        return False
+
+    target_delta = np.diff(
+        finite_target
+    )
+
+    significant_directions = np.sign(
+        target_delta[
+            np.abs(target_delta) > tolerance_pulses
+        ]
+    )
+
+    if significant_directions.size < 2:
+        return False
+
+    number_of_reversals = np.sum(
+        significant_directions[1:]
+        != significant_directions[:-1]
+    )
+
+    return bool(
+        number_of_reversals >= 2
+    )
+
 def plot_dof_pattern_predictions(
     samples_by_motor,
     trained_models,
@@ -3194,17 +3515,52 @@ def plot_dof_pattern_predictions(
             sinusoid_sample = patterns.get("sinusoid")
             triangle_sample = patterns.get("triangle")
 
+            available_samples = [
+                sample
+                for sample in (
+                    sinusoid_sample,
+                    triangle_sample,
+                )
+                if sample is not None
+            ]
+
+            motor_is_commanded = any(
+                motor_target_is_commanded(sample)
+                for sample in available_samples
+            )
+
+            # Only directly commanded motors need the system-level DOF
+            # command above their motor response. Non-commanded motors are
+            # still plotted because their encoder/current response can reveal
+            # coupling, drag, or an unexpected reaction.
+            row_offset = 1 if motor_is_commanded else 0
+            encoder_row = row_offset
+            current_row = row_offset + 1
+            position_residual_row = row_offset + 2
+            current_residual_row = row_offset + 3
+            number_of_rows = 4 + row_offset
+
             fig, axes = plt.subplots(
-                5,
+                number_of_rows,
                 2,
-                figsize=(16, 13),
+                figsize=(
+                    16,
+                    13 if motor_is_commanded else 10.5,
+                ),
                 squeeze=False,
+            )
+
+            command_status = (
+                ""
+                if motor_is_commanded
+                else " - motor not actuated"
             )
 
             fig.suptitle(
                 (
                     f"Motor DT - DOF{dof_number} - M{motor_index} - "
                     f"frequency x{frequency:g} - range x{range_factor:g}"
+                    f"{command_status}"
                 ),
                 fontsize=14,
             )
@@ -3218,7 +3574,7 @@ def plot_dof_pattern_predictions(
                 waveform_samples
             ):
                 if sample is None:
-                    for row_index in range(5):
+                    for row_index in range(number_of_rows):
                         axes[row_index, column_index].axis("off")
 
                     axes[0, column_index].set_title(
@@ -3268,25 +3624,26 @@ def plot_dof_pattern_predictions(
                 # 1. DOF COMMAND
                 # --------------------------------------------------
 
-                axes[0, column_index].plot(
-                    t,
-                    dof_command,
-                    linestyle="-",
-                    linewidth=1.4,
-                    color="black",
-                    label=f"DOF{dof_number} command",
-                )
+                if motor_is_commanded:
+                    axes[0, column_index].plot(
+                        t,
+                        dof_command,
+                        linestyle="-",
+                        linewidth=1.4,
+                        color="black",
+                        label=f"DOF{dof_number} command",
+                    )
 
-                axes[0, column_index].set_ylabel(
-                    "Command [rad]"
-                )
-                axes[0, column_index].grid(True)
-                axes[0, column_index].legend(fontsize=8)
+                    axes[0, column_index].set_ylabel(
+                        "Command [rad]"
+                    )
+                    axes[0, column_index].grid(True)
+                    axes[0, column_index].legend(fontsize=8)
 
                 # --------------------------------------------------
                 # 2. ENCODER POSITION
                 # --------------------------------------------------
-                axes[1, column_index].plot(
+                axes[encoder_row, column_index].plot(
                     t,
                     motor_target,
                     linestyle=":",
@@ -3295,7 +3652,7 @@ def plot_dof_pattern_predictions(
                     label="Commanded motor target",
                 )
                 
-                axes[1, column_index].plot(
+                axes[encoder_row, column_index].plot(
                     t,
                     y_encoder,
                     linestyle="-",
@@ -3304,7 +3661,7 @@ def plot_dof_pattern_predictions(
                     label="Measured encoder position",
                 )
 
-                axes[1, column_index].plot(
+                axes[encoder_row, column_index].plot(
                     t,
                     encoder_pred,
                     linestyle="--",
@@ -3313,17 +3670,17 @@ def plot_dof_pattern_predictions(
                     label="Predicted encoder position",
                 )
 
-                axes[1, column_index].set_ylabel(
+                axes[encoder_row, column_index].set_ylabel(
                     "Relative position [pulses]"
                 )
-                axes[1, column_index].grid(True)
-                axes[1, column_index].legend(fontsize=8)
+                axes[encoder_row, column_index].grid(True)
+                axes[encoder_row, column_index].legend(fontsize=8)
 
                 # --------------------------------------------------
                 # 3. MOTOR CURRENT
                 # --------------------------------------------------
 
-                axes[2, column_index].plot(
+                axes[current_row, column_index].plot(
                     t,
                     raw_current,
                     linestyle="-",
@@ -3333,7 +3690,7 @@ def plot_dof_pattern_predictions(
                     label="Raw measured current",
                 )
 
-                axes[2, column_index].plot(
+                axes[current_row, column_index].plot(
                     t,
                     filtered_current,
                     linestyle="-",
@@ -3342,7 +3699,7 @@ def plot_dof_pattern_predictions(
                     label="Filtered measured current",
                 )
 
-                axes[2, column_index].plot(
+                axes[current_row, column_index].plot(
                     t,
                     current_pred,
                     linestyle="--",
@@ -3351,18 +3708,18 @@ def plot_dof_pattern_predictions(
                     label="Predicted current",
                 )
 
-                axes[2, column_index].set_ylabel(
+                axes[current_row, column_index].set_ylabel(
                     "Current [mA]"
                 )
-                axes[2, column_index].grid(True)
-                axes[2, column_index].legend(fontsize=8)
+                axes[current_row, column_index].grid(True)
+                axes[current_row, column_index].legend(fontsize=8)
 
                 # --------------------------------------------------
                 # 4. POSITION RESIDUAL
                 # measured - predicted
                 # --------------------------------------------------
 
-                axes[3, column_index].plot(
+                axes[position_residual_row, column_index].plot(
                     t,
                     encoder_residual,
                     linestyle="-",
@@ -3371,24 +3728,24 @@ def plot_dof_pattern_predictions(
                     label="Position residual",
                 )
 
-                axes[3, column_index].axhline(
+                axes[position_residual_row, column_index].axhline(
                     0.0,
                     color="black",
                     linewidth=1.0,
                 )
 
-                axes[3, column_index].set_ylabel(
+                axes[position_residual_row, column_index].set_ylabel(
                     "Residual [pulses]"
                 )
-                axes[3, column_index].grid(True)
-                axes[3, column_index].legend(fontsize=8)
+                axes[position_residual_row, column_index].grid(True)
+                axes[position_residual_row, column_index].legend(fontsize=8)
 
                 # --------------------------------------------------
                 # 5. CURRENT RESIDUAL
                 # filtered measured - predicted
                 # --------------------------------------------------
 
-                axes[4, column_index].plot(
+                axes[current_residual_row, column_index].plot(
                     t,
                     current_residual,
                     linestyle="-",
@@ -3397,67 +3754,74 @@ def plot_dof_pattern_predictions(
                     label="Current residual",
                 )
 
-                axes[4, column_index].axhline(
+                axes[current_residual_row, column_index].axhline(
                     0.0,
                     color="black",
                     linewidth=1.0,
                 )
 
-                axes[4, column_index].set_ylabel(
+                axes[current_residual_row, column_index].set_ylabel(
                     "Residual [mA]"
                 )
-                axes[4, column_index].set_xlabel(
+                axes[current_residual_row, column_index].set_xlabel(
                     "Time [s]"
                 )
-                axes[4, column_index].grid(True)
-                axes[4, column_index].legend(fontsize=8)
+                axes[current_residual_row, column_index].grid(True)
+                axes[current_residual_row, column_index].legend(fontsize=8)
 
             # Row labels / titles only once conceptually
-            axes[0, 0].text(
-                -0.14,
-                0.5,
-                "DOF command",
-                transform=axes[0, 0].transAxes,
-                rotation=90,
-                va="center",
-                fontweight="bold",
-            )
+            if motor_is_commanded:
+                axes[0, 0].text(
+                    -0.14,
+                    0.5,
+                    "DOF command",
+                    transform=axes[0, 0].transAxes,
+                    rotation=90,
+                    va="center",
+                    fontweight="bold",
+                )
 
-            axes[1, 0].text(
+            axes[encoder_row, 0].text(
                 -0.14,
                 0.5,
                 "Encoder position",
-                transform=axes[1, 0].transAxes,
+                transform=axes[encoder_row, 0].transAxes,
                 rotation=90,
                 va="center",
                 fontweight="bold",
             )
 
-            axes[2, 0].text(
+            axes[current_row, 0].text(
                 -0.14,
                 0.5,
                 "Motor current",
-                transform=axes[2, 0].transAxes,
+                transform=axes[current_row, 0].transAxes,
                 rotation=90,
                 va="center",
                 fontweight="bold",
             )
 
-            axes[3, 0].text(
+            axes[position_residual_row, 0].text(
                 -0.14,
                 0.5,
                 "Position residual",
-                transform=axes[3, 0].transAxes,
+                transform=axes[
+                    position_residual_row,
+                    0,
+                ].transAxes,
                 rotation=90,
                 va="center",
                 fontweight="bold",
             )
 
-            axes[4, 0].text(
+            axes[current_residual_row, 0].text(
                 -0.14,
                 0.5,
                 "Current residual",
-                transform=axes[4, 0].transAxes,
+                transform=axes[
+                    current_residual_row,
+                    0,
+                ].transAxes,
                 rotation=90,
                 va="center",
                 fontweight="bold",

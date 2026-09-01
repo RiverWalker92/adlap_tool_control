@@ -13,7 +13,7 @@ DEFAULT_MOTOR_ONLY_MODEL_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V3"
+    / "trainings data V4"
     / "motors_only"
     / "motors_only_results"
     / "models"
@@ -24,7 +24,7 @@ DEFAULT_GEARBOX_MODEL_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V3"
+    / "trainings data V4"
     / "motors_gearbox"
     / "motors_gearbox_results"
     / "models"
@@ -35,7 +35,7 @@ DEFAULT_FULL_SETUP_MODEL_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V3"
+    / "trainings data V4"
     / "full_setup"
     / "full_setup_results"
     / "models"
@@ -810,7 +810,8 @@ def build_motor_dt_features(t_segment, target):
     target_direction = np.sign(target_delta)
     time_since_target_change = time_since_signal_change(t_segment, target)
 
-    movement_memory_s = 1.2
+    # The model should consider the motor as moving for a short time after a target change.
+    movement_memory_s = EVENT_TAIL_S
     target_based_is_moving = (
         (np.abs(target_delta) > 0.0)
         & (time_since_target_change < movement_memory_s)

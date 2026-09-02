@@ -63,7 +63,7 @@ CURRENT_MAX_CONTINUOUS_OUTSIDE_S = 0.10   # 100 ms
 # Motors-Gearbox configuration
 # ---------------------------------------------------------------------------
 
-GEARBOX_RELEVANT_MOTORS = {
+DOF_RELEVANT_MOTORS = {
     1: [1, 2],
     2: [1, 2],
     3: [0],
@@ -168,6 +168,45 @@ MOTOR_ONLY_CURRENT_BANDS = {
         3: (-10.0, 15.0),
     },
 }
+#----------------------------------------------------------------------------
+# Motor-only DOF pattern healthy bands
+#----------------------------------------------------------------------------
+MOTOR_ONLY_DOF_POSITION_BANDS = {
+    1: {
+        1: (-150.0, 150.0),
+        2: (-150.0, 150.0),
+    },
+    2: {
+        1: (-150.0, 150.0),
+        2: (-150.0, 150.0),
+    },
+    3: {
+        0: (-150.0, 150.0),
+    },
+    4: {
+        0: (-150.0, 150.0),
+        3: (-150.0, 150.0),
+    },
+}
+
+MOTOR_ONLY_DOF_CURRENT_BANDS = {
+    1: {
+        1: (-120.0, 120.0),
+        2: (-120.0, 120.0),
+    },
+    2: {
+        1: (-120.0, 120.0),
+        2: (-120.0, 120.0),
+    },
+    3: {
+        0: (-120.0, 120.0),
+    },
+    4: {
+        0: (-120.0, 120.0),
+        3: (-120.0, 120.0),
+    },
+}
+
 
 # ---------------------------------------------------------------------------
 # Gearbox-only healthy bands
@@ -506,6 +545,25 @@ def get_healthy_bands(
 
     if coupling_mode == "motor_only":
 
+        if dof is not None:
+
+            position_band = (
+                MOTOR_ONLY_DOF_POSITION_BANDS[
+                    dof
+                ][motor]
+            )
+
+            current_band = (
+                MOTOR_ONLY_DOF_CURRENT_BANDS[
+                    dof
+                ][motor]
+            )
+
+            return (
+                position_band,
+                current_band,
+            )
+
         position_band = (
             MOTOR_ONLY_POSITION_BANDS[
                 test_type
@@ -522,7 +580,6 @@ def get_healthy_bands(
             position_band,
             current_band,
         )
-
     # ---------------------------------------------------------------
     # Gearbox-only baseline
     # ---------------------------------------------------------------
@@ -761,17 +818,28 @@ def diagnose_replay(
     coupling_mode = str(
         rows[0]["coupling_mode"]
     )
-
+    
     if coupling_mode == "motor_only":
 
-        dof = None
+        try:
+            dof = detect_dof(
+                replay_path
+            )
 
-        motors_to_evaluate = [
-            0,
-            1,
-            2,
-            3,
-        ]
+            motors_to_evaluate = (
+                DOF_RELEVANT_MOTORS[dof]
+            )
+
+        except ValueError:
+
+            dof = None
+
+            motors_to_evaluate = [
+                0,
+                1,
+                2,
+                3,
+            ]
 
     elif coupling_mode == "gearbox_only":
 
@@ -786,7 +854,7 @@ def diagnose_replay(
             )
 
         motors_to_evaluate = (
-            GEARBOX_RELEVANT_MOTORS[
+            DOF_RELEVANT_MOTORS[
                 dof
             ]
         )
@@ -809,20 +877,17 @@ def diagnose_replay(
         if test_type == "idle_baseline":
             continue
 
-        # Motor-only uses a separate band per test type.
         if coupling_mode == "motor_only":
 
-            if (
-                test_type
-                not in MOTOR_ONLY_POSITION_BANDS
-            ):
-                continue
+            if dof is None:
 
-            if (
-                test_type
-                not in MOTOR_ONLY_CURRENT_BANDS
-            ):
-                continue
+                if (
+                    test_type
+                    not in MOTOR_ONLY_POSITION_BANDS
+                    or test_type
+                    not in MOTOR_ONLY_CURRENT_BANDS
+                ):
+                    continue
 
         # Gearbox-only uses one band per DOF + motor,
         # so all non-idle DOF test types can be evaluated.
@@ -1015,19 +1080,30 @@ def create_diagnostic_plots(
         )
 
         motors_to_plot = (
-            GEARBOX_RELEVANT_MOTORS[dof]
+            DOF_RELEVANT_MOTORS[dof]
         )
 
-    else:
+    elif coupling_mode == "motor_only":
 
-        dof = None
+        try:
+            dof = detect_dof(
+                replay_path
+            )
 
-        motors_to_plot = [
-            0,
-            1,
-            2,
-            3,
-        ]
+            motors_to_plot = (
+                DOF_RELEVANT_MOTORS[dof]
+            )
+
+        except ValueError:
+
+            dof = None
+
+            motors_to_plot = [
+                0,
+                1,
+                2,
+                3,
+            ]
 
     output_dir.mkdir(
         parents=True,
@@ -1071,7 +1147,7 @@ def create_diagnostic_plots(
                 continue
 
             # Skip tests for which no diagnostic band exists.
-            if coupling_mode == "motor_only":
+            if coupling_mode == "motor_only" and dof is None:
 
                 if (
                     test_type not in MOTOR_ONLY_POSITION_BANDS
@@ -1079,7 +1155,7 @@ def create_diagnostic_plots(
                 ):
                     continue
 
-            if coupling_mode == "motor_only":
+            if coupling_mode == "motor_only" and dof is None:
 
                 commanded_target = np.asarray(
                     [
@@ -1106,7 +1182,7 @@ def create_diagnostic_plots(
                     continue
 
             # For gearbox_only, the relevant motors are already selected
-            # through GEARBOX_RELEVANT_MOTORS[dof].
+            # through DOF_RELEVANT_MOTORS[dof].
 
             motor_rows.extend(
                 segment
@@ -1681,7 +1757,8 @@ def show_diagnosis_popup(
     except ImportError:
         print(
             "WARNING: diagnosis popup unavailable; "
-            "install python3-tk.",
+            "install python3-tk, "
+            "for Ubuntu use sudo apt install python3-tk.",
             file=sys.stderr,
         )
         return False

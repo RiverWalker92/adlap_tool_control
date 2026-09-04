@@ -11,7 +11,7 @@ instrument:
 
   articulation_factor: 16.0
   jaw_angle_deg_per_mm: 8.7 #8 #6.0
-  between_jaws_deg_per_mm: 18.5 #17.5 #17.0
+  between_jaws_deg_per_mm: 19.5 #18.5 als eerst open en dicht #17.5 #17.0
 
   jaw_opening_threshold_mm: 0.06 #0.05
   jaw_closing_threshold_mm: 0.075

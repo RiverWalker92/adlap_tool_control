@@ -10,6 +10,17 @@ InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logg
 
 {
 }
+void InstrumentController::set_bend_play_compensation_enabled(bool enabled)
+{
+    enable_bend_play_compensation_ = enabled;
+
+    // Clear any previously accumulated compensation when disabling it.
+    // This prevents an old gearbox compensation value from affecting
+    // motor targets in motor-only or gearbox-only operation.
+    if (!enable_bend_play_compensation_) {
+        bend_play_compensation_ = 0;
+    }
+}
 
 double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
   double sample,
@@ -74,6 +85,13 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
     degrees = -MAX_BEND_ANGLE_DEGREES;
   }
 
+  int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
+  // Skip bend play compensation when it is disabled.
+  if (!enable_bend_play_compensation_) {
+    bend_play_compensation_ = 0;
+    return wanted_difference;
+  }
+
   int starting_difference = gearbox.motor_controller.get_starting_positions()[2] - gearbox.motor_controller.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
   //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
   
@@ -82,7 +100,6 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
   int current_difference = current_positions[2] - current_positions[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
 
-  int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
   int relative_difference = wanted_difference - current_difference;
 
   int deadband_threshold = static_cast<int>(std::round(gearbox.get_pulses_per_degree(1) * 2.5)); // deadband threshold in pulses

@@ -224,16 +224,42 @@ def coupling_mode_from_detected_hardware(detected_hardware: dict) -> str:
 
     return coupling_mode
 
-def pattern_mode_from_coupling_mode(coupling_mode: str) -> str:
-    if coupling_mode == "motor_only":
+# def pattern_mode_from_coupling_mode(coupling_mode: str) -> str:
+#     if coupling_mode == "motor_only":
+#         return "motor"
+
+#     if coupling_mode in {"gearbox_only", "full_setup"}:
+#         return "tool"
+
+#     raise RuntimeError(
+#         f"Unsupported coupling mode: {coupling_mode}"
+#     )
+def resolve_pattern_mode(
+    coupling_mode: str,
+    requested_pattern_mode: str,
+) -> str:
+
+    if requested_pattern_mode == "auto":
+        if coupling_mode == "motor_only":
+            return "motor"
+
+        return "dof"
+
+    if requested_pattern_mode == "motor":
+        if coupling_mode != "motor_only":
+            raise RuntimeError(
+                "Motor pattern is only supported for motor_only."
+            )
+
         return "motor"
 
-    if coupling_mode in {"gearbox_only", "full_setup"}:
-        return "tool"
+    if requested_pattern_mode == "dof":
+        return "dof"
 
     raise RuntimeError(
-        f"Unsupported coupling mode: {coupling_mode}"
+        f"Unsupported pattern mode: {requested_pattern_mode}"
     )
+
 def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
     """
     Infers active DOF from dof_pattern_params.yaml.
@@ -407,6 +433,18 @@ def main():
     )
 
     parser.add_argument(
+        "--pattern-mode",
+        choices=["auto", "motor", "dof"],
+        default="auto",
+        help=(
+            "Command pattern to run. "
+            "'auto' uses the default for the detected hardware; "
+            "'motor' runs direct motor patterns; "
+            "'dof' runs DOF-controlled patterns."
+        ),
+    )
+
+    parser.add_argument(
         "--detector-cmd",
         default=(
             "ros2 run adlap_tool_control webcam_video_angle_detector.py "
@@ -510,7 +548,22 @@ def main():
         print("\nAutomatically detected hardware configuration:")
         print(f"  coupling mode: {coupling_mode}")
 
-    pattern_mode = pattern_mode_from_coupling_mode(coupling_mode)
+    pattern_mode = resolve_pattern_mode(
+        coupling_mode,
+        args.pattern_mode,
+    )
+
+    if coupling_mode == "motor_only":
+        motor_dt_input_source = (
+            "commands"
+            if pattern_mode == "motor"
+            else "targets"
+        )
+    else:
+        motor_dt_input_source = "targets"
+
+    print(f"  pattern mode:          {pattern_mode}")
+    print(f"  Motor DT input source: {motor_dt_input_source}")
 
     print(f"  pattern mode:  {pattern_mode}")
 
@@ -521,10 +574,25 @@ def main():
             detected_hardware=detected_hardware,
         )
 
+        # Enable bend play compensation only for the full instrument setup.
+        bend_play_compensation = (
+            "true" ) #if coupling_mode == "full_setup" else "false" )
+
+        run_command(
+            "ros2 param set /right/tool_control_node "
+            f"enable_bend_play_compensation {bend_play_compensation}",
+            check=True,
+        )
+
     # ---------------------------------------------------------
     # Automatically run all requested DOFs as separate trials
     # ---------------------------------------------------------
-    if pattern_mode == "tool" and not args.sequence_child:
+    # if pattern_mode == "tool" and not args.sequence_child:
+    if (
+        pattern_mode == "dof"
+        and not args.sequence_child
+        and args.dof is None
+    ):
         run_all_dofs, dof_sequence_order = get_dof_sequence_settings(
             params_file
         )
@@ -547,6 +615,8 @@ def main():
                     "--skip-marker-scan",
                     "--coupling-mode",
                     coupling_mode,
+                    "--pattern-mode",
+                    "dof",
                     "--dof",
                     str(dof),
                     "--params-file",
@@ -642,27 +712,40 @@ def main():
     else:
         use_camera = args.dof in [2, 4]
 
+    use_instrument_plots = (
+        pattern_mode == "dof"
+        and coupling_mode in {"gearbox_only", "full_setup"}
+    )
+
     # Create output directories and file paths
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if coupling_mode == "motor_only":
         setup_name = args.motor_setup_name
-        run_name = f"auto_motor_{timestamp}"
-        dof_dir_name = "motor"
 
     elif coupling_mode == "gearbox_only":
         setup_name = args.gearbox_setup_name
-        run_name = f"auto_dof{args.dof}_{timestamp}"
-        dof_dir_name = f"dof{args.dof}"
 
     elif coupling_mode == "full_setup":
         setup_name = args.tool_setup_name
+
+    else:
+        raise RuntimeError(
+            f"Unsupported coupling mode: {coupling_mode}"
+        )
+
+
+    if pattern_mode == "motor":
+        run_name = f"auto_motor_{timestamp}"
+        dof_dir_name = "motor"
+
+    elif pattern_mode == "dof":
         run_name = f"auto_dof{args.dof}_{timestamp}"
         dof_dir_name = f"dof{args.dof}"
 
     else:
         raise RuntimeError(
-            f"Unsupported coupling mode: {coupling_mode}"
+            f"Unsupported pattern mode: {pattern_mode}"
         )
 
     setup_dir = Path(args.output_dir).expanduser() / setup_name
@@ -682,7 +765,9 @@ def main():
 
     motor_plots_dir.mkdir(parents=True, exist_ok=True)
 
-    if pattern_mode != "motor":
+    # if pattern_mode != "motor":
+    #     instrument_plots_dir.mkdir(parents=True, exist_ok=True)
+    if use_instrument_plots:
         instrument_plots_dir.mkdir(parents=True, exist_ok=True)
 
     if pattern_mode == "motor":
@@ -795,7 +880,8 @@ def main():
     motor_dt_replay_cmd = (
         f"ros2 run adlap_tool_control motor_digital_twin.py "
         f"--file {shlex.quote(str(ros_log_path))} "
-        f"--coupling-mode {shlex.quote(coupling_mode)}"
+        f"--coupling-mode {shlex.quote(coupling_mode)} "
+        f"--input-source {shlex.quote(motor_dt_input_source)}"
     )
 
     # Tool-pattern runs always have a known active DOF.
@@ -831,7 +917,8 @@ def main():
 
     run_command(motor_plot_cmd, check=True)
 
-    if pattern_mode != "motor":
+    # if pattern_mode != "motor":
+    if use_instrument_plots:
         # instrument_current_dt_replay_path = (
         #     output_dir / f"{run_name}_instrument_current_dt_replay.jsonl"
         # )
@@ -912,7 +999,7 @@ def main():
         run_command(instrument_plot_cmd, check=True)
 
     if (
-        coupling_mode in ["motor_only", "gearbox_only"]
+        coupling_mode in ["motor_only", "gearbox_only", "full_setup"]
         and not args.skip_diagnostics
     ):
         diagnostics_cmd = (
@@ -946,6 +1033,7 @@ def main():
         "motor_dt_replay_cmd": motor_dt_replay_cmd,
         # "instrument_current_dt_replay_path": (str(instrument_current_dt_replay_path) if instrument_current_dt_replay_path is not None else None),
         # "instrument_current_dt_replay_cmd": instrument_current_dt_replay_cmd,
+        "motor_dt_input_source": motor_dt_input_source,
         "plots_dir": str(plots_dir),
         "motor_plots_dir": str(motor_plots_dir),
         "instrument_plots_dir": (

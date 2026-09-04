@@ -48,6 +48,26 @@ public:
     task_publisher_(this->create_publisher<std_msgs::msg::String>("~" + TASK_TOPIC, 10)),
     instrument_controller_(gearbox, this->get_logger(), task_publisher_)
   {
+      // Bend play compensation can be switched by the diagnostic test configuration.
+      this->declare_parameter<bool>("enable_bend_play_compensation", true);
+
+      parameter_callback_handle_ = this->add_on_set_parameters_callback(
+          [this](const std::vector<rclcpp::Parameter>& parameters)
+          {
+              rcl_interfaces::msg::SetParametersResult result;
+              result.successful = true;
+
+              for (const auto& parameter : parameters) {
+                  if (parameter.get_name() == "enable_bend_play_compensation") {
+                      instrument_controller_.set_bend_play_compensation_enabled(
+                          parameter.as_bool()
+                      );
+                  }
+              }
+
+              return result;
+          }
+      );
     // The publisher and subscriber topics are relative, so they are mapped to
     // left or right with the node namespace
     publisher_ = this->create_publisher<std_msgs::msg::String>("~" + STATUS_TOPIC, 10);
@@ -289,7 +309,9 @@ public:
   Gearbox gearbox;
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_publisher_;
-
+  
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
+  
   InstrumentController instrument_controller_;
   std::thread manual_thread_;
 };

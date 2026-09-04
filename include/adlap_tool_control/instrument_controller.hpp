@@ -21,6 +21,7 @@ public:
 
     // Instrument control methods
     void manual_adjustment();
+    void set_bend_play_compensation_enabled(bool enabled);
     void set_euler_angles(double roll, double pitch, double yaw, double gripper, bool verbose = false);
     void set_joint_angles(double roll, double bend, double tip_rotation, double articulation, bool verbose = false);
     std::array<double, 4> joint_angles_from_motors(const std::array<int, 4>& current_positions);
@@ -51,6 +52,9 @@ private:
 
     int smoothing_factor_ = 1; // Number of samples to average for smoothing
     int bend_play_compensation_ = 0; // Current compensation for the bend play, updated after each motor command
+    // Enable gearbox play compensation for bending.
+    // This should only be enabled when the full instrument setup is used.
+    bool enable_bend_play_compensation_ = true;
     int play_comp_position_m1_ = 0; 
     int play_comp_position_m2_ = 0; 
     int m1_m2_offset_ = 0;

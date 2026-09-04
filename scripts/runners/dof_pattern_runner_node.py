@@ -185,6 +185,8 @@ class PatternRunner(Node):
 
         self.sequence_led_active = False
         self.active_sequence_dof = None
+        self.current_sequence_condition = "none"
+        self.last_published_sequence_condition = None
 
         for dof_name in ["dof1","dof2", "dof3", "dof4"]:
             if self.sequence_enabled[dof_name]:
@@ -225,6 +227,11 @@ class PatternRunner(Node):
             "/right/tool_control_node/task_label",
             10,
         )
+        self.sequence_condition_pub = self.create_publisher(
+            String,
+            "/right/tool_control_node/sequence_condition",
+            10,
+        )
 
         self.led_pub = self.create_publisher(
             Bool,
@@ -245,22 +252,26 @@ class PatternRunner(Node):
         self.motion_after_led_off_wait = 0.2
         
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = self.run_timestamp
         test_name = self.generate_test_name()
 
         task = String()
-        if self.coupling_mode == "gearbox_only":
+        if self.coupling_mode == "motor_only":
+            setup_label = "setup_01_motors"
+
+        elif self.coupling_mode == "gearbox_only":
             setup_label = "setup_02_motors_gearbox"
 
         elif self.coupling_mode == "full_setup":
-            setup_label = "setup_03_motors_gearbox_instrument"
-
+            setup_label = "setup_03_motors_gearbox_instrument"        
         else:
             raise RuntimeError(
                 f"Unsupported coupling mode for DOF pattern runner: "
                 f"{self.coupling_mode}"
             )
-
+        self.setup_label = setup_label
+        
         task.data = (
             f"{setup_label}|"
             f"{self.coupling_mode}|"
@@ -302,7 +313,20 @@ class PatternRunner(Node):
         self.task_pub.publish(self.task_msg)
         self.task_publish_count += 1
         self.get_logger().info(f"Published task label: {self.task_msg.data}")
-        
+
+    def publish_sequence_condition(self):
+        condition = self.current_sequence_condition
+
+        if condition == self.last_published_sequence_condition:
+            return
+
+        msg = String()
+        msg.data = condition
+
+        self.sequence_condition_pub.publish(msg)
+
+        self.last_published_sequence_condition = condition
+
     def generate_test_name(self):
         active = []
 
@@ -467,6 +491,7 @@ class PatternRunner(Node):
         dof_name,
         t,
         frequency,
+        frequency_factor,
         range_factor,
     ):
         value = float(self.get_parameter(f"{dof_name}.value").value)
@@ -481,6 +506,13 @@ class PatternRunner(Node):
 
             # Motion stage
             if elapsed_in_sequence <= stage_duration:
+
+                self.current_sequence_condition = (
+                    f"{str(mode).replace('_mid', '')}_"
+                    f"f{float(frequency_factor):.1f}_"
+                    f"r{float(range_factor):.1f}"
+                ).replace(".", "p")
+                                
                 return self.compute_dof_with_mode(
                     dof_name,
                     mode,
@@ -498,6 +530,7 @@ class PatternRunner(Node):
                 pause_duration = self.sequence_pause_duration[dof_name]
 
                 if elapsed_in_sequence <= pause_duration:
+                    self.current_sequence_condition = "pause"
                     self.sequence_led_active = (
                         self.sequence_pause_led_start[dof_name]
                         <= elapsed_in_sequence
@@ -536,6 +569,7 @@ class PatternRunner(Node):
                         dof_name,
                         elapsed,
                         frequency,
+                        frequency_factor=frequency_factor,
                         range_factor=range_factor,
                     )
 
@@ -548,6 +582,7 @@ class PatternRunner(Node):
                     pause_duration = self.sequence_between_frequency_pause[dof_name]
 
                     if elapsed <= pause_duration:
+                        self.current_sequence_condition = "pause"
                         self.sequence_led_active = True
                         return value
 
@@ -560,6 +595,7 @@ class PatternRunner(Node):
                 pause_duration = self.sequence_between_range_pause[dof_name]
 
                 if elapsed <= pause_duration:
+                    self.current_sequence_condition = "pause"
                     self.sequence_led_active = True
                     return value
 
@@ -567,6 +603,7 @@ class PatternRunner(Node):
         final_pause_duration = self.sequence_final_pause_duration[dof_name]
 
         if elapsed <= final_pause_duration:
+            self.current_sequence_condition = "pause"
             self.sequence_led_active = False
             return value
 
@@ -619,11 +656,11 @@ class PatternRunner(Node):
         return total_duration
 
     def update_dof4_tip_compensation(self, dof4_value):
-        self.get_logger().info(
-            f"dof4={dof4_value:.4f}, "
-            f"prev={self.previous_dof4_value_for_tip_compensation}, "
-            f"offset={self.dof4_tip_compensation_offset_rad:.4f}"
-        )
+        # self.get_logger().info(
+        #     f"dof4={dof4_value:.4f}, "
+        #     f"prev={self.previous_dof4_value_for_tip_compensation}, "
+        #     f"offset={self.dof4_tip_compensation_offset_rad:.4f}"
+        # )
 
         if self.dof4_tip_compensation_pulses == 0:
             return
@@ -872,8 +909,10 @@ class PatternRunner(Node):
         dof_values = {}
 
         for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
+
             if self.sequence_enabled.get(dof_name, False):
                 dof_value = self.compute_dof_sequence(dof_name, t)
+                self.publish_sequence_condition()
 
                 if dof_value is None:
                     dof_value = float(self.get_parameter(f"{dof_name}.value").value)

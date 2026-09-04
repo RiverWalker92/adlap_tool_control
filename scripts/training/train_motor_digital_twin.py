@@ -36,6 +36,7 @@ RUN_SPLIT_SEED = 42
 EVENT_TAIL_S = 1.0
 STATIONARY_ENCODER_VELOCITY_THRESHOLD = 5.0
 MOTOR_COMMAND_TOLERANCE_PULSES = 0.5
+RUN_REFERENCE_WINDOW_S = 1.0
 
 DEFAULT_GEARBOX_CONFIG_PATH = (
     Path(get_package_share_directory("adlap_tool_control"))
@@ -709,7 +710,8 @@ def reconstruct_instrument_targets(rows, converter):
         )
 
 
-def load_motor_log(file_path, coupling_mode, command_converter=None):
+
+def load_motor_log(file_path, coupling_mode, input_source, command_converter=None):
     rows = []
     current_task_label = None
 
@@ -748,34 +750,40 @@ def load_motor_log(file_path, coupling_mode, command_converter=None):
                 instrument_commands is not None and len(instrument_commands) >= 4
             )
 
-            if coupling_mode == "motor_only":
+            if input_source == "commands":
+                if coupling_mode != "motor_only":
+                    raise RuntimeError(
+                        "Command-based Motor DT training is only "
+                        "supported for motor_only."
+                    )
+
                 if not motor_commands_valid:
-                    # A true idle-baseline segment intentionally has no motor
-                    # step. Preserve it as a zero command, but never invent
-                    # zero commands for a moving trial.
-                    test_type = parse_task_label(current_task_label)["test_type"]
+                    test_type = parse_task_label(
+                        current_task_label
+                    )["test_type"]
+
                     if test_type != "idle_baseline":
                         continue
+
                     motor_commands = [0.0, 0.0, 0.0, 0.0]
+
                 command_source = "motor_relative"
                 command_values = motor_commands[:4]
-            # elif instrument_commands_valid:
-            #     # For both coupled configurations, use the command that was
-            #     # actually logged. Reconstructing motor targets would require
-            #     # controller/backlash states that are absent from the logs.
-            #     command_source = "instrument_angles"
-            #     command_values = instrument_commands[:4]
-            # else:
-            #     continue
-            elif motor_targets_valid and instrument_commands_valid:
-                # For coupled configurations, the Motor DT uses the absolute
-                # targets that were actually sent to the motor controller.
-                # Instrument commands are retained for DOF-pattern segmentation
-                # and visualization only.
+
+            elif input_source == "targets":
+                if (
+                    not motor_targets_valid
+                    or not instrument_commands_valid
+                ):
+                    continue
+
                 command_source = "motor_absolute"
                 command_values = motor_targets[:4]
+
             else:
-                continue
+                raise RuntimeError(
+                    f"Unsupported input source: {input_source}"
+                )
 
             rows.append({
                 "time": float(t_value),
@@ -1432,7 +1440,62 @@ def coupled_motor_target_feature_names():
 
     return names
 
-def build_coupled_samples_from_segment(segment, motor_index):
+def get_run_motor_target_reference(
+    time,
+    motor_targets,
+    reference_window_s=RUN_REFERENCE_WINDOW_S,
+):
+    """
+    Determine one motor-target reference for the complete DOF run.
+
+    The reference is the median motor target during the initial
+    stationary hold.
+    """
+
+    time = np.asarray(time, dtype=float)
+    motor_targets = np.asarray(motor_targets, dtype=float)
+
+    if (
+        motor_targets.ndim != 2
+        or motor_targets.shape[0] != 4
+    ):
+        raise RuntimeError(
+            "Expected four motor-target channels."
+        )
+
+    if len(time) != motor_targets.shape[1]:
+        raise RuntimeError(
+            "Time and motor-target lengths do not match."
+        )
+
+    if len(time) == 0:
+        raise RuntimeError(
+            "Cannot determine run reference from empty data."
+        )
+
+    reference_mask = (
+        np.isfinite(time)
+        & (time <= time[0] + reference_window_s)
+    )
+
+    if not np.any(reference_mask):
+        raise RuntimeError(
+            "No samples available for run reference."
+        )
+
+    reference = np.nanmedian(
+        motor_targets[:, reference_mask],
+        axis=1,
+    )
+
+    if np.any(~np.isfinite(reference)):
+        raise RuntimeError(
+            "Invalid motor-target run reference."
+        )
+
+    return reference
+
+def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
     """
     Build gearbox/full-setup Motor-DT samples from logged motor targets.
 
@@ -1529,11 +1592,13 @@ def build_coupled_samples_from_segment(segment, motor_index):
 
     # Pattern-start reference used later to express the absolute
     # target channels relative to the start of this motion pattern.
-    motor_target_reference = motor_targets_absolute_run[
-        :,
-        start_index,
-    ].copy()
-    # ----------------------------------------------------------
+    run_motor_target_reference = (
+        get_run_motor_target_reference(
+            time=t_run,
+            motor_targets=motor_targets_absolute_run,
+        )
+    )
+    # ---------------------------------------------------
     # 4. Current preprocessing over complete run
     # ----------------------------------------------------------
 
@@ -1554,9 +1619,17 @@ def build_coupled_samples_from_segment(segment, motor_index):
     for target_motor_index in range(4):
         absolute_target = motor_targets_absolute_run[target_motor_index]
 
+        # if coupling_mode == "motor_only":
+        #     relative_target = absolute_target.copy()
+        # else:
+        #     relative_target = (
+        #         absolute_target
+        #         - run_motor_target_reference[target_motor_index]
+        #     )
+
         relative_target = (
             absolute_target
-            - motor_target_reference[target_motor_index]
+            - run_motor_target_reference[target_motor_index]
         )
 
         previous_relative_target = relative_target.copy()
@@ -1623,12 +1696,26 @@ def build_coupled_samples_from_segment(segment, motor_index):
         pattern_slice
     ]
 
+    # if coupling_mode == "motor_only":
+    #     motor_targets = motor_targets_absolute_run[
+    #         :,
+    #         pattern_slice,
+    #     ].copy()
+    # else:
+    #     motor_targets = (
+    #         motor_targets_absolute_run[
+    #             :,
+    #             pattern_slice,
+    #         ]
+    #         - run_motor_target_reference[:, np.newaxis]
+    #     )
+
     motor_targets = (
         motor_targets_absolute_run[
             :,
             pattern_slice,
         ]
-        - motor_target_reference[:, np.newaxis]
+        - run_motor_target_reference[:, np.newaxis]
     )
     instrument_commands = instrument_commands_run[
         :,
@@ -1667,24 +1754,15 @@ def build_coupled_samples_from_segment(segment, motor_index):
     if len(encoder_absolute) < 3:
         return None
 
-    # Use the measured encoder position at the start of the
-    # actual motion pattern as the local zero reference.
-    #
-    # Example:
-    #   run A:   0 -> 83   becomes 0 -> 83
-    #   run B: -60 -> 23   becomes 0 -> 83
-    #   run C: -82 ->  1   becomes 0 -> 83
-    #
-    # The Motor DT therefore learns the displacement caused by
-    # the commanded motion, independent of the mechanical offset
-    # at which the pattern happened to start.
-    encoder_reference = float(
-        encoder_absolute[0]
+    # Use one fixed motor-target reference for the complete run.
+    # The same reference is used for the motor target and measured
+    # encoder position, so all DOF patterns share one coordinate system.
+    common_reference = float(
+        run_motor_target_reference[motor_index]
     )
-
     encoder = (
         encoder_absolute
-        - encoder_reference
+        - common_reference
     )
 
     # Encoder velocity is calculated from the relative pattern response.
@@ -1757,19 +1835,23 @@ def build_coupled_samples_from_segment(segment, motor_index):
             "motor_target_positions"
         ),
 
-        "encoder_reference": (
-            "relative_to_motion_pattern_start"
-        ),
+        "encoder_reference":
+            "initial_run_motor_target",
 
-        "motor_target_reference": (
-            "relative_to_motion_pattern_start"
-        ),
+        "motor_target_reference":
+            "initial_run_motor_target",
 
         "motor_target_reference_pulses":
-            motor_target_reference,
+            run_motor_target_reference,
 
         "motor_target_positions_relative":
             motor_targets,
+
+        "motor_target_positions_absolute":
+            motor_targets_absolute_run[
+                :,
+                pattern_slice,
+            ],
 
         "instrument_commands_rad":
             instrument_commands,
@@ -1800,7 +1882,7 @@ def build_coupled_samples_from_segment(segment, motor_index):
 
         "raw_command": None,
 
-        # This is now displacement from the start of the pattern.
+        # Encoder position relative to the motor target at pattern start.
         "encoder":
             encoder,
 
@@ -1946,10 +2028,13 @@ def build_measured_phase_masks(
 
     return dynamic_mask, stationary_mask
 
-def build_samples_from_segment(segment, motor_index, coupling_mode):
-    if coupling_mode != "motor_only":
-        return build_coupled_samples_from_segment(segment, motor_index)
-
+def build_samples_from_segment(segment, motor_index, coupling_mode, input_source):
+    if input_source == "targets":
+        return build_coupled_samples_from_segment(
+            segment,
+            motor_index,
+            coupling_mode,
+        )
     t, raw_commands, commanded_target, positions, currents = segment_to_arrays(segment)
 
     if len(t) < 3:
@@ -2098,20 +2183,23 @@ def build_samples_from_segment(segment, motor_index, coupling_mode):
 
     return X_encoder, X_current, y_encoder, y_current, metadata
 
-def build_dataset(segments, coupling_mode):
+def build_dataset(segments, coupling_mode, input_source):
     samples_by_motor = {0: [], 1: [], 2: [], 3: []}
 
     for segment in segments:
         info = segment["info"]
         active_motor = get_active_motor_index(segment)
 
-        if coupling_mode == "motor_only":
+        if input_source == "commands":
             if info["test_type"] == "idle_baseline":
                 motor_indices = range(4)
+
             elif active_motor is not None:
                 motor_indices = [active_motor]
+
             else:
                 continue
+
         else:
             # Every coupled motor model receives every DOF trial. This lets it
             # learn both direct actuation and the absence/presence of coupling
@@ -2123,6 +2211,7 @@ def build_dataset(segments, coupling_mode):
                 segment,
                 motor_index,
                 coupling_mode=coupling_mode,
+                input_source=input_source,
             )
 
             if sample is None:
@@ -2154,9 +2243,10 @@ def split_train_test(samples):
     return train_samples, test_samples
 
 
-def get_split_group(segment, coupling_mode):
+
+def get_split_group(segment, coupling_mode, input_source):
     """Return the experimental protocol whose repetitions form one split."""
-    if coupling_mode == "motor_only":
+    if coupling_mode == "motor_only" and input_source == "commands":
         return "motor_only_all_runs"
 
     info = segment["info"]
@@ -2177,8 +2267,7 @@ def get_split_group(segment, coupling_mode):
         f"{info.get('motor_name', 'unknown_motor')}"
     )
 
-
-def assign_complete_run_splits(segments, coupling_mode):
+def assign_complete_run_splits(segments, coupling_mode, input_source):
     """
     Hold out one complete log per experimental protocol.
 
@@ -2189,7 +2278,7 @@ def assign_complete_run_splits(segments, coupling_mode):
     files_by_group = {}
 
     for segment in segments:
-        group = get_split_group(segment, coupling_mode)
+        group = get_split_group(segment, coupling_mode, input_source)
         source_file = Path(segment["source_file"]).resolve()
         files_by_group.setdefault(group, set()).add(source_file)
 
@@ -2216,7 +2305,7 @@ def assign_complete_run_splits(segments, coupling_mode):
         print(f"    Training runs: {len(group_files) - 1}")
 
     for segment in segments:
-        group = get_split_group(segment, coupling_mode)
+        group = get_split_group(segment, coupling_mode, input_source)
         source_file = Path(segment["source_file"]).resolve()
         segment["split_group"] = group
         segment["dataset_split"] = (
@@ -2666,6 +2755,7 @@ def find_motor_jsonl_files(input_dir, coupling_mode):
 def load_segments_from_files(
     file_paths,
     coupling_mode,
+    input_source,
     conversion_parameters=None,
     controller_starting_positions=None,
 ):
@@ -2695,10 +2785,11 @@ def load_segments_from_files(
         rows = load_motor_log(
             file_path,
             coupling_mode=coupling_mode,
+            input_source=input_source,
             command_converter=command_converter,
         )
 
-        if coupling_mode == "motor_only":
+        if input_source == "commands":
             print("Splitting motor patterns into segments...")
             segments = split_motor_pattern_segments(rows)
 
@@ -2792,7 +2883,7 @@ def create_target_normalized_metrics(metrics):
 
     return normalized_metrics
 
-def train_motor_models(samples_by_motor, output_dir, coupling_mode):
+def train_motor_models(samples_by_motor, output_dir, coupling_mode, input_source):
     models_dir = output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2824,7 +2915,7 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
     #     "is_command_active",
     #     "is_moving",
     # ]
-    if coupling_mode == "motor_only":
+    if input_source == "commands":
         encoder_feature_names = [
             "commanded_target_pulses",
             "abs_commanded_target_pulses",
@@ -2834,11 +2925,19 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
             "time_since_target_change_s",
             "is_moving",
         ]
-        feature_schema = "motor_relative_command_v1"
+
+        feature_scheme = "motor_relative_command_v1"
+
     else:
-        encoder_feature_names = coupled_motor_target_feature_names()
-        feature_schema = "all_motor_targets_v1"
-    current_feature_names = list(encoder_feature_names)
+        encoder_feature_names = (
+            coupled_motor_target_feature_names()
+        )
+
+        feature_scheme = "all_motor_targets_run_relative_v1"
+
+    current_feature_names = list(
+        encoder_feature_names
+    )
 
     for motor_index, samples in samples_by_motor.items():
         if len(samples) < 2:
@@ -3115,8 +3214,9 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
 
         model_package = {
             "coupling_mode": coupling_mode,
+            "input_source": input_source,
             "motor_index": motor_index,
-            "feature_schema": feature_schema,
+            "feature_scheme": feature_scheme,
             "encoder_model": encoder_model,
             "current_model": current_model,
             "selected_encoder_model": common_model_name,
@@ -3163,7 +3263,8 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
     combined_model_path = models_dir / "motor_dt_all_motors.pkl"
     joblib.dump({
         "coupling_mode": coupling_mode,
-        "feature_schema": feature_schema,
+        "input_source": input_source,
+        "feature_scheme": feature_scheme,
         "selected_common_model_family": common_model_name,
         "global_model_selection": global_selection,
         "motor_models": trained_models,
@@ -3194,25 +3295,35 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode):
     return trained_models, metrics
 
 
-def plot_predictions(samples_by_motor, trained_models, output_dir):
-    coupling_modes = {
-        trained_models[motor_index]["coupling_mode"]
+def plot_predictions(
+    samples_by_motor,
+    trained_models,
+    output_dir,
+):
+    feature_schemes = {
+        trained_models[motor_index]["feature_scheme"]
         for motor_index in trained_models
     }
 
-    if coupling_modes == {"motor_only"}:
+    if feature_schemes == {"motor_relative_command_v1"}:
         plot_motor_pattern_predictions(
             samples_by_motor,
             trained_models,
             output_dir,
         )
-    else:
+
+    elif feature_schemes == {"all_motor_targets_run_relative_v1"}:
         plot_dof_pattern_predictions(
             samples_by_motor,
             trained_models,
             output_dir,
         )
 
+    else:
+        raise RuntimeError(
+            f"Unsupported mixed feature schemes: "
+            f"{sorted(feature_schemes)}"
+        )
 # ============================================================
 # MOTOR PATTERN PLOTTING
 # ============================================================
@@ -3862,6 +3973,7 @@ def train_motor_digital_twin(
     file_paths,
     output_dir,
     coupling_mode,
+    input_source,
     conversion_parameters=None,
     controller_starting_positions=None,
 ):
@@ -3886,23 +3998,24 @@ def train_motor_digital_twin(
     segments = load_segments_from_files(
         file_paths=file_paths,
         coupling_mode=coupling_mode,
+        input_source=input_source,
         conversion_parameters=conversion_parameters,
         controller_starting_positions=controller_starting_positions,
     )
 
-    if coupling_mode != "motor_only":
+    if input_source == "targets":
         command_input_metadata = {
             "method": "logged_motor_target_features",
-            "applies_to": ["gearbox_only", "full_setup"],
+            "applies_to": [coupling_mode],
             "model_input": (
                 "all_four_motor_target_positions_"
                 "with_continuous_run_history"
             ),
             "target_reference": (
-                "relative_to_motion_pattern_start"
+                "relative_to_initial_run_motor_target"
             ),
             "encoder_target": (
-                "encoder_displacement_relative_to_motion_pattern_start"
+                "encoder_position_relative_to_initial_run_motor_target"
             ),
             "logged_motor_targets_used": True,
             "reconstructed_motor_targets_used": False,
@@ -3937,6 +4050,7 @@ def train_motor_digital_twin(
     assign_complete_run_splits(
         segments=segments,
         coupling_mode=coupling_mode,
+        input_source=input_source,
     )
 
     print(f"\nTotal valid segments: {len(segments)}")
@@ -3944,6 +4058,7 @@ def train_motor_digital_twin(
     samples_by_motor = build_dataset(
         segments=segments,
         coupling_mode=coupling_mode,
+        input_source=input_source,
     )
 
     for motor_index, samples in samples_by_motor.items():
@@ -3953,6 +4068,7 @@ def train_motor_digital_twin(
         samples_by_motor=samples_by_motor,
         output_dir=output_dir,
         coupling_mode=coupling_mode,
+        input_source=input_source,
     )
     plot_predictions(samples_by_motor, trained_models, output_dir)
 
@@ -3974,10 +4090,23 @@ def main():
         default="all",
         help="Configuration to train. Default: train all three configurations.",
     )
+
     parser.add_argument(
         "--training-config",
         default=str(DEFAULT_TRAINING_CONFIG_PATH),
         help="Training configuration YAML.",
+    )
+
+    parser.add_argument(
+        "--input-source",
+        choices=["auto", "commands", "targets"],
+        default="auto",
+        help=(
+            "Motor DT input source. "
+            "'commands' preserves the legacy motor-only training; "
+            "'targets' trains from logged motor_target_positions. "
+            "'auto' uses commands for motor_only and targets for coupled setups."
+        ),
     )
 
     parser.add_argument(
@@ -4042,22 +4171,6 @@ def main():
         "motor_dt"
     ]["configurations"]
 
-    training_configurations = {}
-
-    for coupling_mode in VALID_CONFIGURATIONS:
-        config_entry = motor_configurations_raw[coupling_mode]
-
-        training_configurations[coupling_mode] = {
-            "input_dir": resolve_training_path(
-                training_data_root,
-                config_entry["input_dir"],
-            ),
-            "output_dir": resolve_training_path(
-                training_data_root,
-                config_entry["output_dir"],
-            ),
-        }
-
     if args.configuration == "all":
         if args.file is not None or args.input_dir is not None or args.output_dir is not None:
             raise RuntimeError(
@@ -4070,24 +4183,78 @@ def main():
         selected_configurations = [args.configuration]
 
     for coupling_mode in selected_configurations:
-        defaults = training_configurations[coupling_mode]
+
+        # ----------------------------------------------------------
+        # Determine Motor DT input source
+        # ----------------------------------------------------------
+
+        if args.input_source == "auto":
+            input_source = (
+                "commands"
+                if coupling_mode == "motor_only"
+                else "targets"
+            )
+        else:
+            input_source = args.input_source
+
+        if (
+            coupling_mode != "motor_only"
+            and input_source != "targets"
+        ):
+            raise RuntimeError(
+                f"{coupling_mode} requires target-based Motor DT training."
+            )
+
+        # ----------------------------------------------------------
+        # Select matching YAML configuration
+        # ----------------------------------------------------------
+
+        if coupling_mode == "motor_only":
+            if input_source == "commands":
+                config_key = "motor_only_commands"
+            else:
+                config_key = "motor_only_targets"
+        else:
+            config_key = coupling_mode
+
+        if config_key not in motor_configurations_raw:
+            raise RuntimeError(
+                f"Missing Motor DT configuration '{config_key}' "
+                "in training_config.yaml."
+            )
+
+        config_entry = motor_configurations_raw[config_key]
+
+        default_input_dir = resolve_training_path(
+            training_data_root,
+            config_entry["input_dir"],
+        )
+
+        default_output_dir = resolve_training_path(
+            training_data_root,
+            config_entry["output_dir"],
+        )
+
         input_dir = (
             Path(args.input_dir).expanduser()
             if args.input_dir is not None
-            else defaults["input_dir"]
+            else default_input_dir
         )
+
         output_dir = (
             Path(args.output_dir).expanduser()
             if args.output_dir is not None
-            else defaults["output_dir"]
+            else default_output_dir
         )
+
+        print(f"Motor DT input source: {input_source}")
+        print(f"Training config key: {config_key}")
 
         print("\n" + "=" * 80)
         print(f"Training Motor DT configuration: {coupling_mode}")
         print(f"Input folder:  {input_dir}")
         print(f"Output folder: {output_dir}")
         print("=" * 80)
-
         if args.file is not None:
             file_paths = [Path(path).expanduser() for path in args.file]
         else:
@@ -4116,6 +4283,7 @@ def main():
             file_paths=file_paths,
             output_dir=output_dir,
             coupling_mode=coupling_mode,
+            input_source=input_source,
             conversion_parameters=conversion_parameters,
             controller_starting_positions=args.controller_starting_positions,
         )

@@ -17,6 +17,7 @@ class TrialLogger(Node):
 
         # General state variables
         self.last_task = "unlabeled"
+        self.last_sequence_condition = None
         self.stop_requested = False
         self.start_time = self.get_clock().now().nanoseconds / 1e9
 
@@ -58,6 +59,13 @@ class TrialLogger(Node):
             String,
             '/right/tool_control_node/task_label',
             self.task_callback,
+            10
+        )
+
+        self.sequence_condition_sub = self.create_subscription(
+            String,
+            '/right/tool_control_node/sequence_condition',
+            self.sequence_condition_callback,
             10
         )
 
@@ -215,7 +223,10 @@ class TrialLogger(Node):
 
     def task_callback(self, msg):
         self.last_task = msg.data
-        # self.get_log_file(self.last_task)   
+        # self.get_log_file(self.last_task) 
+    
+    def sequence_condition_callback(self, msg):
+        self.last_sequence_condition = msg.data  
 
     def current_callback(self, msg):
         self.last_currents = list(msg.data)
@@ -286,6 +297,7 @@ class TrialLogger(Node):
             sample = {
                 "time": relative_time,
                 "ros_timestamp": timestamp,
+                "sequence_condition": self.last_sequence_condition,
 
                 "commanded_instrument_angles": self.last_instrument_angles if len(self.last_instrument_angles) == 4 else None,
                 "commanded_motor_positions": self.last_motor_commands if len(self.last_motor_commands) == 4 else None,

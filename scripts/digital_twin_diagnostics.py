@@ -25,6 +25,9 @@ Short excursions are allowed. A signal is classified as deviating when either:
 
 The overall motor/test result is deviating when position OR current deviates.
 """
+# TODO: add motor-only m0 dictiorary in dof3
+# TODO: add localisation past
+# TODO: add instrument output deviation 
 
 from __future__ import annotations
 
@@ -52,6 +55,7 @@ DETECTOR_VERSION = "2.1.0"
 
 MOTOR_ONLY_BASELINE_NAME = "motor_only_residual_bands_healthy_v1"
 GEARBOX_BASELINE_NAME = "gearbox_only_residual_bands_provisional_v1"
+FULL_SETUP_BASELINE_NAME = "full_setup_residual_bands_healthy_v1"
 
 # Detection tolerance.
 MAX_OUTSIDE_FRACTION = 0.10
@@ -66,12 +70,12 @@ CURRENT_MAX_CONTINUOUS_OUTSIDE_S = 0.10   # 100 ms
 DOF_RELEVANT_MOTORS = {
     1: [1, 2],
     2: [1, 2],
-    3: [0],
+    3: [0, 3],
     4: [0, 3],
 }
 
 # ---------------------------------------------------------------------------
-# Position healthy bands
+# Motor only Position healthy bands
 # ---------------------------------------------------------------------------
 
 # Residual ranges [lower, upper] in encoder pulses.
@@ -119,7 +123,7 @@ MOTOR_ONLY_POSITION_BANDS = {
 }
 
 # ---------------------------------------------------------------------------
-# Current healthy bands
+# Motor only Current healthy bands
 # ---------------------------------------------------------------------------
 
 # Residual ranges [lower, upper] in mA.
@@ -171,43 +175,238 @@ MOTOR_ONLY_CURRENT_BANDS = {
 #----------------------------------------------------------------------------
 # Motor-only DOF pattern healthy bands
 #----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Motor-only DOF pattern healthy bands
+#
+# Structure:
+# dof -> condition -> motor -> (lower, upper)
+#
+# condition:
+#   waveform_frequency_range
+# ---------------------------------------------------------------------------
+
 MOTOR_ONLY_DOF_POSITION_BANDS = {
     1: {
-        1: (-150.0, 150.0),
-        2: (-150.0, 150.0),
+        "sinusoid_f0p5_r0p5": {
+            1: (-40.0, 45.0),
+            2: (-35.0, 40.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-55.0, 60.0),
+            2: (-50.0, 55.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-50.0, 55.0),
+            2: (-45.0, 50.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-70.0, 75.0),
+            2: (-65.0, 70.0),
+        },
     },
+
     2: {
-        1: (-150.0, 150.0),
-        2: (-150.0, 150.0),
+        "sinusoid_f0p5_r0p5": {
+            1: (-45.0, 50.0),
+            2: (-40.0, 45.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-65.0, 70.0),
+            2: (-60.0, 65.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-55.0, 60.0),
+            2: (-50.0, 55.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-80.0, 85.0),
+            2: (-75.0, 80.0),
+        },
     },
+
     3: {
-        0: (-150.0, 150.0),
+        "sinusoid_f0p5_r0p5": {
+            0: (-40.0, 45.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-60.0, 65.0),
+        },
+        "triangle_f0p5_r0p5": {
+            0: (-50.0, 55.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-75.0, 80.0),
+        },
     },
+
     4: {
-        0: (-150.0, 150.0),
-        3: (-150.0, 150.0),
+        "sinusoid_f0p5_r0p5": {
+            0: (-45.0, 50.0),
+            3: (-40.0, 45.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-65.0, 70.0),
+            3: (-60.0, 65.0),
+        },
+        "triangle_f0p5_r0p5": {
+            0: (-55.0, 60.0),
+            3: (-50.0, 55.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-80.0, 85.0),
+            3: (-75.0, 80.0),
+        },
     },
 }
 
 MOTOR_ONLY_DOF_CURRENT_BANDS = {
     1: {
-        1: (-120.0, 120.0),
-        2: (-120.0, 120.0),
+        "sinusoid_f0p5_r0p5": {
+            1: (-10.0, 15.0),
+            2: (-10.0, 15.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-15.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-15.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-20.0, 25.0),
+            2: (-20.0, 25.0),
+        },
     },
+
     2: {
-        1: (-120.0, 120.0),
-        2: (-120.0, 120.0),
+        "sinusoid_f0p5_r0p5": {
+            1: (-10.0, 15.0),
+            2: (-10.0, 15.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-15.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-15.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-20.0, 25.0),
+            2: (-20.0, 25.0),
+        },
     },
+
     3: {
-        0: (-120.0, 120.0),
+        "sinusoid_f0p5_r0p5": {
+            0: (-10.0, 15.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-15.0, 20.0),
+        },
+        "triangle_f0p5_r0p5": {
+            0: (-15.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-20.0, 25.0),
+        },
     },
+
     4: {
-        0: (-120.0, 120.0),
-        3: (-120.0, 120.0),
+        "sinusoid_f0p5_r0p5": {
+            0: (-10.0, 15.0),
+            3: (-10.0, 15.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-15.0, 20.0),
+            3: (-15.0, 20.0),
+        },
+        "triangle_f0p5_r0p5": {
+            0: (-15.0, 20.0),
+            3: (-15.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-20.0, 25.0),
+            3: (-20.0, 25.0),
+        },
     },
 }
 
 
+MOTOR_ONLY_DOF_CURRENT_DURATION_LIMITS = {
+    1: {
+        "sinusoid_f0p5_r0p5": {
+            1: 0.20,
+            2: 0.20,
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: 0.15,
+            2: 0.15,
+        },
+        "triangle_f0p5_r0p5": {
+            1: 0.25,
+            2: 0.25,
+        },
+        "triangle_f1p0_r1p0": {
+            1: 0.20,
+            2: 0.20,
+        },
+    },
+
+    2: {
+        "sinusoid_f0p5_r0p5": {
+            1: 0.20,
+            2: 0.20,
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: 0.15,
+            2: 0.15,
+        },
+        "triangle_f0p5_r0p5": {
+            1: 0.25,
+            2: 0.25,
+        },
+        "triangle_f1p0_r1p0": {
+            1: 0.20,
+            2: 0.20,
+        },
+    },
+
+    3: {
+        "sinusoid_f0p5_r0p5": {
+            0: 0.20,
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: 0.15,
+        },
+        "triangle_f0p5_r0p5": {
+            0: 0.25,
+        },
+        "triangle_f1p0_r1p0": {
+            0: 0.20,
+        },
+    },
+
+    4: {
+        "sinusoid_f0p5_r0p5": {
+            0: 0.20,
+            3: 0.20,
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: 0.15,
+            3: 0.15,
+        },
+        "triangle_f0p5_r0p5": {
+            0: 0.25,
+            3: 0.25,
+        },
+        "triangle_f1p0_r1p0": {
+            0: 0.20,
+            3: 0.20,
+        },
+    },
+}
 # ---------------------------------------------------------------------------
 # Gearbox-only healthy bands
 # ---------------------------------------------------------------------------
@@ -254,6 +453,492 @@ GEARBOX_CURRENT_BANDS = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Full setup healthy position bands
+# ---------------------------------------------------------------------------
+FULL_SETUP_DOF_POSITION_BANDS = {
+    1: {
+        "sinusoid_f0p5_r1p0": {
+            1: (-20.0, 20.0),
+            2: (-20.0, 20.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-30.0, 75.0),
+            2: (-50.0, 125.0),
+        },
+        "triangle_f0p5_r1p0": {
+            1: (-20.0, 15.0),
+            2: (-20.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-30.0, 25.0),
+            2: (-25.0, 30.0),
+        },
+    },
+
+    2: {
+        "sinusoid_f0p5_r0p2": {
+            1: (-60.0, 80.0),
+            2: (-90.0, 35.0),
+        },
+        "sinusoid_f0p5_r0p5": {
+            1: (-15.0, 15.0),
+            2: (-15.0, 15.0),
+        },
+        "sinusoid_f0p5_r1p0": {
+            1: (-15.0, 15.0),
+            2: (-20.0, 15.0),
+        },
+
+        "sinusoid_f1p0_r0p2": {
+            1: (-20.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "sinusoid_f1p0_r0p5": {
+            1: (-20.0, 20.0),
+            2: (-20.0, 20.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-20.0, 15.0),
+            2: (-25.0, 25.0),
+        },
+
+        "sinusoid_f2p0_r0p2": {
+            1: (-15.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "sinusoid_f2p0_r0p5": {
+            1: (-20.0, 15.0),
+            2: (-30.0, 25.0),
+        },
+        "sinusoid_f2p0_r1p0": {
+            1: (-20.0, 15.0),
+            2: (-20.0, 20.0),
+        },
+
+        "triangle_f0p5_r0p2": {
+            1: (-15.0, 15.0),
+            2: (-15.0, 15.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-15.0, 15.0),
+            2: (-10.0, 15.0),
+        },
+        "triangle_f0p5_r1p0": {
+            1: (-20.0, 15.0),
+            2: (-10.0, 20.0),
+        },
+
+        "triangle_f1p0_r0p2": {
+            1: (-20.0, 20.0),
+            2: (-15.0, 20.0),
+        },
+        "triangle_f1p0_r0p5": {
+            1: (-15.0, 15.0),
+            2: (-20.0, 15.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-15.0, 15.0),
+            2: (-20.0, 20.0),
+        },
+
+        "triangle_f2p0_r0p2": {
+            1: (-25.0, 20.0),
+            2: (-20.0, 20.0),
+        },
+        "triangle_f2p0_r0p5": {
+            1: (-20.0, 25.0),
+            2: (-25.0, 30.0),
+        },
+        "triangle_f2p0_r1p0": {
+            1: (-15.0, 15.0),
+            2: (-25.0, 35.0),
+        },
+    },
+
+    3: {
+        "sinusoid_f0p5_r1p0": {
+            0: (-25.0, 25.0),
+            3: (-25.0, 20.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-35.0, 35.0),
+            3: (-35.0, 35.0),
+        },
+        "triangle_f0p5_r1p0": {
+            0: (-20.0, 20.0),
+            3: (-20.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-35.0, 35.0),
+            3: (-30.0, 35.0),
+        },
+    },
+
+    4: {
+        "sinusoid_f0p5_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-10.0, 15.0),
+        },
+        "sinusoid_f1p0_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-15.0, 15.0),
+        },
+        "sinusoid_f2p0_r0p5": {
+            0: (-15.0, 15.0),
+            3: (-70.0, 60.0),
+        },
+
+        "triangle_f0p5_r0p5": {
+            0: (-15.0, 10.0),
+            3: (-15.0, 10.0),
+        },
+        "triangle_f1p0_r0p5": {
+            0: (-15.0, 10.0),
+            3: (-20.0, 15.0),
+        },
+        "triangle_f2p0_r0p5": {
+            0: (-15.0, 15.0),
+            3: (-30.0, 35.0),
+        },
+    },
+}
+# -----------------------------------------------------------------------------
+# Full setup healthy current bands
+# -----------------------------------------------------------------------------
+FULL_SETUP_DOF_CURRENT_BANDS = {
+    1: {
+        "sinusoid_f0p5_r1p0": {
+            1: (-30.0, 20.0),
+            2: (-25.0, 35.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-25.0, 30.0),
+            2: (-25.0, 25.0),
+        },
+        "triangle_f0p5_r1p0": {
+            1: (-25.0, 20.0),
+            2: (-20.0, 35.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-25.0, 20.0),
+            2: (-25.0, 35.0),
+        },
+    },
+
+    2: {
+        "sinusoid_f0p5_r0p2": {
+            1: (-25.0, 20.0),
+            2: (-60.0, 60.0),
+        },
+        "sinusoid_f0p5_r0p5": {
+            1: (-20.0, 15.0),
+            2: (-60.0, 50.0),
+        },
+        "sinusoid_f0p5_r1p0": {
+            1: (-15.0, 15.0),
+            2: (-40.0, 60.0),
+        },
+
+        "sinusoid_f1p0_r0p2": {
+            1: (-25.0, 35.0),
+            2: (-55.0, 40.0),
+        },
+        "sinusoid_f1p0_r0p5": {
+            1: (-25.0, 30.0),
+            2: (-40.0, 40.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: (-35.0, 30.0),
+            2: (-55.0, 75.0),
+        },
+
+        "sinusoid_f2p0_r0p2": {
+            1: (-25.0, 25.0),
+            2: (-40.0, 40.0),
+        },
+        "sinusoid_f2p0_r0p5": {
+            1: (-25.0, 30.0),
+            2: (-45.0, 35.0),
+        },
+        "sinusoid_f2p0_r1p0": {
+            1: (-35.0, 45.0),
+            2: (-45.0, 40.0),
+        },
+
+        "triangle_f0p5_r0p2": {
+            1: (-15.0, 15.0),
+            2: (-50.0, 40.0),
+        },
+        "triangle_f0p5_r0p5": {
+            1: (-20.0, 15.0),
+            2: (-55.0, 45.0),
+        },
+        "triangle_f0p5_r1p0": {
+            1: (-20.0, 20.0),
+            2: (-40.0, 50.0),
+        },
+
+        "triangle_f1p0_r0p2": {
+            1: (-30.0, 35.0),
+            2: (-60.0, 45.0),
+        },
+        "triangle_f1p0_r0p5": {
+            1: (-20.0, 20.0),
+            2: (-40.0, 35.0),
+        },
+        "triangle_f1p0_r1p0": {
+            1: (-20.0, 25.0),
+            2: (-30.0, 35.0),
+        },
+
+        "triangle_f2p0_r0p2": {
+            1: (-35.0, 45.0),
+            2: (-35.0, 40.0),
+        },
+        "triangle_f2p0_r0p5": {
+            1: (-45.0, 65.0),
+            2: (-35.0, 55.0),
+        },
+        "triangle_f2p0_r1p0": {
+            1: (-35.0, 40.0),
+            2: (-40.0, 35.0),
+        },
+    },
+
+    3: {
+        "sinusoid_f0p5_r1p0": {
+            0: (-30.0, 25.0),
+            3: (-30.0, 35.0),
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: (-25.0, 25.0),
+            3: (-20.0, 25.0),
+        },
+        "triangle_f0p5_r1p0": {
+            0: (-25.0, 20.0),
+            3: (-20.0, 20.0),
+        },
+        "triangle_f1p0_r1p0": {
+            0: (-25.0, 25.0),
+            3: (-20.0, 25.0),
+        },
+    },
+
+    4: {
+        "sinusoid_f0p5_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-30.0, 30.0),
+        },
+        "sinusoid_f1p0_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-35.0, 25.0),
+        },
+        "sinusoid_f2p0_r0p5": {
+            0: (-20.0, 25.0),
+            3: (-75.0, 30.0),
+        },
+
+        "triangle_f0p5_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-30.0, 20.0),
+        },
+        "triangle_f1p0_r0p5": {
+            0: (-10.0, 10.0),
+            3: (-40.0, 20.0),
+        },
+        "triangle_f2p0_r0p5": {
+            0: (-20.0, 20.0),
+            3: (-40.0, 20.0),
+        },
+    },
+}
+FULL_SETUP_DOF_CURRENT_DURATION_LIMITS = {
+    1: {
+        "sinusoid_f0p5_r1p0": {
+            1: 0.15,
+            2: 0.15,
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: 0.15,
+            2: 0.15,
+        },
+        "triangle_f0p5_r1p0": {
+            1: 0.10,
+            2: 0.20,
+        },
+        "triangle_f1p0_r1p0": {
+            1: 0.20,
+            2: 0.15,
+        },
+    },
+
+    2: {
+        "sinusoid_f0p5_r0p2": {
+            1: 0.20,
+            2: 0.15,
+        },
+        "sinusoid_f0p5_r0p5": {
+            1: 0.15,
+            2: 0.10,
+        },
+        "sinusoid_f0p5_r1p0": {
+            1: 0.15,
+            2: 0.15,
+        },
+
+        "sinusoid_f1p0_r0p2": {
+            1: 0.15,
+            2: 0.10,
+        },
+        "sinusoid_f1p0_r0p5": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "sinusoid_f1p0_r1p0": {
+            1: 0.15,
+            2: 0.10,
+        },
+
+        "sinusoid_f2p0_r0p2": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "sinusoid_f2p0_r0p5": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "sinusoid_f2p0_r1p0": {
+            1: 0.10,
+            2: 0.10,
+        },
+
+        "triangle_f0p5_r0p2": {
+            1: 0.15,
+            2: 0.15,
+        },
+        "triangle_f0p5_r0p5": {
+            1: 0.15,
+            2: 0.10,
+        },
+        "triangle_f0p5_r1p0": {
+            1: 0.15,
+            2: 0.10,
+        },
+
+        "triangle_f1p0_r0p2": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "triangle_f1p0_r0p5": {
+            1: 0.15,
+            2: 0.10,
+        },
+        "triangle_f1p0_r1p0": {
+            1: 0.15,
+            2: 0.10,
+        },
+
+        "triangle_f2p0_r0p2": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "triangle_f2p0_r0p5": {
+            1: 0.10,
+            2: 0.10,
+        },
+        "triangle_f2p0_r1p0": {
+            1: 0.10,
+            2: 0.10,
+        },
+    },
+
+    3: {
+        "sinusoid_f0p5_r1p0": {
+            0: 0.15,
+            3: 0.50,
+        },
+        "sinusoid_f1p0_r1p0": {
+            0: 0.20,
+            3: 0.20,
+        },
+        "triangle_f0p5_r1p0": {
+            0: 0.50,
+            3: 0.25,
+        },
+        "triangle_f1p0_r1p0": {
+            0: 0.15,
+            3: 0.10,
+        },
+    },
+
+    4: {
+        "sinusoid_f0p5_r0p5": {
+            0: 0.15,
+            3: 0.15,
+        },
+        "sinusoid_f1p0_r0p5": {
+            0: 0.20,
+            3: 0.10,
+        },
+        "sinusoid_f2p0_r0p5": {
+            0: 0.15,
+            3: 0.10,
+        },
+        "triangle_f0p5_r0p5": {
+            0: 0.20,
+            3: 0.10,
+        },
+        "triangle_f1p0_r0p5": {
+            0: 0.15,
+            3: 0.10,
+        },
+        "triangle_f2p0_r0p5": {
+            0: 0.15,
+            3: 0.10,
+        },
+    },
+}
+# ---------------------------------------------------------------------------
+# Pause baseline
+# ---------------------------------------------------------------------------
+FULL_SETUP_DOF_PAUSE_POSITION_BANDS = {
+    1: {
+        1: (-10.0, 10.0),
+        2: (-10.0, 10.0),
+    },
+    2: {
+        1: (-30.0, 10.0),
+        2: (-15.0, 10.0),
+    },
+    3: {
+        0: (-15.0, 10.0),
+        3: (-10.0, 10.0),
+    },
+    4: {
+        0: (-10.0, 10.0),
+        3: (-10.0, 10.0),
+    },
+}
+
+FULL_SETUP_DOF_PAUSE_CURRENT_BANDS = {
+    1: {
+        1: (-10.0, 10.0),
+        2: (-10.0, 10.0),
+    },
+    2: {
+        1: (-5.0, 10.0),
+        2: (-10.0, 10.0),
+    },
+    3: {
+        0: (-10.0, 10.0),
+        3: (-10.0, 10.0),
+    },
+    4: {
+        0: (-10.0, 10.0),
+        3: (-10.0, 10.0),
+    },
+}
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
@@ -312,6 +997,7 @@ def validate_replay(rows: list[dict[str, Any]]) -> None:
     supported_modes = {
         "motor_only",
         "gearbox_only",
+        "full_setup",
     }
 
     if (
@@ -319,8 +1005,8 @@ def validate_replay(rows: list[dict[str, Any]]) -> None:
         or not coupling_modes.issubset(supported_modes)
     ):
         raise ValueError(
-            "This detector supports coupling_mode=motor_only "
-            "and coupling_mode=gearbox_only. "
+            "This detector supports coupling_mode=motor_only, "
+            "gearbox_only and full_setup. "
             f"Found: {sorted(coupling_modes)}"
         )
 
@@ -338,6 +1024,333 @@ def detect_dof(
     raise ValueError(
         "Could not determine DOF from replay filename."
     )
+
+def detect_dof_condition(
+    row: dict[str, Any],
+) -> str:
+
+    condition = str(
+        row.get("sequence_condition", "")
+    ).strip().lower()
+
+    if not condition or condition == "none":
+        raise ValueError(
+            "Missing sequence_condition in replay."
+        )
+
+    if condition == "pause":
+        raise ValueError(
+            "Sequence pause is not a diagnostic motion condition."
+        )
+
+    return condition
+
+def analyse_pause_rows(
+    rows: list[dict[str, Any]],
+    motors: list[int],
+    coupling_mode: str,
+    dof: int | None,
+) -> dict[str, Any]:
+
+    pause_rows = [
+        row
+        for row in rows
+        if str(
+            row.get("sequence_condition", "")
+        ).strip().lower() == "pause"
+    ]
+
+    result = {
+        "status": "not_evaluated",
+        "samples": len(pause_rows),
+        "affected_motors": [],
+        "motor_results": {},
+    }
+
+    if not pause_rows:
+        return result
+
+    # At the moment healthy pause bands are only
+    # defined for full_setup.
+    evaluate_pause = (
+        coupling_mode == "full_setup"
+        and dof is not None
+    )
+
+    any_evaluated = False
+
+    for motor in motors:
+
+        position_values = []
+        current_values = []
+
+        for row in pause_rows:
+
+            try:
+                position = (
+                    row["encoder_deviation"][motor]
+                )
+
+                current = (
+                    row["filtered_current_deviation"][motor]
+                )
+
+                if (
+                    position is None
+                    or current is None
+                ):
+                    continue
+
+                position = float(position)
+                current = float(current)
+
+                if (
+                    not np.isfinite(position)
+                    or not np.isfinite(current)
+                ):
+                    continue
+
+                position_values.append(
+                    position
+                )
+
+                current_values.append(
+                    current
+                )
+
+            except (
+                KeyError,
+                IndexError,
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+        if not position_values:
+            continue
+
+        position_values = np.asarray(
+            position_values,
+            dtype=float,
+        )
+
+        current_values = np.asarray(
+            current_values,
+            dtype=float,
+        )
+
+        # -----------------------------------------------------------
+        # If no pause baseline exists for this configuration,
+        # keep descriptive statistics only.
+        # -----------------------------------------------------------
+
+        if not evaluate_pause:
+
+            result["motor_results"][
+                f"motor_{motor}"
+            ] = {
+                "status": "not_evaluated",
+
+                "position": {
+                    "mean_residual":
+                        float(np.mean(position_values)),
+                    "minimum_residual":
+                        float(np.min(position_values)),
+                    "maximum_residual":
+                        float(np.max(position_values)),
+                },
+
+                "current": {
+                    "mean_residual":
+                        float(np.mean(current_values)),
+                    "minimum_residual":
+                        float(np.min(current_values)),
+                    "maximum_residual":
+                        float(np.max(current_values)),
+                },
+            }
+
+            continue
+
+        # -----------------------------------------------------------
+        # Full-setup pause healthy bands
+        # -----------------------------------------------------------
+
+        try:
+            position_lower, position_upper = (
+                FULL_SETUP_DOF_PAUSE_POSITION_BANDS[
+                    dof
+                ][motor]
+            )
+
+            current_lower, current_upper = (
+                FULL_SETUP_DOF_PAUSE_CURRENT_BANDS[
+                    dof
+                ][motor]
+            )
+
+        except KeyError:
+
+            result["motor_results"][
+                f"motor_{motor}"
+            ] = {
+                "status": "not_evaluated",
+            }
+
+            continue
+
+        any_evaluated = True
+
+        # -----------------------------------------------------------
+        # Position pause baseline
+        # -----------------------------------------------------------
+
+        position_outside = (
+            (position_values < position_lower)
+            |
+            (position_values > position_upper)
+        )
+
+        position_outside_count = int(
+            np.sum(position_outside)
+        )
+
+        position_fraction = (
+            position_outside_count
+            / len(position_values)
+        )
+
+        position_deviating = (
+            position_fraction
+            > MAX_OUTSIDE_FRACTION
+        )
+
+        # -----------------------------------------------------------
+        # Current pause baseline
+        # -----------------------------------------------------------
+
+        current_outside = (
+            (current_values < current_lower)
+            |
+            (current_values > current_upper)
+        )
+
+        current_outside_count = int(
+            np.sum(current_outside)
+        )
+
+        current_fraction = (
+            current_outside_count
+            / len(current_values)
+        )
+
+        current_deviating = (
+            current_fraction
+            > MAX_OUTSIDE_FRACTION
+        )
+
+        motor_deviating = (
+            position_deviating
+            or current_deviating
+        )
+
+        if motor_deviating:
+            result["affected_motors"].append(
+                motor
+            )
+
+        result["motor_results"][
+            f"motor_{motor}"
+        ] = {
+            "status":
+                "deviating"
+                if motor_deviating
+                else "healthy",
+
+            "position": {
+                "status":
+                    "deviating"
+                    if position_deviating
+                    else "healthy",
+
+                "healthy_band": {
+                    "lower": position_lower,
+                    "upper": position_upper,
+                    "unit": "pulses",
+                },
+
+                "samples":
+                    len(position_values),
+
+                "samples_outside_band":
+                    position_outside_count,
+
+                "fraction_outside_band":
+                    position_fraction,
+
+                "percentage_outside_band":
+                    100.0 * position_fraction,
+
+                "mean_residual":
+                    float(np.mean(position_values)),
+
+                "minimum_residual":
+                    float(np.min(position_values)),
+
+                "maximum_residual":
+                    float(np.max(position_values)),
+
+                "fraction_rule_triggered":
+                    position_deviating,
+            },
+
+            "current": {
+                "status":
+                    "deviating"
+                    if current_deviating
+                    else "healthy",
+
+                "healthy_band": {
+                    "lower": current_lower,
+                    "upper": current_upper,
+                    "unit": "mA",
+                },
+
+                "samples":
+                    len(current_values),
+
+                "samples_outside_band":
+                    current_outside_count,
+
+                "fraction_outside_band":
+                    current_fraction,
+
+                "percentage_outside_band":
+                    100.0 * current_fraction,
+
+                "mean_residual":
+                    float(np.mean(current_values)),
+
+                "minimum_residual":
+                    float(np.min(current_values)),
+
+                "maximum_residual":
+                    float(np.max(current_values)),
+
+                "fraction_rule_triggered":
+                    current_deviating,
+            },
+        }
+
+    if any_evaluated:
+
+        result["status"] = (
+            "deviating"
+            if result["affected_motors"]
+            else "healthy"
+        )
+
+    return result
 
 # ---------------------------------------------------------------------------
 # Detection helpers
@@ -513,6 +1526,9 @@ def analyse_signal(
         "percentage_outside_band":
             100.0 * outside_fraction,
 
+        "maximum_continuous_outside_s":
+            max_continuous_outside_s,
+
         "longest_continuous_outside_s":
             longest_outside_s,
 
@@ -534,6 +1550,7 @@ def get_healthy_bands(
     motor: int,
     test_type: str,
     dof: int | None,
+    condition: str | None = None,
 ) -> tuple[
     tuple[float, float],
     tuple[float, float],
@@ -547,17 +1564,30 @@ def get_healthy_bands(
 
         if dof is not None:
 
-            position_band = (
-                MOTOR_ONLY_DOF_POSITION_BANDS[
-                    dof
-                ][motor]
-            )
+            if condition is None:
+                raise ValueError(
+                    "DOF condition is required for motor-only DOF diagnosis."
+                )
 
-            current_band = (
-                MOTOR_ONLY_DOF_CURRENT_BANDS[
-                    dof
-                ][motor]
-            )
+            try:
+                position_band = (
+                    MOTOR_ONLY_DOF_POSITION_BANDS[
+                        dof
+                    ][condition][motor]
+                )
+
+                current_band = (
+                    MOTOR_ONLY_DOF_CURRENT_BANDS[
+                        dof
+                    ][condition][motor]
+                )
+
+            except KeyError as exc:
+                raise ValueError(
+                    f"No healthy bands defined for "
+                    f"DOF{dof}, condition '{condition}', "
+                    f"motor {motor}."
+                ) from exc
 
             return (
                 position_band,
@@ -616,10 +1646,92 @@ def get_healthy_bands(
             position_band,
             current_band,
         )
+    # ---------------------------------------------------------------
+    # Full-setup baseline
+    # ---------------------------------------------------------------
+
+    if coupling_mode == "full_setup":
+
+        if dof is None:
+            raise ValueError(
+                "DOF is required for full_setup diagnosis."
+            )
+
+        if condition is None:
+            raise ValueError(
+                "DOF condition is required for full_setup diagnosis."
+            )
+
+        try:
+            position_band = (
+                FULL_SETUP_DOF_POSITION_BANDS[
+                    dof
+                ][condition][motor]
+            )
+
+            current_band = (
+                FULL_SETUP_DOF_CURRENT_BANDS[
+                    dof
+                ][condition][motor]
+            )
+
+        except KeyError as exc:
+            raise ValueError(
+                f"No full-setup healthy bands defined for "
+                f"DOF{dof}, condition '{condition}', "
+                f"motor {motor}."
+            ) from exc
+
+        return (
+            position_band,
+            current_band,
+        )
 
     raise ValueError(
         f"Unsupported coupling mode: {coupling_mode}"
     )
+
+def get_current_duration_limit(
+    coupling_mode: str,
+    motor: int,
+    dof: int | None,
+    condition: str | None,
+) -> float | None:
+
+    # Only enable condition-specific duration detection
+    # for motor-only DOF pattern tests for now.
+    if (
+        coupling_mode in (
+            "motor_only",
+            "full_setup",
+        )
+        and dof is not None
+        and condition is not None
+    ):
+
+        try:
+
+            if coupling_mode == "full_setup":
+                return (
+                    FULL_SETUP_DOF_CURRENT_DURATION_LIMITS[
+                        dof
+                    ][condition][motor]
+                )
+
+            return (
+                MOTOR_ONLY_DOF_CURRENT_DURATION_LIMITS[
+                    dof
+                ][condition][motor]
+            )
+
+        except KeyError as exc:
+            raise ValueError(
+                f"No current duration limit defined for "
+                f"{coupling_mode}, DOF{dof}, "
+                f"condition '{condition}', motor {motor}."
+            ) from exc
+
+    return None
 
 def analyse_motor_test(
     rows: list[dict[str, Any]],
@@ -627,6 +1739,7 @@ def analyse_motor_test(
     test_type: str,
     coupling_mode: str,
     dof: int | None = None,
+    condition: str | None = None,
 ) -> dict[str, Any]:
     
     valid_rows = []
@@ -707,6 +1820,7 @@ def analyse_motor_test(
         motor=motor,
         test_type=test_type,
         dof=dof,
+        condition=condition,
     )
 
     position_lower, position_upper = (
@@ -727,6 +1841,15 @@ def analyse_motor_test(
         max_continuous_outside_s= None,
     )
 
+    current_duration_limit = (
+        get_current_duration_limit(
+            coupling_mode=coupling_mode,
+            motor=motor,
+            dof=dof,
+            condition=condition,
+        )
+    )
+
     current_result = analyse_signal(
         residual=current_residual,
         times=times,
@@ -734,7 +1857,7 @@ def analyse_motor_test(
         lower=current_lower,
         upper=current_upper,
         unit="mA",
-        max_continuous_outside_s= None,
+        max_continuous_outside_s=current_duration_limit,
     )
 
     deviating = (
@@ -762,6 +1885,9 @@ def analyse_motor_test(
 
         "test_type":
             test_type,
+
+        "condition":
+            condition,
 
         "triggered_signals":
             triggered_signals,
@@ -859,6 +1985,24 @@ def diagnose_replay(
             ]
         )
 
+    elif coupling_mode == "full_setup":
+
+        try:
+            dof = detect_dof(
+                replay_path
+            )
+
+        except ValueError as exc:
+            return invalid_diagnosis(
+                str(exc)
+            )
+
+        motors_to_evaluate = (
+            DOF_RELEVANT_MOTORS[
+                dof
+            ]
+        )
+
     else:
 
         return invalid_diagnosis(
@@ -877,30 +2021,73 @@ def diagnose_replay(
         if test_type == "idle_baseline":
             continue
 
-        if coupling_mode == "motor_only":
+        # ---------------------------------------------------------------
+        # Motor-only DOF pattern:
+        # group per waveform + frequency + range
+        # ---------------------------------------------------------------
 
-            if dof is None:
+        if (
+            coupling_mode in (
+                "motor_only",
+                "full_setup",
+            )
+            and dof is not None
+        ):
+
+            sequence_condition = str(
+                row.get("sequence_condition", "")
+            ).strip().lower()
+
+            # Pause samples are evaluated separately
+            # by analyse_pause_rows().
+            if sequence_condition == "pause":
+                continue
+
+            try:
+                condition = detect_dof_condition(
+                    row
+                )
+
+            except ValueError as exc:
+                print(
+                    f"WARNING: {exc}",
+                    file=sys.stderr,
+                )
+                continue
+
+            group_key = (
+                test_type,
+                condition,
+            )
+
+        # ---------------------------------------------------------------
+        # Normal motor-only pattern / gearbox
+        # ---------------------------------------------------------------
+
+        else:
+
+            if coupling_mode == "motor_only":
 
                 if (
-                    test_type
-                    not in MOTOR_ONLY_POSITION_BANDS
-                    or test_type
-                    not in MOTOR_ONLY_CURRENT_BANDS
+                    test_type not in MOTOR_ONLY_POSITION_BANDS
+                    or test_type not in MOTOR_ONLY_CURRENT_BANDS
                 ):
                     continue
 
-        # Gearbox-only uses one band per DOF + motor,
-        # so all non-idle DOF test types can be evaluated.
+            group_key = (
+                test_type,
+                None,
+            )
 
         grouped[
-            test_type
+            group_key
         ].append(
             row
         )
-
+    skipped_conditions = set()
     results = []
 
-    for test_type, test_rows in grouped.items():
+    for (test_type, condition,), test_rows in grouped.items():
 
         for motor in motors_to_evaluate:
 
@@ -911,18 +2098,55 @@ def diagnose_replay(
                     test_type=test_type,
                     coupling_mode=coupling_mode,
                     dof=dof,
+                    condition=condition,
                 )
 
             except ValueError as exc:
+
+                if condition is not None:
+                    skipped_conditions.add(
+                        (
+                            condition,
+                            motor,
+                        )
+                    )
+
                 print(
                     f"WARNING: skipping diagnostics for "
                     f"DOF{dof if dof is not None else '-'}, "
-                    f"motor {motor}, test '{test_type}': {exc}",
+                    f"motor {motor}, test '{test_type}', "
+                    f"condition '{condition}': {exc}",
                     file=sys.stderr,
                 )
                 continue
 
             results.append(result)
+
+    if not results:
+        return invalid_diagnosis(
+            "No valid motor/test combinations were evaluated."
+        )
+    pause_analysis = None
+
+    if (
+        coupling_mode in (
+            "motor_only",
+            "full_setup",
+        )
+        and dof is not None
+    ):
+        pause_analysis = analyse_pause_rows(
+            rows=rows,
+            motors=motors_to_evaluate,
+            coupling_mode=coupling_mode,
+            dof=dof,
+        )
+
+    evaluation_coverage = (
+        "partial"
+        if skipped_conditions
+        else "complete"
+    )
 
     deviating_results = [
         result
@@ -930,12 +2154,35 @@ def diagnose_replay(
         if result["status"] == "deviating"
     ]
 
-    affected_motors = sorted({
+    pause_deviating = (
+        pause_analysis is not None
+        and pause_analysis.get("status")
+            == "deviating"
+    )
+
+    motion_affected_motors = {
         result["motor"]
         for result in deviating_results
-    })
+    }
 
-    deviating = bool(deviating_results)
+    pause_affected_motors = set(
+        pause_analysis.get(
+            "affected_motors",
+            [],
+        )
+        if pause_analysis
+        else []
+    )
+
+    affected_motors = sorted(
+        motion_affected_motors
+        | pause_affected_motors
+    )
+
+    deviating = (
+        bool(deviating_results)
+        or pause_deviating
+    )
 
     motor_results = {}
 
@@ -953,14 +2200,41 @@ def diagnose_replay(
             if result["status"] == "deviating"
         ]
 
+        pause_motor_result = (
+            pause_analysis
+            .get(
+                "motor_results",
+                {},
+            )
+            .get(
+                f"motor_{motor}"
+            )
+            if pause_analysis
+            else None
+        )
+
+        pause_motor_deviating = (
+            pause_motor_result is not None
+            and pause_motor_result.get("status")
+                == "deviating"
+        )
+
+        motor_is_deviating = (
+            bool(motor_deviations)
+            or pause_motor_deviating
+        )
+
         motor_results[f"motor_{motor}"] = {
             "status":
                 "deviating"
-                if motor_deviations
+                if motor_is_deviating
                 else "healthy",
 
             "tests":
                 motor_tests,
+
+            "pause_baseline":
+                pause_motor_result,
         }
 
     position_deviations = sum(
@@ -991,6 +2265,21 @@ def diagnose_replay(
         "dof":
             dof,
 
+        "evaluation_coverage":
+            evaluation_coverage,
+
+        "skipped_conditions": [
+            {
+                "condition": condition,
+                "motor": motor,
+            }
+            for condition, motor
+            in sorted(skipped_conditions)
+        ],
+
+        "pause_analysis":
+            pause_analysis,
+
         "status":
             "deviating"
             if deviating
@@ -1018,7 +2307,11 @@ def diagnose_replay(
                 (
                     MOTOR_ONLY_BASELINE_NAME
                     if coupling_mode == "motor_only"
-                    else GEARBOX_BASELINE_NAME
+                    else (
+                        FULL_SETUP_BASELINE_NAME
+                        if coupling_mode == "full_setup"
+                        else GEARBOX_BASELINE_NAME
+                    )
                 ),
 
             "method":
@@ -1050,6 +2343,12 @@ def diagnose_replay(
 
             "current_deviations":
                 int(current_deviations),
+
+            "pause_baseline_status":
+                pause_analysis.get("status", "not_evaluated")
+                if pause_analysis
+                else "not_evaluated",
+            
         },
 
         "motor_results":
@@ -1104,6 +2403,18 @@ def create_diagnostic_plots(
                 2,
                 3,
             ]
+
+    elif coupling_mode == "full_setup":
+
+        dof = detect_dof(
+            replay_path
+        )
+
+        motors_to_plot = (
+            DOF_RELEVANT_MOTORS[
+                dof
+            ]
+        )
 
     output_dir.mkdir(
         parents=True,
@@ -1256,6 +2567,49 @@ def create_diagnostic_plots(
         # Continuous plot x-axis for only this motor's own tasks
         # ---------------------------------------------------------------
 
+        # Keep only DOF motion conditions for which healthy bands exist.
+        if (
+            coupling_mode in (
+                "motor_only",
+                "full_setup",
+            )
+            and dof is not None
+        ):
+
+            filtered_rows = []
+
+            for row in motor_rows:
+                condition = str(
+                    row.get("sequence_condition", "")
+                ).strip().lower()
+
+                if condition in ("", "none", "pause"):
+                    continue
+
+                try:
+                    get_healthy_bands(
+                        coupling_mode=coupling_mode,
+                        motor=motor,
+                        test_type=str(row["test_type"]),
+                        dof=dof,
+                        condition=condition,
+                    )
+                except ValueError:
+                    continue
+
+                filtered_rows.append(row)
+
+            motor_rows = filtered_rows
+
+            if not motor_rows:
+                print(
+                    f"WARNING: no DOF rows with defined healthy bands "
+                    f"for motor {motor}.",
+                    file=sys.stderr,
+                )
+                continue
+
+
         x = np.arange(
             len(motor_rows)
         )
@@ -1265,6 +2619,26 @@ def create_diagnostic_plots(
             for row in motor_rows
         ]
 
+        conditions = []
+
+        for row in motor_rows:
+
+            if (
+                coupling_mode in (
+                    "motor_only",
+                    "full_setup",
+                )
+                and dof is not None
+            ):
+                condition = detect_dof_condition(
+                    row
+                )
+            else:
+                condition = None
+
+            conditions.append(
+                condition
+            )
         # ---------------------------------------------------------------
         # Position signals
         # ---------------------------------------------------------------
@@ -1357,8 +2731,14 @@ def create_diagnostic_plots(
             np.nan,
         )
 
-        for i, test_type in enumerate(
-            test_types
+        for i, (
+            test_type,
+            condition,
+        ) in enumerate(
+            zip(
+                test_types,
+                conditions,
+            )
         ):
 
             (
@@ -1368,6 +2748,7 @@ def create_diagnostic_plots(
                 coupling_mode=coupling_mode,
                 motor=motor,
                 test_type=test_type,
+                condition=condition,
                 dof=dof,
             )
 
@@ -1903,6 +3284,11 @@ def show_diagnosis_popup(
             if diagnosis.get("dof") is not None
             else ""
         ),
+        (
+            "Evaluation coverage: "
+                f'{diagnosis.get("evaluation_coverage", "complete").upper()}'
+        ),
+
         f"Affected motor(s): {affected_text}",
         "",
         (
@@ -1913,19 +3299,22 @@ def show_diagnosis_popup(
             "Current deviations: "
             f'{summary_data.get("current_deviations", 0)}'
         ),
+        (
+            "Pause baseline: "
+            f'{summary_data.get(
+                "pause_baseline_status",
+                "not_evaluated",
+            ).upper()}'
+        ),
         "",
         (
             "Detection rule: more than 10% of samples "
             "outside the healthy band"
         ),
-        "OR",
-        # (
-        #     "Position: 750 ms or longer continuously "
-        #     "outside the healthy band"
-        # ),
         (
-            "Current: 100 ms or longer continuously "
-            "outside the healthy band"
+            "Current DOF tests can additionally trigger when "
+            "the continuous excursion exceeds the "
+            "condition-specific duration limit."
         ),
     ]
 
@@ -1965,10 +3354,12 @@ def show_diagnosis_popup(
     columns = (
         "motor",
         "test",
+        "condition",
         "signal",
         "band",
         "outside",
         "duration",
+        "trigger",
         "range",
         "status",
     )
@@ -1986,6 +3377,9 @@ def show_diagnosis_popup(
         "test":
             "Test type",
 
+        "condition":
+            "Test condition",
+
         "signal":
             "Signal",
 
@@ -1998,6 +3392,9 @@ def show_diagnosis_popup(
         "duration":
             "Longest excursion",
 
+        "trigger":
+            "Trigger",
+
         "range":
             "Observed residual",
 
@@ -2008,10 +3405,12 @@ def show_diagnosis_popup(
     widths = {
         "motor": 60,
         "test": 210,
+        "condition": 220,
         "signal": 90,
         "band": 180,
         "outside": 200,
         "duration": 160,
+        "trigger": 110,
         "range": 210,
         "status": 110,
     }
@@ -2099,9 +3498,23 @@ def show_diagnosis_popup(
                     f')'
                 )
 
-                duration_text = (
-                    f'{1000.0 * signal["longest_continuous_outside_s"]:.0f} ms'
+                duration_limit = signal.get(
+                    "maximum_continuous_outside_s"
                 )
+
+                if duration_limit is not None:
+
+                    duration_text = (
+                        f'{1000.0 * signal["longest_continuous_outside_s"]:.0f} '
+                        f'/ '
+                        f'{1000.0 * duration_limit:.0f} ms'
+                    )
+
+                else:
+
+                    duration_text = (
+                        f'{1000.0 * signal["longest_continuous_outside_s"]:.0f} ms'
+                    )
 
                 range_text = (
                     f'{signal["minimum_residual"]:.1f} '
@@ -2109,6 +3522,27 @@ def show_diagnosis_popup(
                     f'{signal["maximum_residual"]:.1f} '
                     f'{unit}'
                 )
+                fraction_triggered = signal.get(
+                    "fraction_rule_triggered",
+                    False,
+                )
+
+                duration_triggered = signal.get(
+                    "duration_rule_triggered",
+                    False,
+                )
+
+                if fraction_triggered and duration_triggered:
+                    trigger_text = "fraction + duration"
+
+                elif fraction_triggered:
+                    trigger_text = "fraction"
+
+                elif duration_triggered:
+                    trigger_text = "continuous duration"
+
+                else:
+                    trigger_text = "-"
 
                 tree.insert(
                     "",
@@ -2116,10 +3550,12 @@ def show_diagnosis_popup(
                     values=(
                         motor_label,
                         test["test_type"],
+                        test.get("condition") or "-",
                         signal_name,
                         band_text,
                         outside_text,
                         duration_text,
+                        trigger_text,
                         range_text,
                         signal["status"],
                     ),

@@ -8,23 +8,43 @@ import joblib
 import numpy as np
 
 # Default directory for the stored motor digital twin model depending on the setup.
-DEFAULT_MOTOR_ONLY_MODEL_DIR = (
+DEFAULT_MOTOR_ONLY_COMMAND_MODEL_DIR = (
     Path.home()
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V4"
+    / "trainings data V5"
     / "motors_only"
     / "motors_only_results"
     / "models"
 )
+
+DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR = (
+    Path.home()
+    / "ros2_ws"
+    / "test_data"
+    / "automated_trials"
+    / "trainings data V5"
+    / "motors_only_dof_pattern"
+    / "motors_only_dof_pattern_results"
+    / "models"
+)
+#     Path.home()
+#     / "ros2_ws"
+#     / "test_data"
+#     / "automated_trials"
+#     / "trainings data V5"
+#     / "motors_only_dof_pattern"
+#     / "motors_only_dof_pattern_results"
+#     / "models"
+# )
 
 DEFAULT_GEARBOX_MODEL_DIR = (
     Path.home()
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V4"
+    / "trainings data V5"
     / "motors_gearbox"
     / "motors_gearbox_results"
     / "models"
@@ -35,13 +55,14 @@ DEFAULT_FULL_SETUP_MODEL_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V4"
+    / "trainings data V5"
     / "full_setup"
     / "full_setup_results"
     / "models"
 )
 
 EVENT_TAIL_S = 1.0
+RUN_REFERENCE_WINDOW_S = 1.0
 
 def safe_float(value):
     if value is None:
@@ -91,7 +112,7 @@ def parse_task_label(label):
     }
 
 
-def load_motor_log(file_path, coupling_mode):
+def load_motor_log(file_path, coupling_mode, input_source=None):
     rows = []
     current_task_label = None
 
@@ -118,28 +139,27 @@ def load_motor_log(file_path, coupling_mode):
 
             motor_targets = data.get("motor_target_positions")
 
+            if (
+                (input_source == "targets" or coupling_mode != "motor_only") 
+                and (
+                    motor_targets is None or len(motor_targets) < 4)
+            ):
+                    continue
+
             instrument_dof_commands = data.get("commanded_instrument_angles")
             # if instrument_dof_commands is None or len(instrument_dof_commands) < 4:
             #     instrument_dof_commands = [np.nan, np.nan, np.nan, np.nan]
             if (
-                coupling_mode != "motor_only"
-                and (
-                    instrument_dof_commands is None
-                    or len(instrument_dof_commands) < 4
-                )
+                instrument_dof_commands is None
+                or len(instrument_dof_commands) < 4
             ):
-                continue
-            if coupling_mode == "motor_only":
-                instrument_dof_commands = [0.0, 0.0, 0.0, 0.0]
+                if (
+                    input_source == "targets"
+                    or coupling_mode != "motor_only"
+                ):
+                    continue
 
-            if (
-                coupling_mode != "motor_only"
-                and (
-                    motor_targets is None
-                    or len(motor_targets) < 4
-                )
-            ):
-                continue
+                instrument_dof_commands = [0.0, 0.0, 0.0, 0.0]
 
             if t_value is None or positions is None or currents is None:
                 continue
@@ -153,6 +173,7 @@ def load_motor_log(file_path, coupling_mode):
             rows.append({
                 "time": float(t_value),
                 "task_label": current_task_label,
+                "sequence_condition": data.get("sequence_condition"),
                 "positions": [float(x) for x in positions[:4]],
                 "currents": [float(x) for x in currents[:4]],
                 "commands": [float(x) for x in commands[:4]],
@@ -313,10 +334,67 @@ def held_command_delta(command):
 
     return instantaneous_delta, held_delta
 
+
+def get_run_motor_target_reference(
+    time,
+    motor_targets,
+    reference_window_s=RUN_REFERENCE_WINDOW_S,
+):
+    """
+    Determine one motor-target reference for the complete DOF run.
+
+    The reference is the median motor target during the initial
+    stationary hold.
+    """
+
+    time = np.asarray(time, dtype=float)
+    motor_targets = np.asarray(motor_targets, dtype=float)
+
+    if (
+        motor_targets.ndim != 2
+        or motor_targets.shape[0] != 4
+    ):
+        raise RuntimeError(
+            "Expected four motor-target channels."
+        )
+
+    if len(time) != motor_targets.shape[1]:
+        raise RuntimeError(
+            "Time and motor-target lengths do not match."
+        )
+
+    if len(time) == 0:
+        raise RuntimeError(
+            "Cannot determine run reference from empty data."
+        )
+
+    reference_mask = (
+        np.isfinite(time)
+        & (time <= time[0] + reference_window_s)
+    )
+
+    if not np.any(reference_mask):
+        raise RuntimeError(
+            "No samples available for run reference."
+        )
+
+    reference = np.nanmedian(
+        motor_targets[:, reference_mask],
+        axis=1,
+    )
+
+    if np.any(~np.isfinite(reference)):
+        raise RuntimeError(
+            "Invalid motor-target run reference."
+        )
+
+    return reference
+
 def build_coupled_motor_dt_features(
     t_segment,
     absolute_motor_targets,
     motor_target_reference,
+    use_absolute_targets=False,
 ):
     """
     Build the 32 all_motor_targets_v1 features used during
@@ -360,10 +438,13 @@ def build_coupled_motor_dt_features(
             target_motor_index
         ]
 
-        relative_target = (
-            absolute_target
-            - motor_target_reference[target_motor_index]
-        )
+        if use_absolute_targets:
+            relative_target = absolute_target.copy()
+        else:
+            relative_target = (
+                absolute_target
+                - motor_target_reference[target_motor_index]
+            )
 
         previous_relative_target = relative_target.copy()
 
@@ -433,7 +514,7 @@ def causal_moving_average(signal, window_size=5):
     return filtered
 
 
-def segment_to_arrays(segment, coupling_mode):
+def segment_to_arrays(segment, coupling_mode, input_source):
     rows = segment["rows"]
 
     t_global = np.array(
@@ -470,7 +551,10 @@ def segment_to_arrays(segment, coupling_mode):
 
     # Motor-only models are trained relative to the beginning
     # of the motor-pattern segment.
-    if coupling_mode == "motor_only":
+    if (
+        coupling_mode == "motor_only"
+        and input_source == "commands"
+    ):
         for motor_index in range(4):
             positions[motor_index] = (
                 positions[motor_index]
@@ -936,6 +1020,7 @@ def predict_segment_offline(
     motion_blocks,
     motor_models,
     coupling_mode,
+    input_source,
 ):
     raw_commands = np.asarray(
         raw_commands,
@@ -959,7 +1044,8 @@ def predict_segment_offline(
         dtype=float,
     )
 
-    if coupling_mode == "motor_only":
+    # if coupling_mode == "motor_only":
+    if input_source == "commands":
         commanded_target = relative_commands_to_target(
             raw_commands
         )
@@ -990,24 +1076,26 @@ def predict_segment_offline(
             np.nan,
             dtype=float,
         )
+        run_motor_target_reference = (
+            get_run_motor_target_reference(
+                time=t_segment,
+                motor_targets=motor_targets,
+            )
+        )
+
+        coupled_features_run = (
+            build_coupled_motor_dt_features(
+                t_segment=t_segment,
+                absolute_motor_targets=motor_targets,
+                motor_target_reference=run_motor_target_reference,
+                use_absolute_targets=False,
+            )
+        )
 
         for start_index, end_index in motion_blocks:
             pattern_slice = slice(
                 start_index,
                 end_index + 1,
-            )
-
-            motor_target_reference = motor_targets[
-                :,
-                start_index,
-            ].copy()
-
-            coupled_features_run = (
-                build_coupled_motor_dt_features(
-                    t_segment=t_segment,
-                    absolute_motor_targets=motor_targets,
-                    motor_target_reference=motor_target_reference,
-                )
             )
 
             pattern_features = coupled_features_run[
@@ -1022,20 +1110,40 @@ def predict_segment_offline(
                     :,
                     pattern_slice,
                 ]
-                - motor_target_reference[:, np.newaxis]
+                - run_motor_target_reference[:, np.newaxis]
             )
+            # if coupling_mode == "motor_only":
+            #     commanded_target[
+            #         :,
+            #         pattern_slice,
+            #     ] = motor_targets[
+            #         :,
+            #         pattern_slice,
+            #     ]
+
+            # else:
+            #     commanded_target[
+            #         :,
+            #         pattern_slice,
+            #     ] = (
+            #         motor_targets[
+            #             :,
+            #             pattern_slice,
+            #         ]
+            #         - motor_target_reference[:, np.newaxis]
+            #     )
 
             for motor_index in range(4):
                 package = motor_models[motor_index]
 
                 if (
-                    package.get("feature_schema")
-                    != "all_motor_targets_v1"
+                    package.get("feature_scheme")
+                    != "all_motor_targets_run_relative_v1"
                 ):
                     raise RuntimeError(
-                        f"Motor {motor_index} model uses feature schema "
-                        f"{package.get('feature_schema')!r}; expected "
-                        "'all_motor_targets_v1'."
+                        f"Motor {motor_index} model uses feature scheme "
+                        f"{package.get('feature_scheme')!r}; expected "
+                        "'all_motor_targets_run_relative_v1'."
                     )
 
                 predicted_positions[
@@ -1075,6 +1183,7 @@ def replay_motor_digital_twin(
     output_file,
     coupling_mode,
     active_dof=None,
+    input_source=None,
     current_filter_window_size=5,
 ):
     input_file = Path(input_file).expanduser()
@@ -1082,7 +1191,19 @@ def replay_motor_digital_twin(
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading log: {input_file}")
-    rows = load_motor_log(input_file, coupling_mode=coupling_mode)
+
+    if input_source is None:
+        input_source = (
+            "commands"
+            if coupling_mode == "motor_only" and active_dof is None
+            else "targets"
+        )
+
+    if coupling_mode != "motor_only" and input_source != "targets":
+        raise RuntimeError(
+            f"{coupling_mode} requires target-based Motor DT input."
+    )
+    rows = load_motor_log(input_file, coupling_mode=coupling_mode, input_source=input_source)
 
     print("Splitting into segments...")
     segments = split_into_segments(rows)
@@ -1090,7 +1211,11 @@ def replay_motor_digital_twin(
     print(f"Found {len(segments)} valid segments.")
 
     if coupling_mode == "motor_only":
-        position_model_dir = DEFAULT_MOTOR_ONLY_MODEL_DIR
+        if input_source == "commands":
+            position_model_dir = DEFAULT_MOTOR_ONLY_COMMAND_MODEL_DIR
+
+        elif input_source == "targets":
+            position_model_dir = DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR
 
     elif coupling_mode == "gearbox_only":
         position_model_dir = DEFAULT_GEARBOX_MODEL_DIR
@@ -1126,6 +1251,7 @@ def replay_motor_digital_twin(
             ) = segment_to_arrays(
                 segment,
                 coupling_mode=coupling_mode,
+                input_source=input_source,
             )
 
             filtered_currents = np.vstack([
@@ -1138,9 +1264,9 @@ def replay_motor_digital_twin(
 
             motion_blocks = []
 
-            if coupling_mode != "motor_only":
+            if input_source == "targets":
                 (
-                    measured_positions,
+                    _,
                     motion_blocks,
                 ) = make_coupled_pattern_relative_positions(
                     t_segment=t_segment,
@@ -1151,7 +1277,38 @@ def replay_motor_digital_twin(
 
                 if not motion_blocks:
                     raise RuntimeError(
-                        "No DOF motion patterns detected for coupled Motor-DT replay."
+                        "No DOF motion patterns detected for target-based Motor-DT replay."
+                    )
+
+                common_reference_positions = np.full_like(
+                    measured_positions,
+                    np.nan,
+                    dtype=float,
+                )
+
+                run_motor_target_reference = (
+                    get_run_motor_target_reference(
+                        time=t_segment,
+                        motor_targets=motor_targets,
+                    )
+                )
+                for start_index, end_index in motion_blocks:
+                    common_reference_positions[
+                        :,
+                        start_index:end_index + 1,
+                    ] = (
+                        measured_positions[
+                            :,
+                            start_index:end_index + 1,
+                        ]
+                        - run_motor_target_reference[:, None]
+                    )
+
+                measured_positions = common_reference_positions
+
+                if not motion_blocks:
+                    raise RuntimeError(
+                        "No DOF motion patterns detected for target-based Motor-DT replay."
                     )
             (
                 commanded_target,
@@ -1164,6 +1321,7 @@ def replay_motor_digital_twin(
                 motion_blocks=motion_blocks,
                 motor_models=motor_models,
                 coupling_mode=coupling_mode,
+                input_source=input_source,
             )
 
 
@@ -1178,11 +1336,13 @@ def replay_motor_digital_twin(
                     "time": safe_float(t_global[sample_index]),
                     "segment_time": safe_float(t_segment[sample_index]),
                     "task_label": task_label,
+                    "sequence_condition": segment["rows"][sample_index].get("sequence_condition"),
                     "test_type": info["test_type"],
                     "motor_name": info["motor_name"],
                     "trial": info["trial"],
                     "sample_index": int(sample_index),
                     "coupling_mode": coupling_mode,
+                    "input_source": input_source,
                     "active_dof": int(active_dof) if active_dof is not None else None,
 
                     "raw_commands": safe_list(raw_commands[:, sample_index]),
@@ -1237,6 +1397,16 @@ def main():
         default=None,
         help="Active instrument DOF, stored as replay metadata.",
     )
+    parser.add_argument(
+        "--input-source",
+        choices=["commands", "targets"],
+        default=None,
+        help=(
+            "Motor DT input source. "
+            "'commands' uses commanded_motor_positions; "
+            "'targets' uses motor_target_positions."
+        ),
+    )
 
     parser.add_argument(
         "--output-file",
@@ -1264,10 +1434,10 @@ def main():
         input_file=input_file,
         coupling_mode=args.coupling_mode,
         active_dof=args.dof,
+        input_source=args.input_source,
         output_file=output_file,
         current_filter_window_size=args.current_filter_window_size,
     )
-
 
 if __name__ == "__main__":
     main()

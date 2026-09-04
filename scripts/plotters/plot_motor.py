@@ -3166,10 +3166,65 @@ def get_commanded_motors_for_dof_patterns(
 
     return sorted(active_motors)
 
+def get_dof_run_motor_reference(
+    rows,
+    task_label,
+    reference_window_s=1.0,
+):
+    """
+    Determine one fixed motor-target reference for the complete DOF run.
+
+    The reference is the median motor target during the initial
+    stationary hold. The same reference is used for all sinusoid
+    and triangle plots in this run.
+    """
+
+    valid_rows = [
+        row
+        for row in rows
+        if row.get("task_label") == task_label
+        and row.get("motor_targets") is not None
+        and len(row["motor_targets"]) >= 4
+    ]
+
+    if not valid_rows:
+        raise RuntimeError(
+            "Could not determine DOF run motor reference."
+        )
+
+    start_time = float(valid_rows[0]["time"])
+
+    reference_rows = [
+        row
+        for row in valid_rows
+        if float(row["time"]) <= start_time + reference_window_s
+    ]
+
+    targets = np.asarray(
+        [
+            row["motor_targets"][:4]
+            for row in reference_rows
+        ],
+        dtype=float,
+    )
+
+    reference = np.nanmedian(
+        targets,
+        axis=0,
+    )
+
+    if np.any(~np.isfinite(reference)):
+        raise RuntimeError(
+            "Invalid motor targets in initial DOF reference window."
+        )
+
+    return reference
+
 def plot_dof_pattern_results(
     segments,
     output_dir,
     replay_by_task_label,
+    run_motor_reference,
 ):
     plot_root = (Path(output_dir))
     plot_root.mkdir(
@@ -3326,7 +3381,7 @@ def plot_dof_pattern_results(
                     dtype=float,
                 )
 
-                raw_motor_target = np.asarray(
+                raw_motor_target_absolute = np.asarray(
                     [
                         row["motor_targets"][
                             motor_index
@@ -3337,18 +3392,22 @@ def plot_dof_pattern_results(
                 )
 
                 finite_target = np.flatnonzero(
-                    np.isfinite(raw_motor_target)
+                    np.isfinite(raw_motor_target_absolute)
                 )
 
-                if finite_target.size > 0:
-                    motor_target_reference = float(
-                        raw_motor_target[finite_target[0]]
-                    )
+                if finite_target.size == 0:
+                    continue
 
-                    raw_motor_target = (
-                        raw_motor_target
-                        - motor_target_reference
-                    )
+                # Fixed reference for the complete DOF run.
+                run_reference = float(
+                    run_motor_reference[motor_index]
+                )
+
+                # Plot every waveform in the same coordinate system.
+                raw_motor_target = (
+                    raw_motor_target_absolute
+                    - run_reference
+                )
 
                 raw_position = np.asarray(
                     [
@@ -3361,14 +3420,14 @@ def plot_dof_pattern_results(
                 )
 
                 # Position is shown relative to the
-                # beginning of this individual pattern.
-                encoder_reference = float(
-                    segment["encoder_reference_positions"][motor_index]
-                )
+                # initial motor target of the complete DOF run.
+                # encoder_reference = float(
+                #     segment["encoder_reference_positions"][motor_index]
+                # )
 
                 raw_position = (
                     raw_position
-                    - encoder_reference
+                    - run_reference
                 )
 
                 raw_current = np.asarray(
@@ -3501,7 +3560,6 @@ def plot_dof_pattern_results(
                             "Predicted encoder position"
                         ),
                     )
-
                     # ==============================================
                     # ROW 2 — POSITION RESIDUAL
                     # ==============================================
@@ -4025,6 +4083,21 @@ def plot_motor(file_path, output_dir, replay_file=None):
         segments = split_dof_pattern_segments(rows)
         print(f"Number of DOF pattern segments: {len(segments)}")
 
+        if not segments:
+            raise RuntimeError(
+                "No DOF pattern segments found."
+            )
+
+        run_motor_reference = get_dof_run_motor_reference(
+            rows,
+            task_label=segments[0]["task_label"],
+        )
+
+        print(
+            "DOF run motor reference: "
+            f"{run_motor_reference.tolist()}"
+        )
+
         for segment in segments:
             print(
                 f"  DOF{segment['dof_number']} | "
@@ -4066,6 +4139,7 @@ def plot_motor(file_path, output_dir, replay_file=None):
             segments,
             output_dir,
             replay_by_task_label,
+            run_motor_reference,
         )
         plot_dof_overall_residuals(
             segments,

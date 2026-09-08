@@ -2,8 +2,8 @@ instrument_state_node:
   ros__parameters:
     gearbox_output_topic: "/right/tool_control_node/gearbox_state"
     predicted_instrument_angles_topic: "/right/instrument_digital_twin/predicted_instrument_angles"
-    
-    test_data_root: "~/ros2_ws/test_data"
-    
-    hybrid_bend_enabled: true  
-    hybrid_bend_model_file: "automated_trials/trainings data V3/hybrid_bend_dt_results/random_forest/random_forest_bend_hybrid_model.joblib"
+
+    hybrid_bend_enabled: true
+
+    # Leave empty to automatically load the model selected during training.
+    hybrid_bend_model_file: ""

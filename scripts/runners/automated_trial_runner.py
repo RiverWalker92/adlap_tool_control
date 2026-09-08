@@ -518,7 +518,7 @@ def main():
     parser.add_argument(
         "--plot-cmd",
         default=(
-            "ros2 run adlap_tool_control plot_dof.py "
+            "ros2 run adlap_tool_control plot_gearbox_instrument.py "
             "--file {ros_log} "
             "--video-angles {angles} "
             "--output-dir {plot_dir} "
@@ -995,7 +995,7 @@ def main():
 
         else:
             instrument_plot_cmd = (
-                f"ros2 run adlap_tool_control plot_dof.py "
+                f"ros2 run adlap_tool_control plot_gearbox_instrument.py "
                 f"--file {shlex.quote(str(ros_log_path))} "
                 f"--output-dir {shlex.quote(str(instrument_plots_dir))} "
                 f"--params-file {shlex.quote(str(params_file))} "

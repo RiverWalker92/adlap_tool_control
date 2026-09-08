@@ -109,7 +109,7 @@ install(PROGRAMS
   
   scripts/webcam_video_angle_detector.py
 
-  scripts/plotters/plot_dof.py
+  scripts/plotters/plot_gearbox_instrument.py
   scripts/plotters/plot_motor.py
 
   scripts/training/train_hybrid_bend_model.py

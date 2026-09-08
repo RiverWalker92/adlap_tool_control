@@ -849,6 +849,11 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
         key=lambda row: row["hybrid_dt_mae_deg"],
     )["model"]
 
+    selected_model_file = (
+        Path(selected_model)
+        / f"{selected_model}_bend_hybrid_model.joblib"
+    )
+
     # Save metrics and normalized metrics to JSON files
     metrics_output = {
         "evaluation_split": "trial_based_hold_out",
@@ -856,6 +861,7 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
         "test_trial": test_trial,
         "selection_metric": "hybrid_dt_mae_deg",
         "selected_model": selected_model,
+        "selected_model_file": str(selected_model_file),
         "models": {
             row["model"]: row
             for row in all_metrics

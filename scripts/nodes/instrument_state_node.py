@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import math
+import json
+import yaml
 from pathlib import Path
 import sys
 from ament_index_python.packages import get_package_share_directory
@@ -13,6 +15,12 @@ IMPORT_DIRS = [
     SCRIPT_DIR / "digital_twins",       # install folder if subfolder is preserved
     SCRIPT_DIR.parent / "digital_twins" # source folder: scripts/nodes -> scripts/digital_twins
 ]
+
+DEFAULT_TRAINING_CONFIG_PATH = (
+    Path(get_package_share_directory("adlap_tool_control"))
+    / "config"
+    / "training_config.yaml"
+)
 
 for import_dir in IMPORT_DIRS:
     if import_dir.exists() and str(import_dir) not in sys.path:
@@ -110,6 +118,72 @@ def resolve_instrument_params_file(instrument_config: str) -> Path:
 
     return selected_path
 
+def resolve_selected_hybrid_bend_model(training_config_file: Path) -> Path:
+    """
+    Resolve the Hybrid Bend model selected by the latest configured training.
+    """
+    training_config_file = Path(training_config_file).expanduser()
+
+    with open(training_config_file, "r") as f:
+        config = yaml.safe_load(f)
+
+    test_data_root = Path(
+        config["test_data_root"]
+    ).expanduser()
+
+    training_data_root = Path(
+        config["training_data_root"]
+    ).expanduser()
+
+    if not training_data_root.is_absolute():
+        training_data_root = (
+            test_data_root / training_data_root
+        )
+
+    hybrid_output_dir = Path(
+        config["hybrid_bend_dt"]["output_dir"]
+    ).expanduser()
+
+    if not hybrid_output_dir.is_absolute():
+        hybrid_output_dir = (
+            training_data_root / hybrid_output_dir
+        )
+
+    metrics_file = (
+        hybrid_output_dir
+        / "hybrid_bend_metrics.json"
+    )
+
+    if not metrics_file.exists():
+        raise RuntimeError(
+            "Hybrid Bend training metrics not found: "
+            f"{metrics_file}. Run Hybrid Bend training first."
+        )
+
+    with open(metrics_file, "r") as f:
+        metrics = json.load(f)
+
+    selected_model = metrics.get("selected_model")
+    selected_model_file = metrics.get("selected_model_file")
+
+    if not selected_model or not selected_model_file:
+        raise RuntimeError(
+            "Hybrid Bend metrics do not contain a valid "
+            "selected_model and selected_model_file."
+        )
+
+    model_file = (
+        hybrid_output_dir
+        / selected_model_file
+    )
+
+    if not model_file.exists():
+        raise RuntimeError(
+            f"Selected Hybrid Bend model not found: {model_file}"
+        )
+
+    return model_file
+
 
 class InstrumentStateNode(Node):
     def __init__(self):
@@ -150,6 +224,11 @@ class InstrumentStateNode(Node):
         )
 
         self.declare_parameter(
+            "training_config_file",
+            str(DEFAULT_TRAINING_CONFIG_PATH),
+        )
+
+        self.declare_parameter(
             "instrument_config",
             "",
         )
@@ -182,13 +261,8 @@ class InstrumentStateNode(Node):
             "hybrid_bend_model_file"
         ).value
 
-        if self.hybrid_bend_enabled and not hybrid_bend_model_file_raw:
-            raise RuntimeError(
-                "hybrid_bend_enabled is True, but hybrid_bend_model_file is empty"
-            )
-
-        hybrid_bend_model_file = Path(
-            hybrid_bend_model_file_raw
+        training_config_file = Path(
+            self.get_parameter("training_config_file").value
         ).expanduser()
 
         instrument_config = self.get_parameter(
@@ -198,14 +272,30 @@ class InstrumentStateNode(Node):
         # -------------------------------------------------------------------------
         # Resolve paths
         # -------------------------------------------------------------------------
+        if self.hybrid_bend_enabled:
+            if hybrid_bend_model_file_raw:
+                # Optional manual model override.
+                hybrid_bend_model_file = Path(
+                    hybrid_bend_model_file_raw
+                ).expanduser()
 
-        if hybrid_bend_model_file.is_absolute():
-            self.hybrid_bend_model_file = hybrid_bend_model_file
+                if hybrid_bend_model_file.is_absolute():
+                    self.hybrid_bend_model_file = hybrid_bend_model_file
+                else:
+                    self.hybrid_bend_model_file = (
+                        self.test_data_root
+                        / hybrid_bend_model_file
+                    )
+
+            else:
+                # Automatically load the model selected during Hybrid Bend training.
+                self.hybrid_bend_model_file = (
+                    resolve_selected_hybrid_bend_model(
+                        training_config_file
+                    )
+                )
         else:
-            self.hybrid_bend_model_file = (
-                self.test_data_root / hybrid_bend_model_file
-            )
-
+            self.hybrid_bend_model_file = None
 
         self.instrument_params_file = resolve_instrument_params_file(
             instrument_config=instrument_config

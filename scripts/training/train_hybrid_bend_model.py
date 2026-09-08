@@ -1,22 +1,40 @@
 #!/usr/bin/env python3
 
+"""
+Train and evaluate the Hybrid Bend Digital Twin for SATA DOF2.
+
+The script:
+- loads synchronized ROS and camera measurements,
+- combines the physical Digital Twin prediction with measured gearbox states,
+- trains regression models to predict the remaining bend-angle error,
+- evaluates models using a trial-based hold-out split,
+- saves the trained models, metrics, datasets, and diagnostic plots.
+
+The Hybrid Bend model corrects the original Digital Twin prediction according
+to:
+
+    hybrid prediction = DT prediction + ML-predicted residual
+"""
+
 import argparse
 import json
 from pathlib import Path
-import yaml
 
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import yaml
 from ament_index_python.packages import get_package_share_directory
-
-# from sklearn.model_selection import train_test_split
+from sklearn.ensemble import (
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+    RandomForestRegressor,
+)
 from sklearn.linear_model import Ridge
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 DEFAULT_TRAINING_CONFIG_PATH = (
     Path(get_package_share_directory("adlap_tool_control"))
@@ -29,8 +47,13 @@ DEFAULT_DOF_PATTERN_CONFIG_PATH = (
     / "dof_pattern_params.yaml"
 )
 
-
+# -------------------------------------------------------------------------
+# Configuration and file loading
+# -------------------------------------------------------------------------
 def load_training_config(config_path: Path):
+    """
+    Load the training configuration and resolve the training-data root directory.
+    """
     config_path = Path(config_path).expanduser()
 
     with open(config_path, "r") as f:
@@ -53,20 +76,31 @@ def load_training_config(config_path: Path):
 
 
 def resolve_training_path(training_data_root: Path, path_value: str) -> Path:
+    """
+    Resolve a configured training path relative to the training-data root.
+    """
     path = Path(path_value).expanduser()
 
     if path.is_absolute():
         return path
 
     return training_data_root / path
+    
 
 def load_dof2_pattern_config(config_path: Path):
+    """
+    Load the DOF2 pattern configuration.
+    """
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     return config["dof_pattern_runner_node"]["ros__parameters"]["dof2"]
 
+
 def load_jsonl(path: Path):
+    """
+    Load a JSONL file into a list of dictionaries.
+    """
     rows = []
     with open(path, "r") as f:
         for line in f:
@@ -74,7 +108,9 @@ def load_jsonl(path: Path):
                 rows.append(json.loads(line))
     return rows
 
-
+# -------------------------------------------------------------------------
+# Dataset construction
+# -------------------------------------------------------------------------
 def expand_list_column(df, column, prefix, expected_len):
     if column not in df.columns:
         for i in range(expected_len):
@@ -90,12 +126,13 @@ def expand_list_column(df, column, prefix, expected_len):
 
     return df
 
-
 def build_ros_dataframe(ros_log: Path):
+    """
+    Convert a ROS trial log into a time-sorted dataframe with expanded signals.
+    """
     df = pd.DataFrame(load_jsonl(ros_log))
 
     df = expand_list_column(df, "measured_motor_positions", "motor_pos_", 4)
-    # df = expand_list_column(df, "measured_currents", "current_", 4)
     df = expand_list_column(df, "commanded_motor_positions", "motor_cmd_", 4)
     df = expand_list_column(df, "commanded_instrument_angles", "cmd_instr_", 4)
     if "measured_instrument_angles" not in df.columns and "current_instrument_angles" in df.columns:
@@ -111,6 +148,9 @@ def build_ros_dataframe(ros_log: Path):
     return df.sort_values("merge_time").reset_index(drop=True)
 
 def build_video_dataframe(video_angles: Path):
+    """
+    Convert a video angles log into a time-sorted dataframe.
+    """
     df = pd.DataFrame(load_jsonl(video_angles))
 
     if "ros_time_s" not in df.columns:
@@ -148,34 +188,10 @@ def choose_video_target_column(video_df):
 
     raise RuntimeError(f"No DOF2 video angle column found. Columns: {list(video_df.columns)}")
 
-def filter_video_angle(df):
-    df["video_angle_raw"] = df["video_angle"]
-
-    # Stap 1: median filter tegen losse detectie-outliers
-    df["video_angle_filtered"] = (
-        df["video_angle_raw"]
-        .rolling(window=5, center=True, min_periods=1)
-        .median()
-    )
-
-    # Stap 2: lichte smoothing tegen meetruis
-    df["video_angle_filtered"] = (
-        df["video_angle_filtered"]
-        .rolling(window=5, center=True, min_periods=1)
-        .mean()
-    )
-
-    df["video_angle"] = df["video_angle_filtered"]
-    return df
-
-# def add_history_features(df, feature_columns):
-#     for col in feature_columns:
-#         df[f"{col}_prev"] = df[col].shift(1)
-#         df[f"{col}_delta"] = df[col].diff()
-#         df[f"{col}_direction"] = np.sign(df[f"{col}_delta"])
-#     return df
-
 def find_ros_video_pairs(search_dir: Path):
+    """
+    Find matching pairs of ROS log and video angles files in the given directory.
+    """
     pairs = []
 
     # New automated-trial naming:
@@ -239,10 +255,6 @@ def build_trial_table_from_files(ros_log: Path, video_log: Path, trial_id: str):
         print(f"Loaded {trial_id}: 0 rows after time matching")
         return None
 
-    # merged = filter_video_angle(merged)
-
-    # The selected video target was already median-filtered by the
-    # offline webcam angle detector.
     merged["video_angle_raw"] = merged["video_angle"]
     merged["video_angle_filtered"] = merged["video_angle"]
 
@@ -307,6 +319,10 @@ def build_trial_table(trial_dir: Path):
     return pd.concat(trial_tables, ignore_index=True)
 
 def build_dataset(data_dir: Path):
+    """
+    Combine all usable trials in the given directory into a single dataframe for 
+    training and evaluation.
+    """
     trial_tables = []
 
     # First: support flat folder structure, where the files are directly
@@ -330,6 +346,9 @@ def build_dataset(data_dir: Path):
     return pd.concat(trial_tables, ignore_index=True)
     
 def select_feature_columns(df):
+    """
+    Return the available numeric gearbox-state features used by the ML model.
+    """
     allowed_columns = [
         "gearbox_0",
         "gearbox_1",
@@ -347,7 +366,9 @@ def select_feature_columns(df):
 
     return feature_cols
 
-
+# -------------------------------------------------------------------------
+# Sequence reconstruction and plotting
+# -------------------------------------------------------------------------
 def plot_test_scatter(test_df, output_path: Path):
     test_df = test_df.sort_values("time").reset_index(drop=True)
 
@@ -489,26 +510,29 @@ def plot_sequence_blocks(df, output_dir: Path, dof2_config):
 
         plt.savefig(block_dir / filename, dpi=200)
         plt.close()
-        
+
+# -------------------------------------------------------------------------
+# Model definitions and training
+# -------------------------------------------------------------------------        
 def make_models():
+    """
+    Create the candidate regression models evaluated for Hybrid Bend correction.
+    """
     models = {
         "ridge": make_pipeline(
             StandardScaler(),
             Ridge(alpha=1.0),
         ),
-
         "polynomial_ridge": make_pipeline(
             StandardScaler(),
             PolynomialFeatures(degree=2, include_bias=False),
             Ridge(alpha=1.0),
         ),
-
         "random_forest": RandomForestRegressor(
             n_estimators=200,
             random_state=42,
             min_samples_leaf=5,
         ),
-
         "gradient_boosting": GradientBoostingRegressor(
             n_estimators=300,
             learning_rate=0.03,
@@ -516,7 +540,6 @@ def make_models():
             min_samples_leaf=5,
             random_state=42,
         ),
-
         "hist_gradient_boosting": HistGradientBoostingRegressor(
             max_iter=300,
             learning_rate=0.05,
@@ -532,16 +555,17 @@ def train_single_model(
     model,
     df,
     X,
-    y,
     X_train,
     X_test,
     y_train,
-    y_test,
     test_index,
     feature_cols,
     output_dir: Path,
     dof2_config
 ):
+    """
+    Train and evaluate one residual-correction model on the held-out trial.
+    """
     model_output_dir = output_dir / model_name
     model_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -600,7 +624,7 @@ def train_single_model(
         video_angle_max_deg = None
         video_angle_range_deg = None
 
-    # Predict over volledige dataset voor leesbare tijdlijnplots
+    # Predict the complete dataset for plotting and analysis
     result_df["ml_error_prediction_all"] = model.predict(X)
     result_df["hybrid_prediction_all"] = (
         result_df["dt_prediction"]
@@ -694,23 +718,6 @@ def train_single_model(
     result_csv = model_output_dir / f"{model_name}_bend_training_dataset_with_predictions.csv"
     result_df.to_csv(result_csv, index=False)
 
-    # metrics_path = model_output_dir / f"{model_name}_metrics.json"
-    # with open(metrics_path, "w") as f:
-    #     json.dump(metrics, f, indent=2)
-
-    # normalized_metrics_path = (
-    #     model_output_dir
-    #     / f"{model_name}_metrics_target_normalized.json"
-    # )
-
-    # with open(normalized_metrics_path, "w") as f:
-    #     json.dump(normalized_metrics, f, indent=2)
-
-    # print(
-    #     "Saved normalized metrics: "
-    #     f"{normalized_metrics_path}"
-    # )
-
     plot_path = model_output_dir / f"{model_name}_test_scatter.png"
     plot_test_scatter(result_df.loc[test_index], plot_path)
 
@@ -721,6 +728,9 @@ def train_single_model(
 
     return metrics, normalized_metrics
 
+# -------------------------------------------------------------------------
+# Reporting
+# -------------------------------------------------------------------------
 def write_model_comparison_txt(metrics_df, output_path: Path):
     metrics_df = metrics_df.sort_values("hybrid_dt_mae_deg").reset_index(drop=True)
 
@@ -768,7 +778,14 @@ def write_model_comparison_txt(metrics_df, output_path: Path):
         )
 
 def train_and_evaluate(df, output_dir: Path, dof2_config):
+    """
+    Train all candidate models and evaluate them on a held-out trial.
+    """
     feature_cols = select_feature_columns(df)
+    if not feature_cols:
+        raise RuntimeError(
+            "No valid gearbox-state features found in the training dataset."
+        )
 
     print("\nModel input features:")
     for col in feature_cols:
@@ -777,6 +794,7 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
     X = df[feature_cols]
     y = df["prediction_error"]
 
+    # Trial-based hold-out split
     trial_ids = sorted(df["trial_id"].unique())
 
     if len(trial_ids) < 2:
@@ -784,6 +802,7 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
             "At least two trials are required for trial-based train/test splitting."
         )
 
+    # Use the latest trial as the fixed held-out test trial.
     test_trial = trial_ids[-1]
     train_trials = trial_ids[:-1]
     train_mask = df["trial_id"].isin(train_trials)
@@ -793,18 +812,16 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
     y_train = y.loc[train_mask]
 
     X_test = X.loc[test_mask]
-    y_test = y.loc[test_mask]
-
     test_index = X_test.index
 
     print("\nTrial-based train/test split:")
     print(f"  Training trials ({len(train_trials)}):")
     for trial in train_trials:
         print(f"    {trial}")
-
     print(f"  Test trial:")
     print(f"    {test_trial}")
 
+    # Train candidate models and evaluate on the held-out trial
     models = make_models()
     all_metrics = []
     all_normalized_metrics = []
@@ -815,11 +832,9 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
             model=model,
             df=df,
             X=X,
-            y=y,
             X_train=X_train,
             X_test=X_test,
             y_train=y_train,
-            y_test=y_test,
             test_index=test_index,
             feature_cols=feature_cols,
             output_dir=output_dir,
@@ -828,11 +843,13 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
         all_metrics.append(metrics)
         all_normalized_metrics.append(normalized_metrics)
 
+    # Select the best model
     selected_model = min(
         all_metrics,
         key=lambda row: row["hybrid_dt_mae_deg"],
     )["model"]
 
+    # Save metrics and normalized metrics to JSON files
     metrics_output = {
         "evaluation_split": "trial_based_hold_out",
         "training_trials": train_trials,
@@ -861,8 +878,8 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
                 "the complete held-out test trial"
             ),
             "unit": "degrees",
-            "model_retrained": False,
-            "predictions_recomputed": False,
+            # "model_retrained": False,
+            # "predictions_recomputed": False,
         },
         "models": {
             row["model"]: row
@@ -891,6 +908,8 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
         "Saved target-normalized Hybrid Bend metrics: "
         f"{normalized_metrics_path}"
     )
+
+    # Save model comparison metrics to CSV and TXT
     metrics_df = pd.DataFrame(all_metrics)
     metrics_df = metrics_df.sort_values("hybrid_dt_mae_deg").reset_index(drop=True)
 
@@ -913,23 +932,11 @@ def train_and_evaluate(df, output_dir: Path, dof2_config):
     print(f"\nSaved model comparison: {comparison_csv}")
     print(f"Saved model comparison: {comparison_txt}")
     
-def plot_results(test_df, output_path: Path):
-    test_df = test_df.sort_values("time").reset_index(drop=True)
-
-    plt.figure(figsize=(14, 6))
-    plt.plot(test_df["time"], test_df["video_angle"], label="video measurement")
-    plt.plot(test_df["time"], test_df["dt_prediction"], label="old DT prediction")
-    plt.plot(test_df["time"], test_df["hybrid_prediction"], label="hybrid DT prediction")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Bend angle [deg]")
-    plt.title("Hybrid bend prediction evaluation")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
-    plt.close()
 
 def main():
+    """
+    Build the Hybrid Bend dataset and train the candidate models.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument(

@@ -58,7 +58,6 @@ dof_pattern_runner_node:
     dof3:
       mode: "constant"
       value: 0.0
-      velocity: 1.0
       min: -12.566
       max: 12.566
       frequency: 0.05 #1.0 results in about 1900 pulses/s, max is about 1200

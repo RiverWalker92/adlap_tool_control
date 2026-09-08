@@ -1,44 +1,56 @@
 #!/usr/bin/env python3
 
+"""
+ROS 2 DOF pattern runner for the SATA Digital Twin diagnostic setup.
+
+This node generates standardized multi-condition motion sequences for the four
+SATA degrees of freedom. Each trial keeps inactive DOFs at a constant value and
+executes the configured waveform sequence for the selected DOF.
+
+During a trial, the node publishes instrument commands, synchronization LED
+signals, task labels, and sequence-condition labels for logging and subsequent
+Digital Twin analysis.
+"""
+
 import math
 import time
 from datetime import datetime
+
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from std_msgs.msg import Float64MultiArray, String, Bool
-from pathlib import Path
+from std_msgs.msg import Bool, Float64MultiArray, String
 
 
 class PatternRunner(Node):
+    """
+    ROS 2 node that generates and publishes standardized SATA DOF test patterns.
+
+    The node executes a multi-stage waveform sequence for one selected DOF while
+    keeping the remaining DOFs at their configured constant values. It also
+    publishes synchronization signals and trial labels for logging.
+    """
     def __init__(self):
         super().__init__("dof_pattern_runner_node")
-
-        default_config_path = (
-            Path.home()
-            / "ros2_ws"
-            / "src"
-            / "adlap_tool_control"
-            / "config"
-            / "dof_pattern_params.yaml"
-        )
         self.declare_parameter("topic", "/right/tool_control_node/instrument_angles")
         self.declare_parameter("publish_rate", 100.0)
         self.declare_parameter("duration", 11.0)
         self.declare_parameter("coupling_mode", "full_setup")
-        self.declare_parameter("active_dof", 0)
 
+        # active_dof=0 uses the DOF configuration from the parameter file;
+        # values 1-4 explicitly select one DOF.
+        self.declare_parameter("active_dof", 0)
         self.coupling_mode = str(self.get_parameter("coupling_mode").value)
         self.active_dof_override = int(
             self.get_parameter("active_dof").value
         )
-
         if self.active_dof_override not in [0, 1, 2, 3, 4]:
             raise ValueError(
                 "active_dof must be 0, 1, 2, 3 or 4"
             )
         self.duration = float(self.get_parameter("duration").value)
 
+        # Declare parameters for each DOF
         for i in range(1, 5):
             prefix = f"dof{i}"
             self.declare_parameter(f"{prefix}.mode", "constant")
@@ -46,28 +58,29 @@ class PatternRunner(Node):
             self.declare_parameter(f"{prefix}.min", 0.0)
             self.declare_parameter(f"{prefix}.max", 0.0)
             self.declare_parameter(f"{prefix}.frequency", 0.1)
-            self.declare_parameter(f"{prefix}.velocity", 0.0)
 
+        # Declare parameters for DOF4 tip compensation
         self.declare_parameter("dof4.tip_compensation_pulses", 0)
         self.declare_parameter("dof4.tip_compensation_sign", -1)
-
         self.dof4_tip_compensation_pulses = int(
             self.get_parameter("dof4.tip_compensation_pulses").value
         )
         self.dof4_tip_compensation_sign = int(
             self.get_parameter("dof4.tip_compensation_sign").value
         )
-
         self.dof4_tip_compensation_offset_rad = 0.0
         self.previous_dof4_value_for_tip_compensation = None
         self.previous_dof4_direction_for_tip_compensation = 0
 
-        self.get_logger().warn(
-            f"TIP_COMP_LOADED pulses={self.dof4_tip_compensation_pulses}, "
+        self.get_logger().info(
+            f"DOF4 tip compensation: "
+            f"pulses={self.dof4_tip_compensation_pulses}, "
             f"sign={self.dof4_tip_compensation_sign}"
         )
-
-       # Generic sequence parameters for all DOFs
+        
+        # -------------------------------------------------------------------------
+        # Sequence parameters
+        # -------------------------------------------------------------------------
         for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
             self.declare_parameter(f"{dof_name}.sequence_modes")
             self.declare_parameter(f"{dof_name}.sequence_cycles")
@@ -98,6 +111,8 @@ class PatternRunner(Node):
             mode = self.get_parameter(f"{dof_name}.mode").value
             dof_number = int(dof_name[-1])
 
+            # An explicit active_dof from the launch file overrides the sequence mode
+            # configured for the other DOFs.
             if self.active_dof_override != 0:
                 self.sequence_enabled[dof_name] = (
                     dof_number == self.active_dof_override
@@ -184,15 +199,26 @@ class PatternRunner(Node):
                 self.sequence_final_pause_duration[dof_name] = 0.0
 
         self.sequence_led_active = False
-        self.active_sequence_dof = None
         self.current_sequence_condition = "none"
         self.last_published_sequence_condition = None
 
-        for dof_name in ["dof1","dof2", "dof3", "dof4"]:
-            if self.sequence_enabled[dof_name]:
-                self.active_sequence_dof = dof_name
-                break
-        
+        active_sequence_dofs = [
+            dof_name
+            for dof_name, enabled in self.sequence_enabled.items()
+            if enabled
+        ]
+
+        if len(active_sequence_dofs) > 1:
+            raise ValueError(
+                "Only one DOF sequence may be active per trial. "
+                f"Active sequences: {active_sequence_dofs}"
+            )
+
+        self.active_sequence_dof = (
+            active_sequence_dofs[0]
+            if active_sequence_dofs
+            else None
+        )
         self.topic = self.get_parameter("topic").value
         self.publish_rate = self.get_parameter("publish_rate").value
         for i in range(1, 5):
@@ -207,20 +233,9 @@ class PatternRunner(Node):
                 f"min={min_value}, max={max_value}, frequency={frequency}"
             )
             
-        # self.dof4_active = self.get_parameter("dof4.mode").value != "constant"
-        self.dof4_mode = self.get_parameter("dof4.mode").value
-        self.dof4_sequence_enabled = self.sequence_enabled["dof4"]
-
-        self.dof4_active = (
-            self.dof4_sequence_enabled
-            or self.dof4_mode != "constant"
-        )
-        self.dof4_preroll_angle = 0.0 #1.7 
-        # print("### USING PREROLL ANGLE =", self.dof4_preroll_angle, "###", flush=True)
-        # self.get_logger().info(f"DOF4 preroll angle: {self.dof4_preroll_angle}")
-        self.dof4_preroll_wait = 0.0  # seconden wachten na draaien
-        self.dof4_sync_wait = 0.0  # extra wachten na synchronisatie voordat patroon begint
-
+        # -------------------------------------------------------------------------
+        # ROS publishers
+        # -------------------------------------------------------------------------
         self.pub = self.create_publisher(Float64MultiArray, self.topic, 10)
         self.task_pub = self.create_publisher(
             String,
@@ -241,19 +256,19 @@ class PatternRunner(Node):
 
         self.start_time = time.time()
         self.finished = False
-        led_msg = Bool()
-
+        
+        # Pre-motion synchronization: wait 1 s, pulse the LED for 2 s, then wait
+        # another 0.2 s before starting the motion pattern.
         self.led_pulse_start_delay = 1.0
         self.led_pulse_duration = 2.0
-        self.led_command_repeat_duration = 0.2
         self.led_on_sent = False
         self.led_off_sent = False
-        self.dof4_motion_started = False
         self.motion_after_led_off_wait = 0.2
         
-        
-        self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        timestamp = self.run_timestamp
+        # -------------------------------------------------------------------------
+        # Generate the task name
+        # -------------------------------------------------------------------------
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         test_name = self.generate_test_name()
 
         task = String()
@@ -270,14 +285,13 @@ class PatternRunner(Node):
                 f"Unsupported coupling mode for DOF pattern runner: "
                 f"{self.coupling_mode}"
             )
-        self.setup_label = setup_label
         
         task.data = (
             f"{setup_label}|"
             f"{self.coupling_mode}|"
             f"{test_name}|"
             f"trial_01|"
-            f"{timestamp}"
+            f"{self.timestamp}"
         )
         self.task_msg = task
         self.task_publish_count = 0
@@ -296,6 +310,12 @@ class PatternRunner(Node):
         self.get_logger().info(f"task label: {task.data}")
     
     def get_required_parameter_value(self, parameter_name):
+        """
+        Return a required ROS parameter value.
+
+        Raise a RuntimeError if the parameter was not provided in the DOF pattern
+        configuration.
+        """
         parameter = self.get_parameter(parameter_name)
 
         if parameter.type_ == Parameter.Type.NOT_SET:
@@ -306,6 +326,10 @@ class PatternRunner(Node):
         return parameter.value
 
     def publish_task_label_repeatedly(self):
+        """
+        Publish the task label repeatedly at trial start to ensure it is received
+        by the trial logger.
+        """
         if self.task_publish_count >= 10:
             self.destroy_timer(self.task_timer)
             return
@@ -315,6 +339,9 @@ class PatternRunner(Node):
         self.get_logger().info(f"Published task label: {self.task_msg.data}")
 
     def publish_sequence_condition(self):
+        """
+        Publish the active sequence condition when it changes.
+        """
         condition = self.current_sequence_condition
 
         if condition == self.last_published_sequence_condition:
@@ -328,6 +355,9 @@ class PatternRunner(Node):
         self.last_published_sequence_condition = condition
 
     def generate_test_name(self):
+        """
+        Generate a descriptive test name based on the active DOFs and their modes.
+        """
         active = []
 
         for i in range(1, 5):
@@ -372,93 +402,68 @@ class PatternRunner(Node):
 
         return "continuous_" + "_".join(active)
         
-    def compute_dof(self, dof_name, t):
-        mode = self.get_parameter(f"{dof_name}.mode").value
-        value = float(self.get_parameter(f"{dof_name}.value").value)
-        if (
-            self.active_dof_override != 0
-            and dof_name != f"dof{self.active_dof_override}"
-        ):
-            return value
-        
-        min_value = float(self.get_parameter(f"{dof_name}.min").value)
-        max_value = float(self.get_parameter(f"{dof_name}.max").value)
-        frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
-
-        if mode == "constant":
-            return value
-        if mode == "ramp":
-            velocity = float(self.get_parameter(f"{dof_name}.velocity").value)
-            return value + velocity * t
-
-        if mode == "sinusoid":
-            offset = 0.5 * (max_value + min_value)
-            amplitude = 0.5 * (max_value - min_value)
-            return offset + amplitude * math.sin(2.0 * math.pi * frequency * t)
-        if mode == "sinusoid_mid":
-            offset = 0.5 * (max_value + min_value)
-            amplitude = 0.5 * (max_value - min_value)
-
-            # Starts at the middle/neutral value.
-            return offset + amplitude * math.sin(
-                2.0 * math.pi * frequency * t
-            )
-            
-        if mode == "triangle":
-            period = 1.0 / frequency
-            phase = (t % period) / period
-
-            if phase < 0.5:
-                return min_value + 2.0 * phase * (max_value - min_value)
-            else:
-                return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
-
-        self.get_logger().warn(f"Unknown mode '{mode}' for {dof_name}, using constant value")
-        return value
-
-    def compute_dof_with_mode(
+    def compute_dof(
         self,
         dof_name,
-        mode,
         t,
+        mode=None,
         frequency_override=None,
         range_factor_override=None,
     ):
-        value = float(self.get_parameter(f"{dof_name}.value").value)
-        min_value = float(self.get_parameter(f"{dof_name}.min").value)
-        max_value = float(self.get_parameter(f"{dof_name}.max").value)
+        """
+        Compute the commanded value for one DOF.
+
+        Optional mode, frequency, and range overrides are used by sequence trials.
+        """
+        value = float(
+            self.get_parameter(f"{dof_name}.value").value
+        )
+
+        if mode is None:
+            mode = self.get_parameter(f"{dof_name}.mode").value
+
+            if (
+                self.active_dof_override != 0
+                and dof_name != f"dof{self.active_dof_override}"
+            ):
+                return value
+
+        min_value = float(
+            self.get_parameter(f"{dof_name}.min").value
+        )
+        max_value = float(
+            self.get_parameter(f"{dof_name}.max").value
+        )
 
         if range_factor_override is not None:
             range_factor = float(range_factor_override)
-
-            # Scale motion range around the neutral value.
-            # For DOF4 with value=0, min=0, max=0.4:
-            # range_factor 0.5 gives max=0.2.
             min_value = value + range_factor * (min_value - value)
             max_value = value + range_factor * (max_value - value)
 
         if frequency_override is None:
-            frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
+            frequency = float(
+                self.get_parameter(f"{dof_name}.frequency").value
+            )
         else:
             frequency = float(frequency_override)
 
         if mode == "constant":
             return value
 
-        if mode == "sinusoid":
-            offset = 0.5 * (max_value + min_value)
-            amplitude = 0.5 * (max_value - min_value)
+        if frequency <= 0.0:
+            raise ValueError(
+                f"Frequency must be greater than zero for mode '{mode}'."
+            )
 
-            # Starts and ends at min_value after each full cycle.
+        offset = 0.5 * (max_value + min_value)
+        amplitude = 0.5 * (max_value - min_value)
+
+        if mode == "sinusoid":
             return offset - amplitude * math.cos(
                 2.0 * math.pi * frequency * t
             )
 
         if mode == "sinusoid_mid":
-            offset = 0.5 * (max_value + min_value)
-            amplitude = 0.5 * (max_value - min_value)
-
-            # Starts at the middle/neutral value.
             return offset + amplitude * math.sin(
                 2.0 * math.pi * frequency * t
             )
@@ -467,26 +472,27 @@ class PatternRunner(Node):
             period = 1.0 / frequency
             phase = (t % period) / period
 
-            if phase < 0.5:
-                return min_value + 2.0 * phase * (max_value - min_value)
-            else:
-                return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
-
-        if mode == "triangle_mid":
+        elif mode == "triangle_mid":
             period = 1.0 / frequency
             phase = ((t % period) / period + 0.25) % 1.0
 
-            if phase < 0.5:
-                return min_value + 2.0 * phase * (max_value - min_value)
-            else:
-                return max_value - 2.0 * (phase - 0.5) * (max_value - min_value)
+        else:
+            self.get_logger().warn(
+                f"Unknown mode '{mode}' for {dof_name}, "
+                "using constant value"
+            )
+            return value
 
-        self.get_logger().warn(
-            f"Unknown mode '{mode}' for {dof_name}, using constant value"
+        if phase < 0.5:
+            return min_value + 2.0 * phase * (
+                max_value - min_value
+            )
+
+        return max_value - 2.0 * (phase - 0.5) * (
+            max_value - min_value
         )
-        return value
 
-    def compute_dof_sequence_single_frequency(
+    def compute_dof_sequence_block(
         self,
         dof_name,
         t,
@@ -494,6 +500,11 @@ class PatternRunner(Node):
         frequency_factor,
         range_factor,
     ):
+        """
+        Evaluate one sequence block for a fixed frequency and range factor.
+
+        The block may contain multiple waveform stages separated by configured pauses.
+        """
         value = float(self.get_parameter(f"{dof_name}.value").value)
 
         elapsed_in_sequence = t
@@ -513,10 +524,10 @@ class PatternRunner(Node):
                     f"r{float(range_factor):.1f}"
                 ).replace(".", "p")
                                 
-                return self.compute_dof_with_mode(
+                return self.compute_dof(
                     dof_name,
-                    mode,
                     elapsed_in_sequence,
+                    mode=mode,
                     frequency_override=frequency,
                     range_factor_override=range_factor,
                 )
@@ -546,6 +557,12 @@ class PatternRunner(Node):
         return None
 
     def compute_dof_sequence(self, dof_name, t):
+        """
+        Compute the active DOF value for the complete standardized sequence.
+
+        The sequence iterates over configured range and frequency factors and inserts
+        the configured pauses between waveform, frequency, and range blocks.
+        """
         base_frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
         value = float(self.get_parameter(f"{dof_name}.value").value)
 
@@ -559,13 +576,13 @@ class PatternRunner(Node):
             for frequency_index, frequency_factor in enumerate(frequency_factors):
                 frequency = base_frequency * float(frequency_factor)
 
-                block_duration = self.get_single_frequency_sequence_duration(
+                block_duration = self.get_sequence_block_duration(
                     dof_name,
                     frequency,
                 )
 
                 if elapsed <= block_duration:
-                    return self.compute_dof_sequence_single_frequency(
+                    return self.compute_dof_sequence_block(
                         dof_name,
                         elapsed,
                         frequency,
@@ -610,7 +627,10 @@ class PatternRunner(Node):
         elapsed -= final_pause_duration
         return None
 
-    def get_single_frequency_sequence_duration(self, dof_name, frequency):
+    def get_sequence_block_duration(self, dof_name, frequency):
+        """
+        Compute the total duration of a single-frequency sequence block for one DOF.
+        """
         motion_duration = sum(
             float(cycles) / frequency
             for cycles in self.sequence_cycles[dof_name]
@@ -624,8 +644,11 @@ class PatternRunner(Node):
 
         return motion_duration + stage_pause_duration
 
-
     def get_sequence_duration(self, dof_name):
+        """
+        Compute the total duration of the complete sequence for one DOF, including
+        all waveform stages, pauses between stages, and pauses between frequency and range blocks.
+        """
         base_frequency = float(self.get_parameter(f"{dof_name}.frequency").value)
 
         frequency_factors = self.sequence_frequency_factors[dof_name]
@@ -637,7 +660,7 @@ class PatternRunner(Node):
             for frequency_index, frequency_factor in enumerate(frequency_factors):
                 frequency = base_frequency * float(frequency_factor)
 
-                total_duration += self.get_single_frequency_sequence_duration(
+                total_duration += self.get_sequence_block_duration(
                     dof_name,
                     frequency,
                 )
@@ -656,12 +679,6 @@ class PatternRunner(Node):
         return total_duration
 
     def update_dof4_tip_compensation(self, dof4_value):
-        # self.get_logger().info(
-        #     f"dof4={dof4_value:.4f}, "
-        #     f"prev={self.previous_dof4_value_for_tip_compensation}, "
-        #     f"offset={self.dof4_tip_compensation_offset_rad:.4f}"
-        # )
-
         if self.dof4_tip_compensation_pulses == 0:
             return
 
@@ -707,6 +724,13 @@ class PatternRunner(Node):
         )
         
     def timer_callback(self):
+        """
+        Update synchronization signals and publish the current DOF command.
+
+        This callback runs at the configured publish rate, holds the instrument at its
+        start position during LED synchronization, executes the configured motion
+        pattern, and stops the trial when the pattern duration has elapsed.
+        """
         elapsed = time.time() - self.start_time
 
         # Same pre-motion LED sync for all DOFs, including DOF4.
@@ -752,136 +776,6 @@ class PatternRunner(Node):
         # Real continuous test starts only after LED off + small wait.
         t = elapsed - motion_start
 
-        # if self.dof4_active:
-        #     preroll_end = self.dof4_preroll_wait
-        #     motion_start = self.dof4_preroll_wait + self.dof4_sync_wait
-
-        #     # Fase 1 + 2: preroll en daarna stil wachten
-        #     if elapsed < motion_start:
-        #         values = [0.0, 0.0, self.dof4_preroll_angle, 0.0]
-
-        #         # LED aan tijdens de wachttijd NA preroll
-        #         led_should_be_on = (
-        #             preroll_end
-        #             <= elapsed
-        #             <
-        #             preroll_end + self.led_pulse_duration
-        #         )
-
-        #         led_msg = Bool()
-        #         led_msg.data = led_should_be_on
-        #         self.led_pub.publish(led_msg)
-
-        #         if led_should_be_on and not self.led_on_sent:
-        #             self.led_on_sent = True
-        #             self.get_logger().info("LED ON")
-
-        #         if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
-        #             self.led_off_sent = True
-        #             self.get_logger().info("LED OFF")
-
-        #         msg = Float64MultiArray()
-        #         msg.data = values
-        #         self.pub.publish(msg)
-        #         return
-
-        #     # Fase 3: echte continuous test begint hier pas
-        #     t = elapsed - motion_start
-        #     if not self.dof4_motion_started:
-        #         self.dof4_motion_started = True
-
-        #         led_msg = Bool()
-        #         led_msg.data = False
-        #         for _ in range(5):
-        #             self.led_pub.publish(led_msg)
-
-        #         self.get_logger().info("DOF4 motion started after preroll/sync wait")
-        # # else:
-        # #     t = elapsed
-        # #     led_should_be_on = (
-        # #         self.led_pulse_start_delay
-        # #         <= t
-        # #         <
-        # #         self.led_pulse_start_delay + self.led_pulse_duration
-        # #     )
-
-        # #     led_msg = Bool()
-        # #     led_msg.data = led_should_be_on
-        # #     self.led_pub.publish(led_msg)
-
-        # #     if led_should_be_on and not self.led_on_sent:
-        # #         self.led_on_sent = True
-        # #         self.get_logger().info("LED ON")
-
-        # #     if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
-        # #         self.led_off_sent = True
-        # #         self.get_logger().info("LED OFF")
-
-        # # if t > self.duration:
-        # #     led_msg = Bool()
-        # #     led_msg.data = False
-
-        # #     for _ in range(5):
-        # #         self.led_pub.publish(led_msg)
-
-        # #     self.get_logger().info("LED OFF at pattern end")
-        # #     self.get_logger().info("Pattern finished")
-        # #     self.destroy_timer(self.timer)
-        # #     return
-
-        # # values = [
-        # #     self.compute_dof("dof1", t),
-        # #     self.compute_dof("dof2", t),
-        # #     self.dof4_preroll_angle if self.dof4_active else self.compute_dof("dof3", t),
-        # #     self.compute_dof("dof4", t),
-        # # ]
-
-        # # msg = Float64MultiArray()
-        # # msg.data = values
-        # # self.pub.publish(msg)
-        # else:
-        #     led_should_be_on = (
-        #         self.led_pulse_start_delay
-        #         <= elapsed
-        #         <
-        #         self.led_pulse_start_delay + self.led_pulse_duration
-        #     )
-
-        #     led_msg = Bool()
-        #     led_msg.data = led_should_be_on
-        #     self.led_pub.publish(led_msg)
-
-        #     if led_should_be_on and not self.led_on_sent:
-        #         self.led_on_sent = True
-        #         self.get_logger().info("LED ON")
-
-        #     if not led_should_be_on and self.led_on_sent and not self.led_off_sent:
-        #         self.led_off_sent = True
-        #         self.get_logger().info("LED OFF")
-
-        #     motion_start = (
-        #         self.led_pulse_start_delay
-        #         + self.led_pulse_duration
-        #         + self.motion_after_led_off_wait
-        #     )
-            
-        #     # Voor motion_start: instrument stil houden
-        #     if elapsed < motion_start:
-        #         values = [
-        #             float(self.get_parameter("dof1.value").value),
-        #             float(self.get_parameter("dof2.value").value),
-        #             float(self.get_parameter("dof3.value").value),
-        #             float(self.get_parameter("dof4.value").value),
-        #         ]
-
-        #         msg = Float64MultiArray()
-        #         msg.data = values
-        #         self.pub.publish(msg)
-        #         return
-
-        #     # Echte continuous test begint pas na LED uit
-        #     t = elapsed - motion_start
-
         if self.active_sequence_dof is not None:
             pattern_duration = self.get_sequence_duration(self.active_sequence_dof)
         else:
@@ -901,8 +795,10 @@ class PatternRunner(Node):
 
             try:
                 self.destroy_timer(self.timer)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.get_logger().warning(
+                    f"Could not destroy pattern timer: {exc}"
+                )
 
             return
 
@@ -935,7 +831,11 @@ class PatternRunner(Node):
         msg.data = values
         self.pub.publish(msg)
 
+
 def main(args=None):
+    """
+    Initialize ROS 2, run the pattern node, and perform a safe shutdown.
+    """
     rclpy.init(args=args)
     node = PatternRunner()
 
@@ -947,6 +847,7 @@ def main(args=None):
         pass
 
     finally:
+        # Ensure the synchronization LED is turned off and the node is destroyed before shutting down ROS.
         led_msg = Bool()
         led_msg.data = False
 

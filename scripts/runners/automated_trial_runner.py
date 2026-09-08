@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+"""
+Automated trial runner for the SATA Digital Twin diagnostic setup.
+
+This script coordinates a complete diagnostic trial, including:
+- hardware identification,
+- motor or DOF pattern execution and ROS data logging,
+- optional video recording and angle detection,
+- Motor Digital Twin replay,
+- result plotting,
+- metadata generation,
+- automatic Digital Twin diagnostics.
+
+For multi-DOF tests, individual DOF trials are executed sequentially.
+"""
 
 import argparse
 import json
@@ -22,6 +36,7 @@ VALID_COUPLING_MODES = {
 def apply_camera_settings(camera_device: str, focus: int, sharpness: int):
     """
     Applies webcam settings using v4l2-ctl.
+
     These commands are allowed to fail softly because not every webcam exposes
     exactly the same control names.
     """
@@ -50,6 +65,10 @@ def record_video(
 ):
     """
     Records webcam video until stop_event is set.
+
+    This function is intended to run in a separate thread while the motion
+    pattern is executed. Any recording error is returned to the main thread
+    through error_holder.
     """
     try:
         cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
@@ -106,24 +125,26 @@ def record_video(
         error_holder.append(exc)
         stop_event.set()
 
+
 def run_command(cmd: str, check: bool = True):
+    """
+    Execute a shell command and return its process return code.
+
+    If check is True, raise a RuntimeError when the command fails.
+    """
     print(f"\n$ {cmd}")
     result = subprocess.run(cmd, shell=True)
     if check and result.returncode != 0:
         raise RuntimeError(f"Command failed with return code {result.returncode}: {cmd}")
     return result.returncode
 
+
 def extract_ros_parameters(config: dict) -> dict:
     """
-    Extracts ros__parameters from a ROS2 yaml file.
-    Supports:
-    - dof_pattern_runner_node:
-        ros__parameters:
-    - /dof_pattern_runner_node:
-        ros__parameters:
-    - /**:
-        ros__parameters:
-    - direct parameter dictionary as fallback
+    Extract the ROS parameter dictionary from a loaded YAML configuration.
+
+    Several common ROS 2 YAML layouts are supported, including node-specific
+    parameters, global parameters, and a direct parameter dictionary.
     """
     if not isinstance(config, dict):
         raise RuntimeError("YAML config is empty or invalid.")
@@ -144,7 +165,14 @@ def extract_ros_parameters(config: dict) -> dict:
 
     return config
 
+
 def get_dof_sequence_settings(params_file: Path):
+    """
+    Read and validate the automatic DOF sequence settings from the parameter file.
+
+    Returns whether automatic multi-DOF execution is enabled and the order in
+    which DOF trials should be executed.
+    """
     with open(params_file, "r") as f:
         config = yaml.safe_load(f)
 
@@ -172,9 +200,11 @@ def get_dof_sequence_settings(params_file: Path):
 
 def run_marker_detection(args, output_path: Path) -> dict:
     """
-    Runs marker_detector.py before the trial starts.
-    The marker detector opens the webcam, detects hardware, writes JSON,
-    and closes the webcam again.
+    Run marker-based hardware identification before the trial.
+
+    The marker detector uses the webcam to identify the connected hardware,
+    stores the detection result as JSON, and returns the detected hardware
+    configuration.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -213,7 +243,11 @@ def run_marker_detection(args, output_path: Path) -> dict:
 
     return detected_hardware
 
+
 def coupling_mode_from_detected_hardware(detected_hardware: dict) -> str:
+    """
+    Extract and validate the coupling mode from marker detection output.
+    """
     coupling_mode = detected_hardware.get("coupling_mode")
 
     if coupling_mode not in VALID_COUPLING_MODES:
@@ -224,20 +258,17 @@ def coupling_mode_from_detected_hardware(detected_hardware: dict) -> str:
 
     return coupling_mode
 
-# def pattern_mode_from_coupling_mode(coupling_mode: str) -> str:
-#     if coupling_mode == "motor_only":
-#         return "motor"
 
-#     if coupling_mode in {"gearbox_only", "full_setup"}:
-#         return "tool"
-
-#     raise RuntimeError(
-#         f"Unsupported coupling mode: {coupling_mode}"
-#     )
 def resolve_pattern_mode(
     coupling_mode: str,
     requested_pattern_mode: str,
 ) -> str:
+    """
+    Determine whether a motor or DOF pattern should be executed.
+
+    In automatic mode, motor-only setups use direct motor patterns, whereas
+    gearbox-only and full instrument setups use DOF-controlled patterns.
+    """
 
     if requested_pattern_mode == "auto":
         if coupling_mode == "motor_only":
@@ -260,10 +291,14 @@ def resolve_pattern_mode(
         f"Unsupported pattern mode: {requested_pattern_mode}"
     )
 
+
 def infer_active_dof_from_params(params_file: Path, require_video_supported: bool = True) -> int:
     """
-    Infers active DOF from dof_pattern_params.yaml.
-    Returns 2 or 4, because the current video detector supports DOF2 and DOF4.
+    Infer the active DOF from the DOF pattern parameter file.
+
+    Exactly one non-constant DOF must be configured. If
+    require_video_supported is True, only DOF2 and DOF4 are accepted because
+    these DOFs are currently supported by the camera-based angle detector.
     """
     with open(params_file, "r") as f:
         config = yaml.safe_load(f)
@@ -304,13 +339,15 @@ def infer_active_dof_from_params(params_file: Path, require_video_supported: boo
 
     return active_dof
 
+
 def wait_for_hardware_ready(
     coupling_mode: str,
     detected_hardware: dict | None,
 ):
     """
-    Pauses the automated trial after marker detection so that the detected
-    hardware can be coupled and initialized before the trial starts.
+    Pause the automated trial to allow hardware coupling and initialization.
+
+    Motor-only trials do not require this manual preparation step.
     """
     if coupling_mode == "motor_only":
         return
@@ -345,36 +382,72 @@ def wait_for_hardware_ready(
         "and the start-position update are done..."
     )
 
+
 def main():
+    """
+    Configure and execute the complete automated DT workflow.
+    """
+    
+    # -------------------------------------------------------------------------
+    # Command-line configuration
+    # -------------------------------------------------------------------------
     parser = argparse.ArgumentParser(
         description="Run full automated AdLap trial: camera settings, video, pattern, angle detection, plotting."
     )
-    # parser.add_argument("--mode", choices=["auto", "tool", "motor"], default="auto", help="Select trial mode: auto, tool or motor")
-    parser.add_argument("--coupling-mode", choices=["motor_only", "gearbox_only", "full_setup"], default=None, 
-                        help=("Physical coupling configuration. Required when " "--skip-marker-scan is used."),)
+    # Hardware configuration
+    parser.add_argument(
+        "--coupling-mode",
+        choices=["motor_only", "gearbox_only", "full_setup"],
+        default=None,
+        help=("Physical coupling configuration. Required when " "--skip-marker-scan is used."),
+    )
     parser.add_argument(
         "--gearbox-variant",
         default=None,
         help="Gearbox variant, for example gearbox_2.",
     )
-
     parser.add_argument(
         "--instrument-config",
         default=None,
         help="Instrument configuration from marker_detection.yaml.",
     )
-    parser.add_argument("--dof", type=int, choices=[1, 2, 3, 4], default=None)
+
+    # Trial configuration
+    parser.add_argument(
+        "--dof",
+        type=int,
+        choices=[1, 2, 3, 4],
+        default=None,
+        help="Degree of freedom to be tested.",
+    )
+    parser.add_argument(
+        "--pattern-mode",
+        choices=["auto", "motor", "dof"],
+        default="auto",
+        help=(
+            "Command pattern to run. "
+            "'auto' uses the default for the detected hardware; "
+            "'motor' runs direct motor patterns; "
+            "'dof' runs DOF-controlled patterns."
+        ),
+    )
+    parser.add_argument(
+        "--params-file",
+        default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "dof_pattern_params.yaml"),
+        help="Parameter file used to infer active DOF if --dof is not provided.",
+    )
+
+    # Internal sequence control
     parser.add_argument(
         "--sequence-child",
         action="store_true",
         help=argparse.SUPPRESS,
     )
-    parser.add_argument("--params-file", default=str(Path.home()/ "ros2_ws"/ "src"/ "adlap_tool_control"/ "config"/ "dof_pattern_params.yaml"), 
-    help="Parameter file used to infer active DOF if --dof is not provided.",)
+
+    # Camera and marker detection configuration
     parser.add_argument("--camera", default="/dev/video0")
     parser.add_argument("--focus", type=int, default=150)
     parser.add_argument("--sharpness", type=int, default=150)
-
     parser.add_argument("--width", type=int, default=3840)
     parser.add_argument("--height", type=int, default=2160)
     parser.add_argument("--fps", type=float, default=30.0)
@@ -389,61 +462,51 @@ def main():
         action="store_true",
         help="Skip ArUco marker detection and use the active/default configuration.",
     )
-
     parser.add_argument(
         "--no-camera",
         action="store_true",
         help="Run trial without webcam/video detection; offline plots are still generated.",
     )
+    parser.add_argument(
+        "--extra-video-seconds",
+        type=float,
+        default=1.0,
+        help="Seconds to keep recording after the pattern command finishes.",
+    )
 
+    # Output configuration
     parser.add_argument(
         "--motor-setup-name",
         default="setup_01_motors",
         help="Folder name used for motor-only automated trials.",
     )
-
     parser.add_argument(
         "--gearbox-setup-name",
         default="setup_02_motors_gearbox",
         help="Folder name used for gearbox-only automated trials.",
     )
-
     parser.add_argument(
         "--tool-setup-name",
         default="setup_03_motors_gearbox_instrument",
         help="Folder name used for tool/gearbox/instrument automated trials.",
     )
-
     parser.add_argument(
         "--test-data-dir",
         default=str(Path.home() / "ros2_ws" / "test_data"),
         help="Root folder where pattern runner writes ROS .jsonl files.",
     )
-
     parser.add_argument(
         "--output-dir",
         default=str(Path.home() / "ros2_ws" / "test_data" / "automated_trials"),
         help="Folder where the webcam video and metadata will be saved.",
     )
 
+    # Commands for subprocesses
     parser.add_argument(
         "--pattern-cmd",
         default="ros2 launch adlap_tool_control dof_pattern_runner.launch.py",
         help="Command that starts the pattern runner. It should block until the trial is done.",
     )
-
-    parser.add_argument(
-        "--pattern-mode",
-        choices=["auto", "motor", "dof"],
-        default="auto",
-        help=(
-            "Command pattern to run. "
-            "'auto' uses the default for the detected hardware; "
-            "'motor' runs direct motor patterns; "
-            "'dof' runs DOF-controlled patterns."
-        ),
-    )
-
     parser.add_argument(
         "--detector-cmd",
         default=(
@@ -452,7 +515,6 @@ def main():
         ),
         help="Command for video angle detection. Available placeholders: {video}, {ros_log}, {dof}, {angles}.",
     )
-
     parser.add_argument(
         "--plot-cmd",
         default=(
@@ -466,28 +528,24 @@ def main():
         ),
         help="Command for plotting. Available placeholders: {ros_log}, {angles}, {plot_dir}, {params_file}, {coupling_mode}, {dof}.",
     )
-
-    parser.add_argument(
-        "--extra-video-seconds",
-        type=float,
-        default=1.0,
-        help="Seconds to keep recording after the pattern command finishes.",
-    )
-
     parser.add_argument(
         "--skip-diagnostics",
         action="store_true",
         help="Skip automatic Digital Twin fault diagnosis.",
     )
-    
 
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
 
+    # -------------------------------------------------------------------------
+    # Hardware identification and trial configuration
+    # -------------------------------------------------------------------------
     detected_hardware = None
     gearbox_variant = args.gearbox_variant
     instrument_config = args.instrument_config
 
+    # Sequence child processes reuse the hardware configuration detected by
+    # the parent process instead of performing another marker scan.
     if args.skip_marker_scan:
         if args.coupling_mode is None:
             raise RuntimeError(
@@ -510,7 +568,6 @@ def main():
                     "when --skip-marker-scan is used."
                 )
     
-
         print("\nSkipping ArUco marker detection.")
         print(f"Using coupling mode: {coupling_mode}")
 
@@ -565,8 +622,6 @@ def main():
     print(f"  pattern mode:          {pattern_mode}")
     print(f"  Motor DT input source: {motor_dt_input_source}")
 
-    print(f"  pattern mode:  {pattern_mode}")
-
     # Only pause once before a full DOF sequence.
     if not args.sequence_child:
         wait_for_hardware_ready(
@@ -574,9 +629,11 @@ def main():
             detected_hardware=detected_hardware,
         )
 
-        # Enable bend play compensation only for the full instrument setup.
-        bend_play_compensation = (
-            "true" ) #if coupling_mode == "full_setup" else "false" )
+        # Possibility to enable bend play compensation only for the full instrument setup.
+        # Temporary fix for PID controller error.
+        # Now = true because PID error needed to be shown.
+        # if coupling_mode == "full_setup" else "false" )
+        bend_play_compensation = "true"
 
         run_command(
             "ros2 param set /right/tool_control_node "
@@ -584,10 +641,9 @@ def main():
             check=True,
         )
 
-    # ---------------------------------------------------------
-    # Automatically run all requested DOFs as separate trials
-    # ---------------------------------------------------------
-    # if pattern_mode == "tool" and not args.sequence_child:
+    # -------------------------------------------------------------------------
+    # Automatic multi-DOF sequence execution
+    # -------------------------------------------------------------------------
     if (
         pattern_mode == "dof"
         and not args.sequence_child
@@ -603,6 +659,8 @@ def main():
                 + " -> ".join(f"DOF{dof}" for dof in dof_sequence_order)
             )
 
+            # Execute each DOF as an independent child process so that every
+            # DOF receives its own trial folder, log, replay, and diagnostics.
             for dof in dof_sequence_order:
                 print("\n" + "=" * 70)
                 print(f"STARTING DOF{dof}")
@@ -681,11 +739,8 @@ def main():
             print("=" * 70)
             return
 
-
     if pattern_mode == "motor":
         args.dof = None
-        dof_label = "motor"
-
         print(
             "Motor pattern selected: no active DOF is required."
         )
@@ -705,8 +760,8 @@ def main():
                 f"Using DOF from terminal argument: DOF{args.dof}"
             )
 
-        dof_label = f"dof{args.dof}"
-
+    # Camera-based output measurements are currently available for DOF2 and
+    # DOF4 of the full instrument setup.
     if coupling_mode != "full_setup" or args.no_camera:
         use_camera = False
     else:
@@ -717,32 +772,28 @@ def main():
         and coupling_mode in {"gearbox_only", "full_setup"}
     )
 
-    # Create output directories and file paths
+    # -------------------------------------------------------------------------
+    # Trial naming and output paths
+    # -------------------------------------------------------------------------
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if coupling_mode == "motor_only":
         setup_name = args.motor_setup_name
-
     elif coupling_mode == "gearbox_only":
         setup_name = args.gearbox_setup_name
-
     elif coupling_mode == "full_setup":
         setup_name = args.tool_setup_name
-
     else:
         raise RuntimeError(
             f"Unsupported coupling mode: {coupling_mode}"
         )
 
-
     if pattern_mode == "motor":
         run_name = f"auto_motor_{timestamp}"
         dof_dir_name = "motor"
-
     elif pattern_mode == "dof":
         run_name = f"auto_dof{args.dof}_{timestamp}"
         dof_dir_name = f"dof{args.dof}"
-
     else:
         raise RuntimeError(
             f"Unsupported pattern mode: {pattern_mode}"
@@ -764,12 +815,12 @@ def main():
     instrument_plots_dir = plots_dir / "instrument_outputs"
 
     motor_plots_dir.mkdir(parents=True, exist_ok=True)
-
-    # if pattern_mode != "motor":
-    #     instrument_plots_dir.mkdir(parents=True, exist_ok=True)
     if use_instrument_plots:
         instrument_plots_dir.mkdir(parents=True, exist_ok=True)
 
+    # -------------------------------------------------------------------------
+    # Pattern-runner command
+    # -------------------------------------------------------------------------
     if pattern_mode == "motor":
         args.pattern_cmd = (
             "ros2 launch adlap_tool_control motor_pattern_runner.launch.py "
@@ -803,12 +854,13 @@ def main():
     print(f"ROS log:       {ros_log_path}")
     print(f"Use camera:    {use_camera}")
 
-    # test_data_dir = Path(args.test_data_dir).expanduser()
-
-    trial_start_time = time.time()
+    # -------------------------------------------------------------------------
+    # Trial execution and optional video recording
+    # -------------------------------------------------------------------------
     record_errors = []
     stop_event = None
     recorder_thread = None
+
     detector_cmd = None
     motor_plot_cmd = None
     instrument_plot_cmd = None
@@ -821,9 +873,6 @@ def main():
             sharpness=args.sharpness,
         )
         stop_event = threading.Event()
-        record_errors = []
-
-        trial_start_time = time.time()
 
         recorder_thread = threading.Thread(
             target=record_video,
@@ -841,7 +890,7 @@ def main():
 
         recorder_thread.start()
 
-        # Give the camera a short moment to actually start before the LED/pattern starts.
+        # Allow the camera to initialize before the motion pattern starts.
         time.sleep(1.0)
 
         if record_errors:
@@ -849,8 +898,8 @@ def main():
 
     print("\nStarting pattern runner...")
     pattern_returncode = run_command(args.pattern_cmd, check=False)
-
     print(f"\nPattern command finished with return code: {pattern_returncode}")
+
     if use_camera:
         time.sleep(args.extra_video_seconds)
 
@@ -862,19 +911,18 @@ def main():
 
         if not video_path.exists() or video_path.stat().st_size == 0:
             raise RuntimeError(f"Video file was not created correctly: {video_path}")
-    if pattern_returncode != 0:
-        raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
+            
+        if pattern_returncode != 0:
+            raise RuntimeError("Pattern runner failed, so detector/plot are not started.")
 
     if not ros_log_path.exists() or ros_log_path.stat().st_size == 0:
         raise RuntimeError(f"ROS log was not created correctly: {ros_log_path}")
 
     print(f"\nROS log saved at:\n{ros_log_path}")
 
-    motor_dt_replay_path = None
-    motor_dt_replay_cmd = None
-    # instrument_current_dt_replay_path = None
-    # instrument_current_dt_replay_cmd = None
-
+    # -------------------------------------------------------------------------
+    # Motor Digital Twin replay and motor-outputs plots
+    # -------------------------------------------------------------------------
     motor_dt_replay_path = output_dir / f"{run_name}_motor_dt_replay.jsonl"
     
     motor_dt_replay_cmd = (
@@ -884,9 +932,8 @@ def main():
         f"--input-source {shlex.quote(motor_dt_input_source)}"
     )
 
-    # Tool-pattern runs always have a known active DOF.
-    # Pass it explicitly to the Motor DT so coupled pattern
-    # segmentation uses the correct instrument command channel.
+    # DOF-pattern runs require the active DOF so that the Motor DT can use the
+    # correct instrument command channel for coupled-pattern segmentation.
     if pattern_mode != "motor":
         if args.dof is None:
             raise RuntimeError(
@@ -904,7 +951,6 @@ def main():
 
     print(f"\nOffline Motor DT replay saved at:\n{motor_dt_replay_path}")
 
-
     motor_plot_cmd = (
         f"ros2 run adlap_tool_control plot_motor.py "
         f"--file {shlex.quote(str(ros_log_path))} "
@@ -917,48 +963,10 @@ def main():
 
     run_command(motor_plot_cmd, check=True)
 
-    # if pattern_mode != "motor":
+    # -------------------------------------------------------------------------
+    # Instrument-output processing and camera-based angle detection
+    # -------------------------------------------------------------------------
     if use_instrument_plots:
-        # instrument_current_dt_replay_path = (
-        #     output_dir / f"{run_name}_instrument_current_dt_replay.jsonl"
-        # )
-
-        # instrument_current_model_path = (
-        #     Path.home()
-        #     / "ros2_ws"
-        #     / "test_data"
-        #     / "automated_trials"
-        #     / "trainings data V3"
-        #     / "instrument_current_dt_results"
-        #     / f"dof{args.dof}"
-        #     / "models"
-        #     / f"instrument_current_dt_dof{args.dof}_all_motors.pkl"
-        # )
-
-        # instrument_current_dt_replay_cmd = (
-        #     f"ros2 run adlap_tool_control instrument_current_digital_twin.py "
-        #     f"--file {shlex.quote(str(ros_log_path))} "
-        #     f"--model-file {shlex.quote(str(instrument_current_model_path))} "
-        #     f"--output-file {shlex.quote(str(instrument_current_dt_replay_path))} "
-        #     f"--dof {args.dof}"
-        # )
-
-        # run_command(instrument_current_dt_replay_cmd, check=True)
-
-        # if (
-        #     not instrument_current_dt_replay_path.exists()
-        #     or instrument_current_dt_replay_path.stat().st_size == 0
-        # ):
-        #     raise RuntimeError(
-        #         "Instrument Current DT replay file was not created correctly: "
-        #         f"{instrument_current_dt_replay_path}"
-        #     )
-
-        # print(
-        #     "\nOffline Instrument Current DT replay saved at:\n"
-        #     f"{instrument_current_dt_replay_path}"
-        # )
-
         if use_camera:
             print(f"\nDetected webcam video:\n{video_path}")
 
@@ -998,6 +1006,9 @@ def main():
     if instrument_plot_cmd is not None:
         run_command(instrument_plot_cmd, check=True)
 
+    # -------------------------------------------------------------------------
+    # Metadata and Digital Twin diagnostics
+    # -------------------------------------------------------------------------
     if (
         coupling_mode in ["motor_only", "gearbox_only", "full_setup"]
         and not args.skip_diagnostics
@@ -1008,6 +1019,8 @@ def main():
             f"--metadata-file {shlex.quote(str(metadata_path))}"
         )
 
+    # Write metadata before running diagnostics because the diagnostics script
+    # uses the metadata file as an input.
     metadata = {
         "coupling_mode": coupling_mode,
         "pattern_mode": pattern_mode,
@@ -1029,10 +1042,8 @@ def main():
         "original_video_path": str(original_video_path) if use_camera else None,
         "angles_path": str(angles_path) if use_camera else None,
         "ros_log_path": str(ros_log_path),
-        "motor_dt_replay_path": str(motor_dt_replay_path) if motor_dt_replay_path is not None else None,
+        "motor_dt_replay_path": str(motor_dt_replay_path),
         "motor_dt_replay_cmd": motor_dt_replay_cmd,
-        # "instrument_current_dt_replay_path": (str(instrument_current_dt_replay_path) if instrument_current_dt_replay_path is not None else None),
-        # "instrument_current_dt_replay_cmd": instrument_current_dt_replay_cmd,
         "motor_dt_input_source": motor_dt_input_source,
         "plots_dir": str(plots_dir),
         "motor_plots_dir": str(motor_plots_dir),
@@ -1057,7 +1068,6 @@ def main():
         print("\nDigital Twin diagnosis completed.")
 
     print("\nFull automated trial completed.")
-    # print(f"Video:      {video_path}")
     print(f"ROS log:    {ros_log_path}")
     
     if use_camera:
@@ -1069,9 +1079,7 @@ def main():
         print(f"Instrument plots: {instrument_plots_dir}")
     
     print(f"Metadata:   {metadata_path}")
-
-    if motor_dt_replay_path is not None:
-        print(f"Motor DT replay: {motor_dt_replay_path}")
+    print(f"Motor DT replay: {motor_dt_replay_path}")
 
 
 if __name__ == "__main__":

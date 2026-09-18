@@ -116,6 +116,7 @@ install(PROGRAMS
   scripts/training/train_motor_digital_twin.py
 
   scripts/digital_twin_diagnostics.py
+  scripts/instrument_output_diagnostics.py
 
   scripts/rest/video_angle_detector.py
   DESTINATION lib/${PROJECT_NAME}

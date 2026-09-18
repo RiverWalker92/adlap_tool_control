@@ -3,7 +3,7 @@ video_angle_detector:
   detection:
     use_red_marker: true
     use_yellow_marker: false
-    use_green_marker: true
+    use_green_marker: false
     use_blue_marker: false
     use_shaft: true
 

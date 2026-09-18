@@ -1007,6 +1007,34 @@ def split_dof_pattern_segments(
     task_label = valid_rows[0]["task_label"]
     info = parse_task_label(task_label)
 
+    # ----------------------------------------------------------
+    # Special DOF3 continuous resistance run
+    # ----------------------------------------------------------
+
+    if "dof3_resistance_" in task_label.lower():
+        return [{
+            "task_label": task_label,
+
+            # Use the complete resistance run as one motion pattern.
+            "rows": valid_rows,
+            "run_rows": valid_rows,
+            "run_start_index": 0,
+            "run_end_index": len(valid_rows) - 1,
+
+            "info": dict(info),
+
+            "dof_number": 3,
+            "dof_index": 2,
+
+            # These fields are required by the rest of the
+            # Motor-DT training pipeline, but resistance runs
+            # do not use the normal waveform factors.
+            "frequency_factor": None,
+            "range_factor": None,
+            "pattern_type": "resistance",
+            "pattern_index": 0,
+        }]
+
     sequence_info = parse_dof_sequence_label(task_label)
 
     if sequence_info is None:
@@ -2882,8 +2910,14 @@ def create_target_normalized_metrics(metrics):
     }
 
     return normalized_metrics
-
-def train_motor_models(samples_by_motor, output_dir, coupling_mode, input_source):
+def train_motor_models(
+    samples_by_motor,
+    output_dir,
+    coupling_mode,
+    input_source,
+    gearbox_variant=None,
+    instrument_config=None,
+):
     models_dir = output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
@@ -3214,6 +3248,8 @@ def train_motor_models(samples_by_motor, output_dir, coupling_mode, input_source
 
         model_package = {
             "coupling_mode": coupling_mode,
+            "gearbox_variant": gearbox_variant,
+            "instrument_config": instrument_config,
             "input_source": input_source,
             "motor_index": motor_index,
             "feature_scheme": feature_scheme,
@@ -3974,6 +4010,8 @@ def train_motor_digital_twin(
     output_dir,
     coupling_mode,
     input_source,
+    gearbox_variant=None,
+    instrument_config=None,
     conversion_parameters=None,
     controller_starting_positions=None,
 ):
@@ -4069,6 +4107,8 @@ def train_motor_digital_twin(
         output_dir=output_dir,
         coupling_mode=coupling_mode,
         input_source=input_source,
+        gearbox_variant=gearbox_variant,
+        instrument_config=instrument_config,
     )
     plot_predictions(samples_by_motor, trained_models, output_dir)
 
@@ -4150,6 +4190,15 @@ def main():
     )
 
     parser.add_argument(
+        "--instrument-config",
+        choices=["gripper", "scissors"],
+        default=None,
+        help=(
+            "Instrument configuration used for full-setup training."
+        ),
+    )
+
+    parser.add_argument(
         "--controller-starting-positions",
         nargs=4,
         type=float,
@@ -4162,6 +4211,20 @@ def main():
     )
 
     args = parser.parse_args()
+    if (
+        args.configuration == "full_setup"
+        and args.instrument_config is None
+    ):
+        raise RuntimeError(
+            "--instrument-config is required when "
+            "--configuration full_setup is selected."
+        )
+
+    if args.configuration == "all":
+        raise RuntimeError(
+            "Train configurations separately so that gearbox and "
+            "instrument-specific models are not mixed."
+        )
 
     training_config, training_data_root = load_training_config(
         args.training_config
@@ -4247,6 +4310,20 @@ def main():
             else default_output_dir
         )
 
+        selected_gearbox_variant = args.gearbox_variant
+
+        if coupling_mode in {"gearbox_only", "full_setup"}:
+            if not selected_gearbox_variant:
+                raise RuntimeError(
+                    "--gearbox-variant is required for coupled Motor-DT training."
+                )
+
+        if coupling_mode == "gearbox_only":
+            output_dir = output_dir / selected_gearbox_variant
+
+        elif coupling_mode == "full_setup":
+            output_dir = output_dir / args.instrument_config
+            
         print(f"Motor DT input source: {input_source}")
         print(f"Training config key: {config_key}")
 
@@ -4284,6 +4361,8 @@ def main():
             output_dir=output_dir,
             coupling_mode=coupling_mode,
             input_source=input_source,
+            gearbox_variant=selected_gearbox_variant,
+            instrument_config=args.instrument_config,
             conversion_parameters=conversion_parameters,
             controller_starting_positions=args.controller_starting_positions,
         )

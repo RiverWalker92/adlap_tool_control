@@ -1,0 +1,613 @@
+# Diagnostic parameters for digital_twin_diagnostics.py
+# Position residual bands: encoder pulses.
+# Current residual bands and limits: mA unless otherwise stated.
+# Duration limits: seconds.
+# Edit calibration/diagnostic thresholds here; keep diagnostic logic in Python.
+
+digital_twin_diagnostics:
+  general:
+    max_outside_fraction: 0.1
+    dof_relevant_motors:
+      1:
+      - 1
+      - 2
+      2:
+      - 1
+      - 2
+      3:
+      - 0
+      - 3
+      4:
+      - 0
+      - 3
+    setup_fault_location:
+      motor_only: motor
+      gearbox_only: gearbox
+      full_setup: instrument
+    baseline_names:
+      motor_only: motor_only_residual_bands_healthy_v1
+      gearbox_only: gearbox_only_residual_bands_provisional_v1
+      full_setup: full_setup_residual_bands_healthy_v1
+  motor_only:
+    position_bands:
+      back_and_forth_large:
+        0: [-75.0, 20.0]
+        1: [-40.0, 35.0]
+        2: [-40.0, 35.0]
+        3: [-15.0, 40.0]
+      back_and_forth_medium:
+        0: [-30.0, 15.0]
+        1: [-20.0, 15.0]
+        2: [-25.0, 20.0]
+        3: [-10.0, 20.0]
+      back_and_forth_small:
+        0: [-20.0, 10.0]
+        1: [-15.0, 10.0]
+        2: [-15.0, 15.0]
+        3: [-10.0, 15.0]
+      cyclic_medium:
+        0: [-25.0, 20.0]
+        1: [-30.0, 30.0]
+        2: [-25.0, 25.0]
+        3: [-15.0, 25.0]
+      full_turn_single_3x:
+        0: [-70.0, 75.0]
+        1: [-100.0, 95.0]
+        2: [-80.0, 120.0]
+        3: [-50.0, 90.0]
+      reversal_medium:
+        0: [-35.0, 20.0]
+        1: [-25.0, 25.0]
+        2: [-25.0, 25.0]
+        3: [-15.0, 30.0]
+    current_bands:
+      back_and_forth_large:
+        0: [-15.0, 15.0]
+        1: [-20.0, 15.0]
+        2: [-15.0, 15.0]
+        3: [-10.0, 15.0]
+      back_and_forth_medium:
+        0: [-10.0, 15.0]
+        1: [-15.0, 10.0]
+        2: [-15.0, 10.0]
+        3: [-5.0, 15.0]
+      back_and_forth_small:
+        0: [-5.0, 10.0]
+        1: [-5.0, 10.0]
+        2: [-10.0, 5.0]
+        3: [-5.0, 5.0]
+      cyclic_medium:
+        0: [-20.0, 20.0]
+        1: [-20.0, 20.0]
+        2: [-20.0, 20.0]
+        3: [-15.0, 20.0]
+      full_turn_single_3x:
+        0: [-10.0, 15.0]
+        1: [-20.0, 15.0]
+        2: [-10.0, 15.0]
+        3: [-10.0, 15.0]
+      reversal_medium:
+        0: [-15.0, 15.0]
+        1: [-15.0, 15.0]
+        2: [-15.0, 15.0]
+        3: [-10.0, 15.0]
+    dof_position_bands:
+      1:
+        sinusoid_f0p5_r0p5:
+          1: [-40.0, 45.0]
+          2: [-35.0, 40.0]
+        sinusoid_f1p0_r1p0:
+          1: [-55.0, 60.0]
+          2: [-50.0, 55.0]
+        triangle_f0p5_r0p5:
+          1: [-50.0, 55.0]
+          2: [-45.0, 50.0]
+        triangle_f1p0_r1p0:
+          1: [-70.0, 75.0]
+          2: [-65.0, 70.0]
+      2:
+        sinusoid_f0p5_r0p5:
+          1: [-45.0, 50.0]
+          2: [-40.0, 45.0]
+        sinusoid_f1p0_r1p0:
+          1: [-65.0, 70.0]
+          2: [-60.0, 65.0]
+        triangle_f0p5_r0p5:
+          1: [-55.0, 60.0]
+          2: [-50.0, 55.0]
+        triangle_f1p0_r1p0:
+          1: [-80.0, 85.0]
+          2: [-75.0, 80.0]
+      3:
+        sinusoid_f0p5_r0p5:
+          0: [-40.0, 45.0]
+        sinusoid_f1p0_r1p0:
+          0: [-60.0, 65.0]
+        triangle_f0p5_r0p5:
+          0: [-50.0, 55.0]
+        triangle_f1p0_r1p0:
+          0: [-75.0, 80.0]
+      4:
+        sinusoid_f0p5_r0p5:
+          0: [-45.0, 50.0]
+          3: [-40.0, 45.0]
+        sinusoid_f1p0_r1p0:
+          0: [-65.0, 70.0]
+          3: [-60.0, 65.0]
+        triangle_f0p5_r0p5:
+          0: [-55.0, 60.0]
+          3: [-50.0, 55.0]
+        triangle_f1p0_r1p0:
+          0: [-80.0, 85.0]
+          3: [-75.0, 80.0]
+    dof_current_bands:
+      1:
+        sinusoid_f0p5_r0p5:
+          1: [-10.0, 15.0]
+          2: [-10.0, 15.0]
+        sinusoid_f1p0_r1p0:
+          1: [-15.0, 20.0]
+          2: [-15.0, 20.0]
+        triangle_f0p5_r0p5:
+          1: [-15.0, 20.0]
+          2: [-15.0, 20.0]
+        triangle_f1p0_r1p0:
+          1: [-20.0, 25.0]
+          2: [-20.0, 25.0]
+      2:
+        sinusoid_f0p5_r0p5:
+          1: [-10.0, 15.0]
+          2: [-10.0, 15.0]
+        sinusoid_f1p0_r1p0:
+          1: [-15.0, 20.0]
+          2: [-15.0, 20.0]
+        triangle_f0p5_r0p5:
+          1: [-15.0, 20.0]
+          2: [-15.0, 20.0]
+        triangle_f1p0_r1p0:
+          1: [-20.0, 25.0]
+          2: [-20.0, 25.0]
+      3:
+        sinusoid_f0p5_r0p5:
+          0: [-10.0, 15.0]
+        sinusoid_f1p0_r1p0:
+          0: [-15.0, 20.0]
+        triangle_f0p5_r0p5:
+          0: [-15.0, 20.0]
+        triangle_f1p0_r1p0:
+          0: [-20.0, 25.0]
+      4:
+        sinusoid_f0p5_r0p5:
+          0: [-10.0, 15.0]
+          3: [-10.0, 15.0]
+        sinusoid_f1p0_r1p0:
+          0: [-15.0, 20.0]
+          3: [-15.0, 20.0]
+        triangle_f0p5_r0p5:
+          0: [-15.0, 20.0]
+          3: [-15.0, 20.0]
+        triangle_f1p0_r1p0:
+          0: [-20.0, 25.0]
+          3: [-20.0, 25.0]
+    dof_current_duration_limits_s:
+      1:
+        sinusoid_f0p5_r0p5:
+          1: 0.2
+          2: 0.2
+        sinusoid_f1p0_r1p0:
+          1: 0.15
+          2: 0.15
+        triangle_f0p5_r0p5:
+          1: 0.25
+          2: 0.25
+        triangle_f1p0_r1p0:
+          1: 0.2
+          2: 0.2
+      2:
+        sinusoid_f0p5_r0p5:
+          1: 0.2
+          2: 0.2
+        sinusoid_f1p0_r1p0:
+          1: 0.15
+          2: 0.15
+        triangle_f0p5_r0p5:
+          1: 0.25
+          2: 0.25
+        triangle_f1p0_r1p0:
+          1: 0.2
+          2: 0.2
+      3:
+        sinusoid_f0p5_r0p5:
+          0: 0.2
+        sinusoid_f1p0_r1p0:
+          0: 0.15
+        triangle_f0p5_r0p5:
+          0: 0.25
+        triangle_f1p0_r1p0:
+          0: 0.2
+      4:
+        sinusoid_f0p5_r0p5:
+          0: 0.2
+          3: 0.2
+        sinusoid_f1p0_r1p0:
+          0: 0.15
+          3: 0.15
+        triangle_f0p5_r0p5:
+          0: 0.25
+          3: 0.25
+        triangle_f1p0_r1p0:
+          0: 0.2
+          3: 0.2
+  gearbox_only:
+    position_bands:
+      1:
+        1: [-150.0, 150.0]
+        2: [-150.0, 150.0]
+      2:
+        1: [-150.0, 150.0]
+        2: [-150.0, 150.0]
+      3:
+        0: [-150.0, 150.0]
+        3: [-150.0, 150.0]
+      4:
+        0: [-150.0, 150.0]
+        3: [-150.0, 150.0]
+    current_bands:
+      1:
+        1: [-120.0, 120.0]
+        2: [-120.0, 120.0]
+      2:
+        1: [-120.0, 120.0]
+        2: [-120.0, 120.0]
+      3:
+        0: [-120.0, 120.0]
+        3: [-120.0, 120.0]
+      4:
+        0: [-120.0, 120.0]
+        3: [-120.0, 120.0]
+  full_setup:
+    dof_position_bands:
+      1:
+        sinusoid_f0p5_r1p0:
+          1: [-20.0, 20.0]
+          2: [-20.0, 20.0]
+        sinusoid_f1p0_r1p0:
+          1: [-30.0, 75.0]
+          2: [-50.0, 125.0]
+        triangle_f0p5_r1p0:
+          1: [-20.0, 15.0]
+          2: [-20.0, 20.0]
+        triangle_f1p0_r1p0:
+          1: [-30.0, 25.0]
+          2: [-25.0, 30.0]
+      2:
+        sinusoid_f0p5_r0p2:
+          1: [-60.0, 80.0]
+          2: [-90.0, 35.0]
+        sinusoid_f0p5_r0p5:
+          1: [-15.0, 15.0]
+          2: [-15.0, 15.0]
+        sinusoid_f0p5_r1p0:
+          1: [-15.0, 15.0]
+          2: [-20.0, 15.0]
+        sinusoid_f1p0_r0p2:
+          1: [-20.0, 20.0]
+          2: [-15.0, 20.0]
+        sinusoid_f1p0_r0p5:
+          1: [-20.0, 20.0]
+          2: [-20.0, 20.0]
+        sinusoid_f1p0_r1p0:
+          1: [-20.0, 15.0]
+          2: [-25.0, 25.0]
+        sinusoid_f2p0_r0p2:
+          1: [-15.0, 20.0]
+          2: [-15.0, 20.0]
+        sinusoid_f2p0_r0p5:
+          1: [-20.0, 15.0]
+          2: [-30.0, 25.0]
+        sinusoid_f2p0_r1p0:
+          1: [-20.0, 15.0]
+          2: [-20.0, 20.0]
+        triangle_f0p5_r0p2:
+          1: [-15.0, 15.0]
+          2: [-15.0, 15.0]
+        triangle_f0p5_r0p5:
+          1: [-15.0, 15.0]
+          2: [-10.0, 15.0]
+        triangle_f0p5_r1p0:
+          1: [-20.0, 15.0]
+          2: [-10.0, 20.0]
+        triangle_f1p0_r0p2:
+          1: [-20.0, 20.0]
+          2: [-15.0, 20.0]
+        triangle_f1p0_r0p5:
+          1: [-15.0, 15.0]
+          2: [-20.0, 15.0]
+        triangle_f1p0_r1p0:
+          1: [-15.0, 15.0]
+          2: [-20.0, 20.0]
+        triangle_f2p0_r0p2:
+          1: [-25.0, 20.0]
+          2: [-20.0, 20.0]
+        triangle_f2p0_r0p5:
+          1: [-20.0, 25.0]
+          2: [-25.0, 30.0]
+        triangle_f2p0_r1p0:
+          1: [-15.0, 15.0]
+          2: [-25.0, 35.0]
+      3:
+        sinusoid_f0p5_r1p0:
+          0: [-25.0, 25.0]
+          3: [-25.0, 20.0]
+        sinusoid_f1p0_r1p0:
+          0: [-35.0, 35.0]
+          3: [-35.0, 35.0]
+        triangle_f0p5_r1p0:
+          0: [-20.0, 20.0]
+          3: [-20.0, 20.0]
+        triangle_f1p0_r1p0:
+          0: [-35.0, 35.0]
+          3: [-30.0, 35.0]
+      4:
+        sinusoid_f0p5_r0p5:
+          0: [-10.0, 10.0]
+          3: [-10.0, 15.0]
+        sinusoid_f1p0_r0p5:
+          0: [-10.0, 10.0]
+          3: [-15.0, 15.0]
+        sinusoid_f2p0_r0p5:
+          0: [-15.0, 15.0]
+          3: [-70.0, 60.0]
+        triangle_f0p5_r0p5:
+          0: [-15.0, 10.0]
+          3: [-15.0, 10.0]
+        triangle_f1p0_r0p5:
+          0: [-15.0, 10.0]
+          3: [-20.0, 15.0]
+        triangle_f2p0_r0p5:
+          0: [-15.0, 15.0]
+          3: [-30.0, 35.0]
+    dof_current_bands:
+      1:
+        sinusoid_f0p5_r1p0:
+          1: [-30.0, 20.0]
+          2: [-25.0, 35.0]
+        sinusoid_f1p0_r1p0:
+          1: [-25.0, 30.0]
+          2: [-25.0, 25.0]
+        triangle_f0p5_r1p0:
+          1: [-25.0, 20.0]
+          2: [-20.0, 35.0]
+        triangle_f1p0_r1p0:
+          1: [-25.0, 20.0]
+          2: [-25.0, 35.0]
+      2:
+        sinusoid_f0p5_r0p2:
+          1: [-25.0, 20.0]
+          2: [-60.0, 60.0]
+        sinusoid_f0p5_r0p5:
+          1: [-20.0, 15.0]
+          2: [-60.0, 50.0]
+        sinusoid_f0p5_r1p0:
+          1: [-15.0, 15.0]
+          2: [-40.0, 60.0]
+        sinusoid_f1p0_r0p2:
+          1: [-25.0, 35.0]
+          2: [-55.0, 40.0]
+        sinusoid_f1p0_r0p5:
+          1: [-25.0, 30.0]
+          2: [-40.0, 40.0]
+        sinusoid_f1p0_r1p0:
+          1: [-35.0, 30.0]
+          2: [-55.0, 75.0]
+        sinusoid_f2p0_r0p2:
+          1: [-25.0, 25.0]
+          2: [-40.0, 40.0]
+        sinusoid_f2p0_r0p5:
+          1: [-25.0, 30.0]
+          2: [-45.0, 35.0]
+        sinusoid_f2p0_r1p0:
+          1: [-35.0, 45.0]
+          2: [-45.0, 40.0]
+        triangle_f0p5_r0p2:
+          1: [-15.0, 15.0]
+          2: [-50.0, 40.0]
+        triangle_f0p5_r0p5:
+          1: [-20.0, 15.0]
+          2: [-55.0, 45.0]
+        triangle_f0p5_r1p0:
+          1: [-20.0, 20.0]
+          2: [-40.0, 50.0]
+        triangle_f1p0_r0p2:
+          1: [-30.0, 35.0]
+          2: [-60.0, 45.0]
+        triangle_f1p0_r0p5:
+          1: [-20.0, 20.0]
+          2: [-40.0, 35.0]
+        triangle_f1p0_r1p0:
+          1: [-20.0, 25.0]
+          2: [-30.0, 35.0]
+        triangle_f2p0_r0p2:
+          1: [-35.0, 45.0]
+          2: [-35.0, 40.0]
+        triangle_f2p0_r0p5:
+          1: [-45.0, 65.0]
+          2: [-35.0, 55.0]
+        triangle_f2p0_r1p0:
+          1: [-35.0, 40.0]
+          2: [-40.0, 35.0]
+      3:
+        sinusoid_f0p5_r1p0:
+          0: [-30.0, 25.0]
+          3: [-30.0, 35.0]
+        sinusoid_f1p0_r1p0:
+          0: [-25.0, 25.0]
+          3: [-20.0, 25.0]
+        triangle_f0p5_r1p0:
+          0: [-25.0, 20.0]
+          3: [-20.0, 20.0]
+        triangle_f1p0_r1p0:
+          0: [-25.0, 25.0]
+          3: [-20.0, 25.0]
+      4:
+        sinusoid_f0p5_r0p5:
+          0: [-10.0, 10.0]
+          3: [-30.0, 30.0]
+        sinusoid_f1p0_r0p5:
+          0: [-10.0, 10.0]
+          3: [-35.0, 25.0]
+        sinusoid_f2p0_r0p5:
+          0: [-20.0, 25.0]
+          3: [-75.0, 30.0]
+        triangle_f0p5_r0p5:
+          0: [-10.0, 10.0]
+          3: [-30.0, 20.0]
+        triangle_f1p0_r0p5:
+          0: [-10.0, 10.0]
+          3: [-40.0, 20.0]
+        triangle_f2p0_r0p5:
+          0: [-20.0, 20.0]
+          3: [-40.0, 20.0]
+    dof_current_duration_limits_s:
+      1:
+        sinusoid_f0p5_r1p0:
+          1: 0.15
+          2: 0.15
+        sinusoid_f1p0_r1p0:
+          1: 0.15
+          2: 0.15
+        triangle_f0p5_r1p0:
+          1: 0.1
+          2: 0.2
+        triangle_f1p0_r1p0:
+          1: 0.2
+          2: 0.15
+      2:
+        sinusoid_f0p5_r0p2:
+          1: 0.2
+          2: 0.15
+        sinusoid_f0p5_r0p5:
+          1: 0.15
+          2: 0.1
+        sinusoid_f0p5_r1p0:
+          1: 0.15
+          2: 0.15
+        sinusoid_f1p0_r0p2:
+          1: 0.15
+          2: 0.1
+        sinusoid_f1p0_r0p5:
+          1: 0.1
+          2: 0.1
+        sinusoid_f1p0_r1p0:
+          1: 0.15
+          2: 0.1
+        sinusoid_f2p0_r0p2:
+          1: 0.1
+          2: 0.1
+        sinusoid_f2p0_r0p5:
+          1: 0.1
+          2: 0.1
+        sinusoid_f2p0_r1p0:
+          1: 0.1
+          2: 0.1
+        triangle_f0p5_r0p2:
+          1: 0.15
+          2: 0.15
+        triangle_f0p5_r0p5:
+          1: 0.15
+          2: 0.1
+        triangle_f0p5_r1p0:
+          1: 0.15
+          2: 0.1
+        triangle_f1p0_r0p2:
+          1: 0.1
+          2: 0.1
+        triangle_f1p0_r0p5:
+          1: 0.15
+          2: 0.1
+        triangle_f1p0_r1p0:
+          1: 0.15
+          2: 0.1
+        triangle_f2p0_r0p2:
+          1: 0.1
+          2: 0.1
+        triangle_f2p0_r0p5:
+          1: 0.1
+          2: 0.1
+        triangle_f2p0_r1p0:
+          1: 0.1
+          2: 0.1
+      3:
+        sinusoid_f0p5_r1p0:
+          0: 0.15
+          3: 0.5
+        sinusoid_f1p0_r1p0:
+          0: 0.2
+          3: 0.2
+        triangle_f0p5_r1p0:
+          0: 0.5
+          3: 0.25
+        triangle_f1p0_r1p0:
+          0: 0.15
+          3: 0.1
+      4:
+        sinusoid_f0p5_r0p5:
+          0: 0.15
+          3: 0.15
+        sinusoid_f1p0_r0p5:
+          0: 0.2
+          3: 0.1
+        sinusoid_f2p0_r0p5:
+          0: 0.15
+          3: 0.1
+        triangle_f0p5_r0p5:
+          0: 0.2
+          3: 0.1
+        triangle_f1p0_r0p5:
+          0: 0.15
+          3: 0.1
+        triangle_f2p0_r0p5:
+          0: 0.15
+          3: 0.1
+    dof_current_peak_limits:
+      2:
+        sinusoid_f0p5_r1p0:
+          1: 140.0
+          2: 140.0
+    pause_position_bands:
+      1:
+        1: [-10.0, 10.0]
+        2: [-10.0, 10.0]
+      2:
+        1: [-30.0, 10.0]
+        2: [-15.0, 10.0]
+      3:
+        0: [-15.0, 10.0]
+        3: [-10.0, 10.0]
+      4:
+        0: [-10.0, 10.0]
+        3: [-10.0, 10.0]
+    pause_current_bands:
+      1:
+        1: [-10.0, 10.0]
+        2: [-10.0, 10.0]
+      2:
+        1: [-5.0, 10.0]
+        2: [-10.0, 10.0]
+      3:
+        0: [-10.0, 10.0]
+        3: [-10.0, 10.0]
+      4:
+        0: [-10.0, 10.0]
+        3: [-10.0, 10.0]
+    scissor_dof4:
+      current_motor: 3
+      closing_direction_window_s: 0.1
+      closing_min_target_change_pulses: 1.0
+      mean_closing_residual_limits_ma:
+        sinusoid_f0p5_r0p5: 7.2
+        sinusoid_f1p0_r0p5: 9.8
+        sinusoid_f2p0_r0p5: 13.2
+        triangle_f0p5_r0p5: 13.8
+        triangle_f1p0_r0p5: 20.9
+        triangle_f2p0_r0p5: 16.0

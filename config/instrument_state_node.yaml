@@ -5,5 +5,6 @@ instrument_state_node:
 
     hybrid_bend_enabled: true
 
-    # Leave empty to automatically load the model selected during training.
-    hybrid_bend_model_file: ""
+    # hybrid_bend_model_file: ""
+
+    hybrid_bend_model_file: "/home/leanne/ros2_ws/test_data/automated_trials/trainings data V6/full_setup/gripper/DOF 2/bend_dt_results/ridge/ridge_bend_hybrid_model.joblib"

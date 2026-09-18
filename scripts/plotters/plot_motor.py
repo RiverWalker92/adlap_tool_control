@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 
+from click import command
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -46,6 +47,7 @@ FINAL_HOLD_DURATION_S = {
 }
 
 COMMAND_CHANGE_THRESHOLD = 1e-5
+MOTION_RATE_THRESHOLD = 1e-3  # rad/s
 MOTION_MEMORY_S = 1.2
 
 def parse_task_label(label):
@@ -628,10 +630,29 @@ def split_dof_pattern_segments(
     else:
         baseline = float(command[np.flatnonzero(finite)[0]])
 
+    command_change = np.zeros(len(command), dtype=float)
+
+    dt = np.diff(t)
+    dc = np.diff(command)
+
+    valid_diff = (
+        np.isfinite(dt)
+        & np.isfinite(dc)
+        & (dt > 0)
+    )
+
+    command_rate = np.zeros(len(command), dtype=float)
+
+    command_rate[1:][valid_diff] = (
+        np.abs(dc[valid_diff] / dt[valid_diff])
+    )
+
     moving = (
         finite
-        & (np.abs(command - baseline) > command_tolerance)
+        & (command_rate > MOTION_RATE_THRESHOLD)
     )
+
+    pause_mask = finite & ~moving
 
     # ----------------------------------------------------------
     # 4. Find sustained neutral pauses
@@ -643,7 +664,7 @@ def split_dof_pattern_segments(
     # Only a neutral interval lasting >= minimum_pause_s
     # counts as a true stage pause.
 
-    pause_mask = finite & ~moving
+    # pause_mask = finite & ~moving
 
     pause_intervals = []
 

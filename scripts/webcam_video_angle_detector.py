@@ -599,13 +599,23 @@ def process_video(
     ]
 
     if active_dof == 4:
-        if len(active_secondary_markers) != 1:
+        if len(active_secondary_markers) > 1:
             raise ValueError(
-                "DOF4 requires exactly one secondary marker "
-                "(yellow, green, or blue) to be enabled."
+                "DOF4 supports at most one secondary marker "
+                "(yellow, green, or blue)."
             )
 
-        secondary_marker_color = active_secondary_markers[0]
+        secondary_marker_color = (
+            active_secondary_markers[0]
+            if active_secondary_markers
+            else None
+        )
+
+        if secondary_marker_color is None:
+            print(
+                "DOF4: no secondary marker enabled; "
+                "using symmetric red-marker jaw detection."
+            )
 
     else:
         secondary_marker_color = None
@@ -803,18 +813,21 @@ def process_video(
                 secondary_marker_color
             )
 
-            record[
-                f"{secondary_marker_color}_marker_angle_deg"
-            ] = nan_to_none(
-                secondary_marker_angle
-            )
+            if secondary_marker_color is not None:
+                record[
+                    f"{secondary_marker_color}_marker_angle_deg"
+                ] = nan_to_none(
+                    secondary_marker_angle
+                )
 
-            record[
-                f"measured_angle_{secondary_marker_color}_shaft"
-            ] = nan_to_none(
-                measured_angle_secondary_shaft
-            )
+                record[
+                    f"measured_angle_{secondary_marker_color}_shaft"
+                ] = nan_to_none(
+                    measured_angle_secondary_shaft
+                )
 
+            # With a secondary marker this is measured directly here.
+            # In red-only mode it is filled after zeroing the red marker.
             record["measured_angle_between_jaws"] = nan_to_none(
                 measured_angle_between_jaws
             )
@@ -847,7 +860,7 @@ def process_video(
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.putText(display, f"shaft: {shaft_angle:.2f}", (30, 130),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-        if active_dof == 4:
+        if active_dof == 4 and secondary_marker_color is not None:
             cv2.putText(
                 display,
                 (
@@ -860,9 +873,23 @@ def process_video(
                 (0, 255, 0),
                 2,
             )
-        if measured_angle_secondary_shaft is not None:
-            cv2.putText(display, f"{secondary_marker_color} marker vs shaft angle: {measured_angle_secondary_shaft:.2f}", (30, 290),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            if (
+                measured_angle_secondary_shaft is not None
+                and not np.isnan(measured_angle_secondary_shaft)
+            ):
+                cv2.putText(
+                    display,
+                    (
+                        f"{secondary_marker_color} marker vs shaft angle: "
+                        f"{measured_angle_secondary_shaft:.2f}"
+                    ),
+                    (30, 290),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 255, 0),
+                    2,
+                )
                 
     
         preview_scale = float(
@@ -878,6 +905,7 @@ def process_video(
 
         if (
             not open_jaws_debug_frame_saved
+            and secondary_marker_color is not None
             and measured_angle_secondary_shaft is not None
             and not np.isnan(measured_angle_secondary_shaft)
             and abs(measured_angle_secondary_shaft) > float(
@@ -998,9 +1026,25 @@ def process_video(
 
     print(f"Red start baseline: {red_start_baseline}")
  
+    # In red-only DOF4 mode, infer the total jaw opening from the
+    # single red jaw marker. Jaw motion is assumed symmetric around
+    # the shaft, so total opening = 2 * single-jaw deflection.
+    if active_dof == 4 and secondary_marker_color is None:
+        for r in records:
+            red_zeroed = r.get(
+                "measured_angle_red_shaft_zeroed"
+            )
+
+            if red_zeroed is None:
+                r["measured_angle_between_jaws"] = None
+            else:
+                r["measured_angle_between_jaws"] = (
+                    2.0 * abs(red_zeroed)
+                )
+
     secondary_closed_baseline = None
 
-    if active_dof == 4:
+    if active_dof == 4 and secondary_marker_color is not None:
         secondary_raw_key = (
             f"measured_angle_{secondary_marker_color}_shaft"
         )
@@ -1066,11 +1110,12 @@ def process_video(
             "measured_angle_between_jaws_filtered"
         ] = "measured_angle_between_jaws"
 
-        signals_to_filter[
-            f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
-        ] = (
-            f"measured_angle_{secondary_marker_color}_shaft_zeroed"
-        )
+        if secondary_marker_color is not None:
+            signals_to_filter[
+                f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
+            ] = (
+                f"measured_angle_{secondary_marker_color}_shaft_zeroed"
+            )
 
     for filtered_key, raw_key in signals_to_filter.items():
         raw_values = [

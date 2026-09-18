@@ -311,10 +311,16 @@ def load_video_angle_file(file_path, ros_t0):
                     f"measured_angle_{secondary_marker_color}_shaft_zeroed_filtered"
                 )
 
-            # Filtered DOF4 validation reference
-            measured_jaw_angle = data.get(
-                "measured_angle_between_jaws_filtered"
-            )
+            # DOF4 validation reference:
+            # estimate total jaw opening from the red jaw relative to the shaft,
+            # assuming symmetric jaw motion.
+            measured_jaw_angle = None
+
+            if detected_dof == 4 and red_angle is not None:
+                measured_jaw_angle = max(
+                    0.0,
+                    -2.0 * red_angle,
+                )
 
             if ros_time is None:
                 continue
@@ -1208,8 +1214,8 @@ def get_video_prediction_setup(
         return {
             "video_t": video_t,
             "video_values_deg": jaw_video_angle,
-            "video_label": "median-filtered video angle between jaws [deg]",
-            "video_signal_name": "median-filtered jaw angle [deg]",
+            "video_label": "video-estimated jaw opening from red marker [deg]",
+            "video_signal_name": "red-marker-based jaw opening [deg]",
             "prediction_blocks": [
                 {
                     "name": "Instrument DT gripper/articulation",
@@ -1686,10 +1692,11 @@ def plot_gripper_video_measurements(
         jaw_video_angle,
         linestyle="-",
         linewidth=2,
-        label=(
-            f"measured jaw angle: "
-            f"{secondary_marker_color} vs red [deg]"
-        ),
+        # label=(
+        #     f"measured jaw angle: "
+        #     f"{secondary_marker_color} vs red [deg]"
+        # ),
+        label="estimated jaw opening from red marker [deg]",
     )
     axes[0].set_ylabel("Jaw angle [deg]")
     axes[0].grid(True)

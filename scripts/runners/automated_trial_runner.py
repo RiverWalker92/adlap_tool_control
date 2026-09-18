@@ -534,8 +534,37 @@ def main():
         help="Skip automatic Digital Twin fault diagnosis.",
     )
 
+    parser.add_argument(
+        "--resistance-test",
+        action="store_true",
+        help="Run the dedicated constant-speed DOF3 resistance test.",
+    )
+
+    parser.add_argument(
+        "--resistance-rotations",
+        type=int,
+        default=20,
+    )
+
+    parser.add_argument(
+        "--resistance-speed-rps",
+        type=float,
+        default=0.4,
+    )
+
+    parser.add_argument(
+        "--resistance-direction",
+        type=int,
+        choices=[-1, 1],
+        default=1,
+    )
+
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
+    if args.resistance_test and args.dof != 3:
+        raise RuntimeError(
+            "--resistance-test requires --dof 3."
+        )
 
     # -------------------------------------------------------------------------
     # Hardware identification and trial configuration
@@ -792,17 +821,54 @@ def main():
         run_name = f"auto_motor_{timestamp}"
         dof_dir_name = "motor"
     elif pattern_mode == "dof":
-        run_name = f"auto_dof{args.dof}_{timestamp}"
-        dof_dir_name = f"dof{args.dof}"
+        if args.resistance_test:
+            run_name = f"auto_dof3_resistance_{timestamp}"
+            dof_dir_name = "dof3_resistance"
+        else:
+            run_name = f"auto_dof{args.dof}_{timestamp}"
+            dof_dir_name = f"dof{args.dof}"
     else:
         raise RuntimeError(
             f"Unsupported pattern mode: {pattern_mode}"
         )
 
     setup_dir = Path(args.output_dir).expanduser() / setup_name
-    dof_dir = setup_dir / dof_dir_name
-    output_dir = dof_dir / run_name
 
+    if coupling_mode == "motor_only":
+        hardware_dir = setup_dir
+
+    elif coupling_mode == "gearbox_only":
+        if not gearbox_variant:
+            raise RuntimeError(
+                "gearbox_variant is required to create the hardware folder."
+            )
+
+        hardware_dir = setup_dir / str(gearbox_variant)
+
+    elif coupling_mode == "full_setup":
+        if not gearbox_variant:
+            raise RuntimeError(
+                "gearbox_variant is required to create the hardware folder."
+            )
+
+        if not instrument_config:
+            raise RuntimeError(
+                "instrument_config is required to create the hardware folder."
+            )
+
+        hardware_dir = (
+            setup_dir
+            / str(gearbox_variant)
+            / str(instrument_config)
+        )
+
+    else:
+        raise RuntimeError(
+            f"Unsupported coupling mode: {coupling_mode}"
+        )
+
+    dof_dir = hardware_dir / dof_dir_name
+    output_dir = dof_dir / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     ros_log_path = output_dir / f"{run_name}_ros_log.jsonl"
@@ -846,9 +912,24 @@ def main():
                 f" instrument_config:={shlex.quote(instrument_config)}"
             )
 
+
+        if args.resistance_test:
+            if args.dof != 3:
+                raise RuntimeError(
+                    "--resistance-test requires --dof 3."
+                )
+
+            args.pattern_cmd += (
+                " resistance_test:=true"
+                f" resistance_rotations:={args.resistance_rotations}"
+                f" resistance_speed_rps:={args.resistance_speed_rps}"
+                f" resistance_direction:={args.resistance_direction}"
+            )
+            
     print(f"Coupling mode: {coupling_mode}")
     print(f"Pattern mode:  {pattern_mode}")
     print(f"Setup folder:  {setup_dir}")
+    print(f"Hardware folder: {hardware_dir}")
     print(f"DOF folder:    {dof_dir}")
     print(f"Run folder:    {output_dir}")
     print(f"ROS log:       {ros_log_path}")
@@ -931,6 +1012,15 @@ def main():
         f"--coupling-mode {shlex.quote(coupling_mode)} "
         f"--input-source {shlex.quote(motor_dt_input_source)}"
     )
+    if gearbox_variant:
+        motor_dt_replay_cmd += (
+            f" --gearbox-variant {shlex.quote(str(gearbox_variant))}"
+        )
+
+    if instrument_config:
+        motor_dt_replay_cmd += (
+            f" --instrument-config {shlex.quote(str(instrument_config))}"
+        )
 
     # DOF-pattern runs require the active DOF so that the Motor DT can use the
     # correct instrument command channel for coupled-pattern segmentation.
@@ -1027,6 +1117,9 @@ def main():
         "detected_hardware": detected_hardware,
         "setup_name": setup_name,
         "setup_dir": str(setup_dir),
+        "hardware_dir": str(hardware_dir),
+        "gearbox_variant": gearbox_variant,
+        "instrument_config": instrument_config,
         "dof_dir": str(dof_dir),
         "run_name": run_name,
         "trial_name": run_name,

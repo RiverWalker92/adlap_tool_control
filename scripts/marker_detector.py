@@ -142,10 +142,16 @@ def classify_detected_hardware(detected_markers):
         if marker.get("type") == "gearbox"
     ]
 
-    instrument_markers = [
+    shaft_markers = [
         marker
         for marker in detected_markers
-        if marker.get("type") == "instrument"
+        if marker.get("type") == "shaft"
+    ]
+
+    tip_markers = [
+        marker
+        for marker in detected_markers
+        if marker.get("type") == "tip"
     ]
 
     if len(gearbox_markers) > 1:
@@ -153,34 +159,55 @@ def classify_detected_hardware(detected_markers):
             "Multiple gearbox markers detected. Use only one gearbox marker."
         )
 
-    if len(instrument_markers) > 1:
+    if len(shaft_markers) > 1:
         raise RuntimeError(
-            "Multiple instrument markers detected. Use only one instrument marker."
+            "Multiple shaft markers detected. Use only one shaft marker."
+        )
+
+    if len(tip_markers) > 1:
+        raise RuntimeError(
+            "Multiple tip markers detected. Use only one tip marker."
         )
 
     gearbox = gearbox_markers[0] if gearbox_markers else None
-    instrument = instrument_markers[0] if instrument_markers else None
+    shaft = shaft_markers[0] if shaft_markers else None
+    tip = tip_markers[0] if tip_markers else None
 
-    if gearbox is None and instrument is None:
+    # Determine coupling configuration.
+    if gearbox is None and shaft is None and tip is None:
         coupling_mode = "motor_only"
 
-    elif gearbox is not None and instrument is None:
+    elif gearbox is not None and shaft is None and tip is None:
         coupling_mode = "gearbox_only"
 
-    elif gearbox is not None and instrument is not None:
+    elif gearbox is not None and shaft is not None and tip is not None:
         coupling_mode = "full_setup"
 
     else:
         raise RuntimeError(
-            "Instrument marker detected without gearbox marker."
+            "Invalid hardware combination. "
+            "Expected either motors only, gearbox only, or "
+            "gearbox + shaft + tip for a full setup."
         )
+
+    # Compose the complete instrument identity from shaft + tip.
+    instrument = None
+
+    if shaft is not None and tip is not None:
+        instrument = {
+            "name": f"{shaft.get('name')} + {tip.get('name')}",
+            "shaft_id": shaft.get("shaft_id"),
+            "tip_id": tip.get("tip_id"),
+            "instrument_config": tip.get("instrument_config"),
+        }
 
     return {
         "coupling_mode": coupling_mode,
         "gearbox": gearbox,
+        "shaft": shaft,
+        "tip": tip,
         "instrument": instrument,
     }
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -240,10 +267,11 @@ def main():
                 marker_info["id"] = marker_id
 
                 marker_type = marker_info.get("type")
-                if marker_type not in {"gearbox", "instrument"}:
+
+                if marker_type not in {"gearbox", "shaft", "tip"}:
                     raise RuntimeError(
                         f"Marker {marker_id} has invalid type {marker_type!r}. "
-                        "Expected 'gearbox' or 'instrument'."
+                        "Expected 'gearbox', 'shaft', or 'tip'."
                     )
 
                 detected_marker_ids.append(marker_id)
@@ -278,6 +306,8 @@ def main():
         "detected_markers": detected_markers,
         "coupling_mode": result["coupling_mode"],
         "gearbox": result["gearbox"],
+        "shaft": result["shaft"],
+        "tip": result["tip"],
         "instrument": result["instrument"],
     }
 

@@ -1,33 +1,33 @@
-aruco_dictionary: DICT_4X4_50
-
 markers:
+
   11:
     type: gearbox
     name: gearbox_2_long_collet
     gearbox_variant: gearbox_2
-    description: "Long collet gearbox"
 
   10:
     type: gearbox
     name: gearbox_1_old_blue
     gearbox_variant: gearbox_1
-    description: "Old blue gearbox"
 
   20:
-    type: instrument
-    name: gripper
-    instrument_config: gripper
-    description: "Gripper instrument"
+    type: shaft
+    name: shaft_black
+    shaft_id: shaft_black
 
   21:
-    type: instrument
-    name: scissors
+    type: shaft
+    name: shaft_silver_A
+    shaft_id: shaft_A
+
+  30:
+    type: tip
+    name: gripper_1
+    tip_id: gripper_1
+    instrument_config: gripper
+
+  31:
+    type: tip
+    name: scissors_1
+    tip_id: scissors_1
     instrument_config: scissors
-    description: "Scissors instrument"
-
-  49:
-    type: gearbox
-    name: gearbox_2_long_collet
-    gearbox_variant: gearbox_2
-    description: "Long collet gearbox"
-

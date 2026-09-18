@@ -7,13 +7,14 @@ from pathlib import Path
 import joblib
 import numpy as np
 
+# TODO: move ttraining daata to read from config. 
 # Default directory for the stored motor digital twin model depending on the setup.
 DEFAULT_MOTOR_ONLY_COMMAND_MODEL_DIR = (
     Path.home()
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V5"
+    / "trainings data V6"
     / "motors_only"
     / "motors_only_results"
     / "models"
@@ -24,7 +25,7 @@ DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR = (
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V5"
+    / "trainings data V6"
     / "motors_only_dof_pattern"
     / "motors_only_dof_pattern_results"
     / "models"
@@ -39,26 +40,22 @@ DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR = (
 #     / "models"
 # )
 
-DEFAULT_GEARBOX_MODEL_DIR = (
+DEFAULT_GEARBOX_MODEL_ROOT = (
     Path.home()
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V5"
+    / "trainings data V6"
     / "motors_gearbox"
-    / "motors_gearbox_results"
-    / "models"
 )
 
-DEFAULT_FULL_SETUP_MODEL_DIR = (
+DEFAULT_FULL_SETUP_MODEL_ROOT = (
     Path.home()
     / "ros2_ws"
     / "test_data"
     / "automated_trials"
-    / "trainings data V5"
+    / "trainings data V6"
     / "full_setup"
-    / "full_setup_results"
-    / "models"
 )
 
 EVENT_TAIL_S = 1.0
@@ -842,6 +839,61 @@ def make_coupled_pattern_relative_positions(
 
     return relative_positions, motion_blocks
 
+def resolve_motor_model_dir(
+    coupling_mode,
+    input_source,
+    gearbox_variant=None,
+    instrument_config=None,
+):
+    """
+    Select the Motor-DT model directory for the detected hardware setup.
+    """
+    if coupling_mode == "motor_only":
+        if input_source == "commands":
+            return DEFAULT_MOTOR_ONLY_COMMAND_MODEL_DIR
+
+        if input_source == "targets":
+            return DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR
+
+        raise RuntimeError(
+            "motor_only requires input_source 'commands' or 'targets'."
+        )
+
+    if coupling_mode == "gearbox_only":
+        if not gearbox_variant:
+            raise RuntimeError(
+                "gearbox_variant is required for gearbox_only."
+            )
+
+    return (
+        DEFAULT_GEARBOX_MODEL_ROOT
+        / gearbox_variant
+        / "motors_gearbox_results"
+        / "models"
+    )
+
+    if coupling_mode == "full_setup":
+        if not instrument_config:
+            raise RuntimeError(
+                "instrument_config is required for full_setup."
+            )
+
+        if instrument_config not in {"gripper", "scissors"}:
+            raise RuntimeError(
+                "instrument_config must be 'gripper' or 'scissors', "
+                f"received: {instrument_config}"
+            )
+
+        return (
+            DEFAULT_FULL_SETUP_MODEL_ROOT
+            / instrument_config
+            / "models"
+        )
+
+    raise RuntimeError(
+        f"Unsupported coupling mode: {coupling_mode}"
+    )
+
 def load_motor_dt_models(model_dir):
     model_dir = Path(model_dir).expanduser()
     models = {}
@@ -852,7 +904,23 @@ def load_motor_dt_models(model_dir):
         if not model_path.exists():
             raise RuntimeError(f"Missing Motor DT model: {model_path}")
 
-        models[motor_index] = joblib.load(model_path)
+        model_package = joblib.load(model_path)
+
+        stored_instrument_config = model_package.get("instrument_config")
+
+        if stored_instrument_config != "scissors" and "scissors" in model_dir.parts:
+            raise RuntimeError(
+                f"Expected a scissors model, but {model_path} contains "
+                f"instrument_config={stored_instrument_config!r}."
+            )
+
+        if stored_instrument_config != "gripper" and "gripper" in model_dir.parts:
+            raise RuntimeError(
+                f"Expected a gripper model, but {model_path} contains "
+                f"instrument_config={stored_instrument_config!r}."
+            )
+
+        models[motor_index] = model_package
 
     return models
 
@@ -1182,6 +1250,8 @@ def replay_motor_digital_twin(
     input_file,
     output_file,
     coupling_mode,
+    gearbox_variant=None,
+    instrument_config=None,
     active_dof=None,
     input_source=None,
     current_filter_window_size=5,
@@ -1210,28 +1280,20 @@ def replay_motor_digital_twin(
 
     print(f"Found {len(segments)} valid segments.")
 
-    if coupling_mode == "motor_only":
-        if input_source == "commands":
-            position_model_dir = DEFAULT_MOTOR_ONLY_COMMAND_MODEL_DIR
+    position_model_dir = resolve_motor_model_dir(
+        coupling_mode=coupling_mode,
+        input_source=input_source,
+        gearbox_variant=gearbox_variant,
+        instrument_config=instrument_config,
+    )
 
-        elif input_source == "targets":
-            position_model_dir = DEFAULT_MOTOR_ONLY_TARGET_MODEL_DIR
-
-    elif coupling_mode == "gearbox_only":
-        position_model_dir = DEFAULT_GEARBOX_MODEL_DIR
-
-    elif coupling_mode == "full_setup":
-        # Full-system Motor DT packages contain encoder and current models.
-        position_model_dir = DEFAULT_FULL_SETUP_MODEL_DIR
-
-    else:
-        raise RuntimeError(
-            f"Unsupported coupling mode: {coupling_mode}"
-        )
-
-    print(f"Loading Motor DT models from: {position_model_dir}")
+    print("Selected Motor DT configuration:")
+    print(f"  coupling mode:     {coupling_mode}")
+    print(f"  gearbox variant:   {gearbox_variant}")
+    print(f"  instrument config: {instrument_config}")
+    print(f"  model directory:   {position_model_dir}")    
     motor_models = load_motor_dt_models(position_model_dir)
-    
+        
         
     written_rows = 0
 
@@ -1342,6 +1404,8 @@ def replay_motor_digital_twin(
                     "trial": info["trial"],
                     "sample_index": int(sample_index),
                     "coupling_mode": coupling_mode,
+                    "gearbox_variant": gearbox_variant,
+                    "instrument_config": instrument_config,
                     "input_source": input_source,
                     "active_dof": int(active_dof) if active_dof is not None else None,
 
@@ -1391,12 +1455,32 @@ def main():
     )
 
     parser.add_argument(
+        "--gearbox-variant",
+        default=None,
+        help=(
+            "Connected gearbox variant, for example "
+            "gearbox_1 or gearbox_2."
+        ),
+    )
+
+    parser.add_argument(
+        "--instrument-config",
+        choices=["gripper", "scissors"],
+        default=None,
+        help=(
+            "Connected instrument configuration. "
+            "Required for full_setup."
+        ),
+    )
+
+    parser.add_argument(
         "--dof",
         type=int,
         choices=[1, 2, 3, 4],
         default=None,
         help="Active instrument DOF, stored as replay metadata.",
     )
+
     parser.add_argument(
         "--input-source",
         choices=["commands", "targets"],
@@ -1432,12 +1516,13 @@ def main():
 
     replay_motor_digital_twin(
         input_file=input_file,
+        output_file=output_file,
         coupling_mode=args.coupling_mode,
+        gearbox_variant=args.gearbox_variant,
+        instrument_config=args.instrument_config,
         active_dof=args.dof,
         input_source=args.input_source,
-        output_file=output_file,
         current_filter_window_size=args.current_filter_window_size,
     )
-
 if __name__ == "__main__":
     main()

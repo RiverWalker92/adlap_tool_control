@@ -36,11 +36,19 @@ class PatternRunner(Node):
         self.declare_parameter("publish_rate", 100.0)
         self.declare_parameter("duration", 11.0)
         self.declare_parameter("coupling_mode", "full_setup")
+        # waarom alleen full setup?
+        self.declare_parameter("instrument_config", "gripper")
+
+        self.coupling_mode = str(
+            self.get_parameter("coupling_mode").value
+        )
+        self.instrument_config = str(
+            self.get_parameter("instrument_config").value
+        )
 
         # active_dof=0 uses the DOF configuration from the parameter file;
         # values 1-4 explicitly select one DOF.
         self.declare_parameter("active_dof", 0)
-        self.coupling_mode = str(self.get_parameter("coupling_mode").value)
         self.active_dof_override = int(
             self.get_parameter("active_dof").value
         )
@@ -77,6 +85,55 @@ class PatternRunner(Node):
             f"pulses={self.dof4_tip_compensation_pulses}, "
             f"sign={self.dof4_tip_compensation_sign}"
         )
+
+        if (
+            self.coupling_mode == "full_setup"
+            and self.instrument_config == "scissors"
+        ):
+            self.get_logger().info(
+                "Scissor DOF4 override active: minimum command = -0.2 rad"
+            )
+
+        # Optional dedicated DOF3 gearbox-resistance test.
+        # Disabled by default so the standard diagnostic sequence is unchanged.
+        self.declare_parameter("resistance_test", False)
+        self.declare_parameter("resistance_rotations", 20)
+        self.declare_parameter("resistance_speed_rps", 0.4)
+        self.declare_parameter("resistance_direction", 1)
+
+        self.resistance_test = bool(
+            self.get_parameter("resistance_test").value
+        )
+        self.resistance_rotations = int(
+            self.get_parameter("resistance_rotations").value
+        )
+        self.resistance_speed_rps = float(
+            self.get_parameter("resistance_speed_rps").value
+        )
+        self.resistance_direction = int(
+            self.get_parameter("resistance_direction").value
+        )
+
+        if self.resistance_test:
+            if self.active_dof_override != 3:
+                raise ValueError(
+                    "resistance_test requires active_dof=3"
+                )
+
+            if self.resistance_rotations <= 0:
+                raise ValueError(
+                    "resistance_rotations must be greater than zero"
+                )
+
+            if self.resistance_speed_rps <= 0.0:
+                raise ValueError(
+                    "resistance_speed_rps must be greater than zero"
+                )
+
+            if self.resistance_direction not in [-1, 1]:
+                raise ValueError(
+                    "resistance_direction must be -1 or 1"
+                )
         
         # -------------------------------------------------------------------------
         # Sequence parameters
@@ -359,7 +416,18 @@ class PatternRunner(Node):
         Generate a descriptive test name based on the active DOFs and their modes.
         """
         active = []
+        if self.resistance_test:
+            speed_text = (
+                f"{self.resistance_speed_rps:.2f}"
+                .replace(".", "p")
+            )
 
+            return (
+                f"dof3_resistance_"
+                f"{self.resistance_rotations}rot_"
+                f"{speed_text}rps"
+            )
+        
         for i in range(1, 5):
             mode = self.get_parameter(f"dof{i}.mode").value
 
@@ -434,6 +502,14 @@ class PatternRunner(Node):
         max_value = float(
             self.get_parameter(f"{dof_name}.max").value
         )
+
+        # Scissor-specific DOF4 range override.
+        if (
+            self.coupling_mode == "full_setup"
+            and self.instrument_config == "scissors"
+            and dof_name == "dof4"
+        ):
+            min_value = -0.2
 
         if range_factor_override is not None:
             range_factor = float(range_factor_override)
@@ -678,6 +754,20 @@ class PatternRunner(Node):
         
         return total_duration
 
+    def compute_dof3_resistance_rotation(self, t):
+        start_value = float(
+            self.get_parameter("dof3.value").value
+        )
+
+        angular_speed = (
+            self.resistance_direction
+            * 2.0
+            * math.pi
+            * self.resistance_speed_rps
+        )
+
+        return start_value + angular_speed * t
+    
     def update_dof4_tip_compensation(self, dof4_value):
         if self.dof4_tip_compensation_pulses == 0:
             return
@@ -735,7 +825,8 @@ class PatternRunner(Node):
 
         # Same pre-motion LED sync for all DOFs, including DOF4.
         led_should_be_on = (
-            self.led_pulse_start_delay
+            not self.resistance_test
+            and self.led_pulse_start_delay
             <= elapsed
             <
             self.led_pulse_start_delay + self.led_pulse_duration
@@ -753,14 +844,17 @@ class PatternRunner(Node):
             self.led_off_sent = True
             self.get_logger().info("LED OFF")
 
-        motion_start = (
-            self.led_pulse_start_delay
-            + self.led_pulse_duration
-            + self.motion_after_led_off_wait
-        )
+        if self.resistance_test:
+            motion_start = 0.0
+        else:
+            motion_start = (
+                self.led_pulse_start_delay
+                + self.led_pulse_duration
+                + self.motion_after_led_off_wait
+            )
 
-        # Before motion_start: keep all DOFs at their neutral/start value.
-        if elapsed < motion_start:
+        # Only use the pre-motion hold for the standard diagnostic sequence.
+        if not self.resistance_test and elapsed < motion_start:
             values = [
                 float(self.get_parameter("dof1.value").value),
                 float(self.get_parameter("dof2.value").value),
@@ -772,12 +866,21 @@ class PatternRunner(Node):
             msg.data = values
             self.pub.publish(msg)
             return
-
+        
         # Real continuous test starts only after LED off + small wait.
         t = elapsed - motion_start
 
-        if self.active_sequence_dof is not None:
-            pattern_duration = self.get_sequence_duration(self.active_sequence_dof)
+        if self.resistance_test:
+            pattern_duration = (
+                self.resistance_rotations
+                / self.resistance_speed_rps
+            )
+
+        elif self.active_sequence_dof is not None:
+            pattern_duration = self.get_sequence_duration(
+                self.active_sequence_dof
+            )
+
         else:
             pattern_duration = self.duration
 
@@ -802,20 +905,38 @@ class PatternRunner(Node):
 
             return
 
-        dof_values = {}
+        if self.resistance_test:
+            dof_values = {
+                "dof1": float(
+                    self.get_parameter("dof1.value").value
+                ),
+                "dof2": float(
+                    self.get_parameter("dof2.value").value
+                ),
+                "dof3": self.compute_dof3_resistance_rotation(t),
+                "dof4": float(
+                    self.get_parameter("dof4.value").value
+                ),
+            }
 
-        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
+            self.current_sequence_condition = "dof3_resistance_rotation"
+            self.publish_sequence_condition()
 
-            if self.sequence_enabled.get(dof_name, False):
-                dof_value = self.compute_dof_sequence(dof_name, t)
-                self.publish_sequence_condition()
+        else:
+            dof_values = {}
 
-                if dof_value is None:
-                    dof_value = float(self.get_parameter(f"{dof_name}.value").value)
-            else:
-                dof_value = self.compute_dof(dof_name, t)
+            for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
 
-            dof_values[dof_name] = dof_value
+                if self.sequence_enabled.get(dof_name, False):
+                    dof_value = self.compute_dof_sequence(dof_name, t)
+                    self.publish_sequence_condition()
+
+                    if dof_value is None:
+                        dof_value = float(self.get_parameter(f"{dof_name}.value").value)
+                else:
+                    dof_value = self.compute_dof(dof_name, t)
+
+                dof_values[dof_name] = dof_value
         led_msg = Bool()
         led_msg.data = self.sequence_led_active
         self.led_pub.publish(led_msg)

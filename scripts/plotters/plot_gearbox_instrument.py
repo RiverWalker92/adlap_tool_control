@@ -1673,6 +1673,7 @@ def plot_dof2_video_validation(
     )
     plt.close(fig)
 
+
 def plot_gripper_video_measurements(
     plot_dir,
     video_t,
@@ -1682,56 +1683,156 @@ def plot_gripper_video_measurements(
     secondary_marker_color,
 ):
     """
-    Plot the filtered camera measurements used for DOF4 validation.
+    Plot the available filtered DOF4 camera measurements.
+
+    Supports operation with or without a secondary marker:
+    - The estimated jaw opening is obtained from the red marker.
+    - The secondary marker is plotted only when configured and valid.
+    - The red marker relative to the shaft is plotted when available.
+
+    Missing signals are omitted instead of producing empty subplots.
     """
-    fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True)
-    fig.suptitle("Gripper video measurements", fontsize=16)
 
-    axes[0].plot(
-        video_t,
-        jaw_video_angle,
-        linestyle="-",
-        linewidth=2,
-        # label=(
-        #     f"measured jaw angle: "
-        #     f"{secondary_marker_color} vs red [deg]"
-        # ),
+    video_time = clean_numeric_array(video_t)
+
+    if len(video_time) == 0:
+        print("Warning: no DOF4 video samples available.")
+        return
+
+    # Collect only available camera measurements.
+    signals = []
+
+    def add_signal(values, label, ylabel):
+        """Add a signal only when it contains valid measurements."""
+
+        if values is None:
+            return
+
+        values = clean_numeric_array(values)
+
+        if len(values) != len(video_time):
+            print(
+                f"Warning: skipping {label}: "
+                "signal length does not match video timestamps."
+            )
+            return
+
+        valid = (
+            np.isfinite(video_time)
+            & np.isfinite(values)
+        )
+
+        if not np.any(valid):
+            return
+
+        signals.append(
+            {
+                "values": values,
+                "label": label,
+                "ylabel": ylabel,
+            }
+        )
+
+    # -------------------------------------------------------------
+    # 1. Jaw opening estimated from the red marker
+    # -------------------------------------------------------------
+    add_signal(
+        values=jaw_video_angle,
         label="estimated jaw opening from red marker [deg]",
+        ylabel="Jaw opening [deg]",
     )
-    axes[0].set_ylabel("Jaw angle [deg]")
-    axes[0].grid(True)
-    axes[0].legend(fontsize=8)
 
-    axes[1].plot(
-        video_t,
-        secondary_shaft_video_angle, 
-        linestyle="-",
-        linewidth=2,
-        label=(
-            f"measured {secondary_marker_color} marker vs shaft [deg]"
-        ),
+    # -------------------------------------------------------------
+    # 2. Optional secondary marker relative to the shaft
+    # -------------------------------------------------------------
+    secondary_name = (
+        secondary_marker_color.strip()
+        if isinstance(secondary_marker_color, str)
+        else ""
     )
-    axes[1].set_ylabel(secondary_marker_color.capitalize() + "-shaft [deg]")
-    axes[1].grid(True)
-    axes[1].legend(fontsize=8)
 
-    axes[2].plot(
-        video_t,
-        red_shaft_video_angle,
-        linestyle="-",
-        linewidth=2,
-        label=(
-            f"measured red marker vs shaft [deg]"
-        ),
+    has_secondary_marker = (
+        secondary_name.lower() not in ("", "none", "null")
     )
-    axes[2].set_ylabel("Red-shaft [deg]")
-    axes[2].set_xlabel("Time [s]")
-    axes[2].grid(True)
-    axes[2].legend(fontsize=8)
+
+    if has_secondary_marker:
+        add_signal(
+            values=secondary_shaft_video_angle,
+            label=(
+                f"measured {secondary_name} marker "
+                "vs shaft [deg]"
+            ),
+            ylabel=(
+                f"{secondary_name.capitalize()}-shaft [deg]"
+            ),
+        )
+
+    # -------------------------------------------------------------
+    # 3. Red marker relative to the shaft
+    # -------------------------------------------------------------
+    add_signal(
+        values=red_shaft_video_angle,
+        label="measured red marker vs shaft [deg]",
+        ylabel="Red-shaft [deg]",
+    )
+
+    if not signals:
+        print(
+            "Warning: no valid DOF4 camera measurements "
+            "available for plotting."
+        )
+        return
+
+    # -------------------------------------------------------------
+    # Create only the required subplots
+    # -------------------------------------------------------------
+    nrows = len(signals)
+
+    fig, axes = plt.subplots(
+        nrows,
+        1,
+        figsize=(14, 3.2 * nrows),
+        sharex=True,
+        squeeze=False,
+    )
+
+    axes = axes[:, 0]
+
+    fig.suptitle(
+        "Gripper video measurements",
+        fontsize=16,
+    )
+
+    for ax, signal in zip(axes, signals):
+        ax.plot(
+            video_time,
+            signal["values"],
+            linestyle="-",
+            linewidth=2,
+            label=signal["label"],
+        )
+
+        ax.set_ylabel(signal["ylabel"])
+        ax.grid(True)
+        ax.legend(fontsize=8)
+
+    axes[-1].set_xlabel("Time [s]")
 
     plt.tight_layout(rect=[0, 0, 1, 0.94])
-    fig.savefig(os.path.join(plot_dir, "gripper_video_measurements.png"), dpi=200)
+
+    plot_path = os.path.join(
+        plot_dir,
+        "gripper_video_measurements.png",
+    )
+
+    fig.savefig(
+        plot_path,
+        dpi=200,
+    )
+
     plt.close(fig)
+
+    print(f"Saved gripper video measurements: {plot_path}")
 
 # -------------------------------------------------------------------------
 # Overview plots

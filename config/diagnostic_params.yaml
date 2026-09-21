@@ -265,6 +265,28 @@ digital_twin_diagnostics:
       4:
         0: [-120.0, 120.0]
         3: [-120.0, 120.0]
+    friction_dof3:
+      encoder_pulses_per_motor_rev: 903.0
+
+      min_rotation_coverage: 0.95
+      min_complete_rotations: 5
+
+      mean_positive_residual_limit_ma: 6.0
+
+      initial_rotations:
+        count: 5
+        individual_limit_ma: 15.0
+        required_exceedances: 5
+
+      localisation:
+        motor_0:
+          suspected_transmission: L2
+          limit_ma: null
+
+        motor_3:
+          suspected_transmission: L1
+          limit_ma: null
+
   full_setup:
     dof_position_bands:
       1:
@@ -605,9 +627,9 @@ digital_twin_diagnostics:
       closing_direction_window_s: 0.1
       closing_min_target_change_pulses: 1.0
       mean_closing_residual_limits_ma:
-        sinusoid_f0p5_r0p5: 7.2
-        sinusoid_f1p0_r0p5: 9.8
-        sinusoid_f2p0_r0p5: 13.2
-        triangle_f0p5_r0p5: 13.8
-        triangle_f1p0_r0p5: 20.9
-        triangle_f2p0_r0p5: 16.0
+        sinusoid_f0p5_r0p5: 12.5
+        sinusoid_f1p0_r0p5: 22.5
+        sinusoid_f2p0_r0p5: 17.5
+        triangle_f0p5_r0p5: 17.5
+        triangle_f1p0_r0p5: 32.5
+        triangle_f2p0_r0p5: 22.5

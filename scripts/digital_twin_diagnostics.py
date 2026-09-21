@@ -53,7 +53,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 DETECTOR_NAME = "digital_twin_residual_band_diagnostics"
-DETECTOR_VERSION = "2.1.0"
+DETECTOR_VERSION = "2.2.1"
 
 DEFAULT_DIAGNOSTIC_CONFIG_PATH = (
     Path(
@@ -214,6 +214,13 @@ GEARBOX_CURRENT_BANDS = (
     ]
 )
 
+# Optional configuration. The one-sided upper-band fraction rule uses the
+# existing healthy current bands. A condition-specific mean rule is only
+# evaluated after limits have been calibrated from healthy gearbox runs.
+GEARBOX_FRICTION_DOF3_PARAMS = GEARBOX_ONLY_PARAMS.get(
+    "friction_dof3", {}
+)
+
 
 # ---------------------------------------------------------------------------
 # Full setup
@@ -356,18 +363,53 @@ def validate_replay(rows: list[dict[str, Any]]) -> None:
 
 def detect_dof(
     replay_path: Path,
+    rows: list[dict[str, Any]] | None = None,
 ) -> int:
+    """Identify DOF from replay metadata, filename, or parent directory."""
 
-    name = replay_path.name.lower()
+    # Resistance logs need not contain `dof3` in their filename.
+    if rows:
+        for row in rows:
+            value = row.get("active_dof")
+            try:
+                dof = int(value)
+            except (ValueError, TypeError):
+                continue
+            if dof in (1, 2, 3, 4):
+                return dof
 
-    for dof in range(1, 5):
-
-        if f"dof{dof}" in name:
-            return dof
+    # Fallback: inspect the full path (e.g. /dof3_resistance/...).
+    import re
+    candidates = {
+        int(match.group(1))
+        for match in re.finditer(
+            r"dof([1-4])(?![0-9])", str(replay_path).lower()
+        )
+    }
+    if len(candidates) == 1:
+        return next(iter(candidates))
 
     raise ValueError(
-        "Could not determine DOF from replay filename."
+        "Could not determine unique DOF from active_dof or replay path."
     )
+
+def is_gearbox_resistance_trial(
+    replay_path: Path,
+    rows: list[dict[str, Any]],
+    coupling_mode: str,
+    dof: int | None,
+) -> bool:
+    """Limit the special friction rule to explicitly named DOF3 resistance runs."""
+    if coupling_mode != "gearbox_only" or dof != 3 or not rows:
+        return False
+    identifiers = (
+        str(replay_path),
+        str(rows[0].get("motor_name", "")),
+        str(rows[0].get("test_type", "")),
+        str(rows[0].get("task_label", "")),
+    )
+    return any("resistance" in value.lower() for value in identifiers)
+
 
 def detect_dof_condition(
     row: dict[str, Any],
@@ -844,10 +886,6 @@ def analyse_scissor_closing_current(
         closing
     ]
 
-    # ---------------------------------------------------------------
-    # Method 1: residual-band diagnosis during closing
-    # ---------------------------------------------------------------
-
     outside = np.zeros(
         len(residual),
         dtype=bool,
@@ -873,17 +911,14 @@ def analyse_scissor_closing_current(
         outside,
         times,
     )
+    # ---------------------------------------------------------------
+    # Method 1: residual-band diagnosis during closing
+    # ---------------------------------------------------------------
+    # Fraction and duration rules are temporarily disabled for
+    # DOF4 scissors. Keep their statistics for inspection.
 
-    fraction_triggered = (
-        outside_fraction
-        > MAX_OUTSIDE_FRACTION
-    )
-
-    duration_triggered = (
-        max_continuous_outside_s is not None
-        and longest_outside_s
-            >= max_continuous_outside_s
-    )
+    fraction_triggered = False
+    duration_triggered = False
 
     # ---------------------------------------------------------------
     # Method 2: mean residual during closing
@@ -897,17 +932,14 @@ def analyse_scissor_closing_current(
         mean_residual_limit is not None
     )
 
+    # One-sided detection: measured current exceeds prediction.
     mean_rule_triggered = (
         mean_rule_evaluated
-        and abs(mean_residual) > mean_residual_limit
+        and mean_residual > mean_residual_limit
     )
 
-    # Either method may detect the deviation.
-    deviating = (
-        fraction_triggered
-        or duration_triggered
-        or mean_rule_triggered
-    )
+    # Only the mean rule determines the scissor current diagnosis.
+    deviating = mean_rule_triggered
 
     return {
         "status":
@@ -980,6 +1012,141 @@ def analyse_scissor_closing_current(
         "large_transient_rule_triggered":
             False,
     }
+
+def get_gearbox_motion_mask(
+    times: np.ndarray,
+    task_labels: np.ndarray,
+    commanded_target: np.ndarray,
+) -> np.ndarray:
+    """Select commanded motor motion, keeping separate tasks independent."""
+    times = np.asarray(times, dtype=float)
+    task_labels = np.asarray(task_labels, dtype=str)
+    commanded_target = np.asarray(commanded_target, dtype=float)
+    if len(times) != len(task_labels) or len(times) != len(commanded_target):
+        raise ValueError("Gearbox motion input lengths do not match.")
+
+    min_target_change = float(
+        GEARBOX_FRICTION_DOF3_PARAMS.get("min_target_change_pulses", 1.0)
+    )
+    motion = np.zeros(len(times), dtype=bool)
+    for label in np.unique(task_labels):
+        indices = np.where(task_labels == label)[0]
+        indices = indices[np.argsort(times[indices])]
+        if len(indices) < 2:
+            continue
+
+        a = commanded_target[indices[:-1]]
+        b = commanded_target[indices[1:]]
+        dt = times[indices[1:]] - times[indices[:-1]]
+        valid_pair = (
+            np.isfinite(a) & np.isfinite(b)
+            & np.isfinite(dt) & (dt > 0)
+        )
+        moving_pair = valid_pair & (np.abs(b - a) > min_target_change)
+        motion[indices[1:]] = moving_pair
+        if moving_pair[0]:
+            motion[indices[0]] = True
+
+    return motion & np.isfinite(times)
+
+
+def analyse_gearbox_friction_current(
+    residual: np.ndarray,
+    times: np.ndarray,
+    task_labels: np.ndarray,
+    commanded_target: np.ndarray,
+    lower: float,
+    upper: float,
+    mean_residual_limit: float | None,
+) -> dict[str, Any]:
+    """DOF3 gearbox-friction diagnosis from positive current excess in motion.
+
+    Motion selection is performed separately for each task label to prevent
+    commanded target differences across separate trials from being counted.
+    The currently configured *upper* healthy current band provides the
+    initial decision rule; an optional positive-mean threshold is evaluated
+    only after calibration from healthy data.
+    """
+    residual = np.asarray(residual, dtype=float)
+    times = np.asarray(times, dtype=float)
+    task_labels = np.asarray(task_labels, dtype=str)
+    commanded_target = np.asarray(commanded_target, dtype=float)
+
+    if not (
+        len(residual) == len(times) == len(task_labels)
+        == len(commanded_target)
+    ):
+        raise ValueError("Gearbox friction input lengths do not match.")
+
+    min_motion_samples = int(
+        GEARBOX_FRICTION_DOF3_PARAMS.get("min_motion_samples", 20)
+    )
+    motion = get_gearbox_motion_mask(
+        times=times,
+        task_labels=task_labels,
+        commanded_target=commanded_target,
+    ) & np.isfinite(residual)
+    count = int(motion.sum())
+    if count < min_motion_samples:
+        raise ValueError(
+            f"Not enough valid commanded-motion samples for gearbox "
+            f"friction diagnosis: {count} < {min_motion_samples}."
+        )
+
+    moving_residual = residual[motion]
+    outside = motion & (residual > upper)  # only higher measured current
+    outside_count = int(outside.sum())
+    outside_fraction = outside_count / count
+    mean_residual = float(np.mean(moving_residual))
+
+    if mean_residual_limit is not None:
+        mean_residual_limit = float(mean_residual_limit)
+        if not np.isfinite(mean_residual_limit) or mean_residual_limit < 0:
+            raise ValueError("Invalid gearbox mean residual limit.")
+
+    mean_rule_evaluated = mean_residual_limit is not None
+    mean_rule_triggered = bool(
+        mean_rule_evaluated and mean_residual > mean_residual_limit
+    )
+    fraction_triggered = bool(outside_fraction > MAX_OUTSIDE_FRACTION)
+    deviating = mean_rule_triggered or fraction_triggered
+
+    # Descriptive longest excursion only; duration does not trigger diagnosis.
+    longest_outside = 0.0
+    for label in np.unique(task_labels):
+        idx = np.where(task_labels == label)[0]
+        idx = idx[np.argsort(times[idx])]
+        if len(idx) == 0:
+            continue
+        longest_outside = max(
+            longest_outside,
+            longest_true_duration(outside[idx], times[idx]),
+        )
+
+    return {
+        "status": "deviating" if deviating else "healthy",
+        "analysis_phase": "commanded_motion",
+        "diagnosis_method": "gearbox_friction_positive_current",
+        "healthy_band": {"lower": lower, "upper": upper, "unit": "mA"},
+        "samples": count,
+        "samples_outside_band": outside_count,
+        "fraction_outside_band": outside_fraction,
+        "percentage_outside_band": 100.0 * outside_fraction,
+        "maximum_continuous_outside_s": None,
+        "longest_continuous_outside_s": longest_outside,
+        "minimum_residual": float(np.min(moving_residual)),
+        "maximum_residual": float(np.max(moving_residual)),
+        "mean_residual": mean_residual,
+        "mean_residual_limit": mean_residual_limit,
+        "mean_rule_evaluated": mean_rule_evaluated,
+        "mean_rule_triggered": mean_rule_triggered,
+        "fraction_rule_triggered": fraction_triggered,
+        "duration_rule_triggered": False,
+        "maximum_absolute_residual": float(np.max(np.abs(moving_residual))),
+        "very_large_residual_limit": None,
+        "large_transient_rule_triggered": False,
+    }
+
 
 def analyse_signal(
     residual: np.ndarray,
@@ -1347,6 +1514,7 @@ def analyse_motor_test(
     coupling_mode: str,
     dof: int | None = None,
     condition: str | None = None,
+    gearbox_friction_trial: bool = False,
 ) -> dict[str, Any]:
     
     valid_rows = []
@@ -1471,7 +1639,66 @@ def analyse_motor_test(
         and "scissor" in instrument_config
     )
 
-    if is_scissor_dof4_current:
+    is_gearbox_friction_dof3 = gearbox_friction_trial
+
+    if is_gearbox_friction_dof3:
+        commanded_target = np.asarray(
+            [
+                float(row["offline_commanded_target"][motor])
+                if row["offline_commanded_target"][motor] is not None
+                else np.nan
+                for row in rows
+            ],
+            dtype=float,
+        )
+        # Apply position diagnosis only to the moving samples as well.
+        # Keep the full sequence available for the current-result statistics.
+        motion_mask = get_gearbox_motion_mask(
+            times=times,
+            task_labels=task_labels,
+            commanded_target=commanded_target,
+        )
+        min_motion_samples = int(
+            GEARBOX_FRICTION_DOF3_PARAMS.get("min_motion_samples", 20)
+        )
+        if int(motion_mask.sum()) < min_motion_samples:
+            raise ValueError(
+                "Insufficient valid motion samples for gearbox diagnosis."
+            )
+        position_result = analyse_signal(
+            residual=position_residual[motion_mask],
+            times=times[motion_mask],
+            task_labels=task_labels[motion_mask],
+            lower=position_lower,
+            upper=position_upper,
+            unit="pulses",
+            max_continuous_outside_s=None,
+        )
+
+        gearbox_variant = str(rows[0].get("gearbox_variant", "")).strip()
+        if gearbox_variant not in ("gearbox_1", "gearbox_2"):
+            raise ValueError(
+                f"Unknown gearbox variant for friction diagnosis: "
+                f"'{gearbox_variant}'."
+            )
+        variant_limits = (
+            GEARBOX_FRICTION_DOF3_PARAMS
+            .get("mean_positive_residual_limits_ma", {})
+            .get(gearbox_variant, {})
+        )
+        mean_limit = variant_limits.get(motor, variant_limits.get(str(motor)))
+        current_result = analyse_gearbox_friction_current(
+            residual=current_residual,
+            times=times,
+            task_labels=task_labels,
+            commanded_target=commanded_target,
+            lower=current_lower,
+            upper=current_upper,
+            mean_residual_limit=mean_limit,
+        )
+        current_result["gearbox_variant"] = gearbox_variant
+
+    elif is_scissor_dof4_current:
 
         commanded_target = np.asarray(
             [
@@ -1495,6 +1722,11 @@ def analyse_motor_test(
             FULL_SETUP_SCISSOR_DOF4_MEAN_CLOSING_RESIDUAL_LIMITS
             .get(condition)
         )
+        if mean_residual_limit is None:
+            raise ValueError(
+                f"Missing DOF4 scissor mean closing residual limit for "
+                f"condition '{condition}'."
+            )
 
         current_result = (
             analyse_scissor_closing_current(
@@ -1632,7 +1864,8 @@ def diagnose_replay(
 
         try:
             dof = detect_dof(
-                replay_path
+                replay_path,
+                rows,
             )
 
             motors_to_evaluate = (
@@ -1654,7 +1887,8 @@ def diagnose_replay(
 
         try:
             dof = detect_dof(
-                replay_path
+                replay_path,
+                rows,
             )
 
         except ValueError as exc:
@@ -1672,7 +1906,8 @@ def diagnose_replay(
 
         try:
             dof = detect_dof(
-                replay_path
+                replay_path,
+                rows,
             )
 
         except ValueError as exc:
@@ -1693,6 +1928,10 @@ def diagnose_replay(
             f"{coupling_mode}"
         )
     
+    gearbox_friction_trial = is_gearbox_resistance_trial(
+        replay_path, rows, coupling_mode, dof
+    )
+
     grouped = defaultdict(list)
 
     for row in rows:
@@ -1793,17 +2032,12 @@ def diagnose_replay(
                     coupling_mode=coupling_mode,
                     dof=dof,
                     condition=condition,
+                    gearbox_friction_trial=gearbox_friction_trial,
                 )
 
             except ValueError as exc:
 
-                if condition is not None:
-                    skipped_conditions.add(
-                        (
-                            condition,
-                            motor,
-                        )
-                    )
+                skipped_conditions.add((condition, motor))
 
                 print(
                     f"WARNING: skipping diagnostics for "
@@ -1841,6 +2075,8 @@ def diagnose_replay(
         if skipped_conditions
         else "complete"
     )
+    # A missing gearbox-motor result cannot establish a healthy gearbox.
+    gearbox_incomplete = gearbox_friction_trial and bool(skipped_conditions)
 
     deviating_results = [
         result
@@ -1922,7 +2158,7 @@ def diagnose_replay(
             "status":
                 "deviating"
                 if motor_is_deviating
-                else "healthy",
+                else ("not_evaluated" if not motor_tests else "healthy"),
 
             "tests":
                 motor_tests,
@@ -1968,7 +2204,7 @@ def diagnose_replay(
                 "motor": motor,
             }
             for condition, motor
-            in sorted(skipped_conditions)
+            in sorted(skipped_conditions, key=lambda item: (str(item[0]), item[1]))
         ],
 
         "pause_analysis":
@@ -1977,13 +2213,16 @@ def diagnose_replay(
         "status":
             "deviating"
             if deviating
-            else "healthy",
+            else ("invalid" if gearbox_incomplete else "healthy"),
 
-        "probable_fault_location":
-            determine_fault_location(
+        "probable_fault_location": (
+            "undetermined"
+            if gearbox_incomplete and not deviating
+            else determine_fault_location(
                 coupling_mode=coupling_mode,
                 deviating=deviating,
-            ),
+            )
+        ),
 
         "affected_motors":
             affected_motors,
@@ -2000,9 +2239,14 @@ def diagnose_replay(
                     )
                 ),
 
-            "method":
-                "fixed healthy position and current "
-                "residual bands per motor and test type",
+            "method": (
+                "gearbox DOF3: positive current excess during motion "
+                "(upper-band fraction; optional calibrated mean); "
+                "position residual bands"
+                if gearbox_friction_trial
+                else "fixed healthy position and current residual bands "
+                     "with DOF-specific rules"
+            ),
 
             "maximum_fraction_outside":
                 MAX_OUTSIDE_FRACTION,
@@ -2061,7 +2305,8 @@ def create_diagnostic_plots(
     if coupling_mode == "gearbox_only":
 
         dof = detect_dof(
-            replay_path
+            replay_path,
+            rows,
         )
 
         motors_to_plot = (
@@ -2072,7 +2317,8 @@ def create_diagnostic_plots(
 
         try:
             dof = detect_dof(
-                replay_path
+                replay_path,
+                rows,
             )
 
             motors_to_plot = (
@@ -2093,7 +2339,8 @@ def create_diagnostic_plots(
     elif coupling_mode == "full_setup":
 
         dof = detect_dof(
-            replay_path
+            replay_path,
+            rows,
         )
 
         motors_to_plot = (
@@ -2101,6 +2348,10 @@ def create_diagnostic_plots(
                 dof
             ]
         )
+
+    gearbox_friction_trial = is_gearbox_resistance_trial(
+        replay_path, rows, coupling_mode, dof
+    )
 
     output_dir.mkdir(
         parents=True,
@@ -2488,11 +2739,35 @@ def create_diagnostic_plots(
             (position_residual > position_upper)
         )
 
-        current_outside = (
-            (current_residual < current_lower)
-            |
-            (current_residual > current_upper)
-        )
+        if gearbox_friction_trial:
+            # Use the same motion selection as the gearbox friction diagnosis.
+            motion = get_gearbox_motion_mask(
+                times=np.asarray(
+                    [float(row["segment_time"]) for row in motor_rows],
+                    dtype=float,
+                ),
+                task_labels=np.asarray(
+                    [str(row["task_label"]) for row in motor_rows],
+                    dtype=str,
+                ),
+                commanded_target=np.asarray(
+                    [
+                        float(row["offline_commanded_target"][motor])
+                        if row["offline_commanded_target"][motor] is not None
+                        else np.nan
+                        for row in motor_rows
+                    ],
+                    dtype=float,
+                ),
+            )
+            # Position deviations are evaluated during commanded motion only.
+            position_outside &= motion
+            current_outside = (current_residual > current_upper) & motion
+        else:
+            current_outside = (
+                (current_residual < current_lower)
+                | (current_residual > current_upper)
+            )
 
         # ---------------------------------------------------------------
         # Plot
@@ -2655,7 +2930,11 @@ def create_diagnostic_plots(
             current_lower,
             current_upper,
             alpha=0.20,
-            label="Healthy residual band",
+            label=(
+                "Reference residual band (only upper bound triggers)"
+                if gearbox_friction_trial
+                else "Healthy residual band"
+            ),
         )
 
         axes[3].plot(
@@ -2691,7 +2970,9 @@ def create_diagnostic_plots(
         )
 
         axes[3].set_title(
-            "Current residual diagnosis"
+            "Current residual (positive upper bound; motion-only diagnosis)"
+            if gearbox_friction_trial
+            else "Current residual diagnosis"
         )
 
         axes[3].grid(
@@ -3012,15 +3293,22 @@ def show_diagnosis_popup(
         ),
         "",
         (
-            "Detection rule: more than "
-            f"{100.0 * MAX_OUTSIDE_FRACTION:.0f}% of samples "
-            "outside the healthy band"
-        ),
-        (
-            "Current DOF tests can additionally trigger when "
-            "the continuous excursion exceeds the condition-specific "
-            "duration limit or when a very large positive current "
-            "residual is detected."
+            "DOF4 scissors M3: mean positive current excess during closing; "
+            "band and duration triggers disabled."
+            if diagnosis.get("coupling_mode") == "full_setup"
+            and diagnosis.get("dof") == 4
+            else (
+                "Gearbox DOF3 resistance: positive upper-band fraction "
+                f"> {100.0 * MAX_OUTSIDE_FRACTION:.0f}% during motion; "
+                "optional calibrated mean rule."
+                if diagnosis.get("coupling_mode") == "gearbox_only"
+                and diagnosis.get("dof") == 3
+                else (
+                    "Detection rule: more than "
+                    f"{100.0 * MAX_OUTSIDE_FRACTION:.0f}% of samples "
+                    "outside the healthy band (with configured duration/peak rules)."
+                )
+            )
         ),
     ]
 
@@ -3222,7 +3510,7 @@ def show_diagnosis_popup(
                         f'{1000.0 * signal["longest_continuous_outside_s"]:.0f} ms'
                     )
 
-                if signal.get("analysis_phase") == "closing":
+                if signal.get("analysis_phase") in {"closing", "commanded_motion"}:
 
                     mean_residual = signal.get(
                         "mean_residual"
@@ -3240,7 +3528,7 @@ def show_diagnosis_popup(
                     else:
                         range_text = (
                             f'mean {mean_residual:.1f} {unit} '
-                            f'(limit not set)'
+                            f'(mean rule disabled; upper band active)'
                         )
 
                 else:
@@ -3561,6 +3849,11 @@ def main() -> None:
             diagnosis["status"] = "deviating"
 
             diagnosis["instrument_output_fault_location"] = (
+                "gearbox_or_instrument"
+            )
+            # Keep the overall location consistent if camera detects a
+            # deviation not already indicated by the Motor DT.
+            diagnosis["probable_fault_location"] = (
                 "gearbox_or_instrument"
             )
     # ------------------------------------------------------------------

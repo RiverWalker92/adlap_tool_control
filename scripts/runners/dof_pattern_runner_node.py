@@ -94,51 +94,28 @@ class PatternRunner(Node):
                 "Scissor DOF4 override active: minimum command = -0.2 rad"
             )
 
-        # Optional dedicated DOF3 gearbox-resistance test.
-        # Disabled by default so the standard diagnostic sequence is unchanged.
+        # Dedicated DOF3 resistance run is OPT-IN. The regular automatic DOF
+        # sequence only selects dof1..dof4, never dof3_resistance.
         self.declare_parameter("resistance_test", False)
-        self.declare_parameter("resistance_rotations", 20)
-        self.declare_parameter("resistance_speed_rps", 0.4)
-        self.declare_parameter("resistance_direction", 1)
+        self.resistance_test = bool(self.get_parameter("resistance_test").value)
+        if self.resistance_test and self.active_dof_override != 3:
+            raise ValueError("resistance_test requires active_dof=3")
 
-        self.resistance_test = bool(
-            self.get_parameter("resistance_test").value
-        )
-        self.resistance_rotations = int(
-            self.get_parameter("resistance_rotations").value
-        )
-        self.resistance_speed_rps = float(
-            self.get_parameter("resistance_speed_rps").value
-        )
-        self.resistance_direction = int(
-            self.get_parameter("resistance_direction").value
-        )
-
+        # Resistance movement parameters are read exclusively from the
+        # dof3_resistance.* YAML section (rather than duplicate ROS parameters).
         if self.resistance_test:
-            if self.active_dof_override != 3:
-                raise ValueError(
-                    "resistance_test requires active_dof=3"
-                )
+            prefix = "dof3_resistance"
+            for field in ("mode", "value", "min", "max", "frequency"):
+                self.declare_parameter(f"{prefix}.{field}")
 
-            if self.resistance_rotations <= 0:
-                raise ValueError(
-                    "resistance_rotations must be greater than zero"
-                )
-
-            if self.resistance_speed_rps <= 0.0:
-                raise ValueError(
-                    "resistance_speed_rps must be greater than zero"
-                )
-
-            if self.resistance_direction not in [-1, 1]:
-                raise ValueError(
-                    "resistance_direction must be -1 or 1"
-                )
-        
         # -------------------------------------------------------------------------
         # Sequence parameters
         # -------------------------------------------------------------------------
-        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
+        sequence_names = ["dof1", "dof2", "dof3", "dof4"]
+        if self.resistance_test:
+            sequence_names.append("dof3_resistance")
+
+        for dof_name in sequence_names:
             self.declare_parameter(f"{dof_name}.sequence_modes")
             self.declare_parameter(f"{dof_name}.sequence_cycles")
             self.declare_parameter(f"{dof_name}.sequence_pause_duration")
@@ -164,15 +141,17 @@ class PatternRunner(Node):
         self.sequence_between_range_pause = {}
         self.sequence_final_pause_duration = {}
 
-        for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
+        for dof_name in sequence_names:
             mode = self.get_parameter(f"{dof_name}.mode").value
-            dof_number = int(dof_name[-1])
 
-            # An explicit active_dof from the launch file overrides the sequence mode
-            # configured for the other DOFs.
-            if self.active_dof_override != 0:
+            if dof_name == "dof3_resistance":
+                self.sequence_enabled[dof_name] = self.resistance_test
+            elif self.resistance_test:
+                # Never execute the ordinary DOF3 sequence in a resistance run.
+                self.sequence_enabled[dof_name] = False
+            elif self.active_dof_override != 0:
                 self.sequence_enabled[dof_name] = (
-                    dof_number == self.active_dof_override
+                    dof_name == f"dof{self.active_dof_override}"
                 )
             else:
                 self.sequence_enabled[dof_name] = mode == "sequence"
@@ -255,6 +234,35 @@ class PatternRunner(Node):
                 self.sequence_between_range_pause[dof_name] = 0.0
                 self.sequence_final_pause_duration[dof_name] = 0.0
 
+        if self.resistance_test:
+            name = "dof3_resistance"
+            modes = self.sequence_modes[name]
+            cycles = self.sequence_cycles[name]
+            factors = self.sequence_frequency_factors[name]
+            ranges = self.sequence_range_factors[name]
+            frequency = float(self.get_required_parameter_value(f"{name}.frequency"))
+            min_value = float(self.get_required_parameter_value(f"{name}.min"))
+            max_value = float(self.get_required_parameter_value(f"{name}.max"))
+            start_value = float(self.get_required_parameter_value(f"{name}.value"))
+            if self.get_required_parameter_value(f"{name}.mode") != "sequence":
+                raise ValueError("dof3_resistance.mode must be 'sequence'")
+            if modes != ["ramp"] or cycles != [1] or factors != [1.0] or ranges != [1.0]:
+                raise ValueError(
+                    "dof3_resistance requires one ramp, one cycle, and "
+                    "frequency/range factors [1.0]"
+                )
+            if not (frequency > 0 and max_value > min_value and abs(start_value - min_value) < 1e-6):
+                raise ValueError(
+                    "dof3_resistance requires positive frequency, max > min, "
+                    "and value = min (the beginning of the ramp)"
+                )
+            self.resistance_rotations = (max_value - min_value) / (2.0 * math.pi)
+            self.resistance_speed_rps = self.resistance_rotations * frequency
+            self.get_logger().info(
+                f"Resistance run: {self.resistance_rotations:.3f} rotations "
+                f"at {self.resistance_speed_rps:.3f} rps"
+            )
+
         self.sequence_led_active = False
         self.current_sequence_condition = "none"
         self.last_published_sequence_condition = None
@@ -318,6 +326,10 @@ class PatternRunner(Node):
         # another 0.2 s before starting the motion pattern.
         self.led_pulse_start_delay = 1.0
         self.led_pulse_duration = 2.0
+        if self.resistance_test:
+            # Use resistance YAML values for the pre-motion sync pulse.
+            self.led_pulse_start_delay = self.sequence_pause_led_start["dof3_resistance"]
+            self.led_pulse_duration = self.sequence_pause_led_duration["dof3_resistance"]
         self.led_on_sent = False
         self.led_off_sent = False
         self.motion_after_led_off_wait = 0.2
@@ -422,9 +434,10 @@ class PatternRunner(Node):
                 .replace(".", "p")
             )
 
+            rotations_text = f"{self.resistance_rotations:.3f}".rstrip("0").rstrip(".")
             return (
                 f"dof3_resistance_"
-                f"{self.resistance_rotations}rot_"
+                f"{rotations_text}rot_"
                 f"{speed_text}rps"
             )
         
@@ -530,6 +543,11 @@ class PatternRunner(Node):
             raise ValueError(
                 f"Frequency must be greater than zero for mode '{mode}'."
             )
+
+        if mode == "ramp":
+            # A single full ramp, not a periodic triangle. No reversal.
+            progress = min(max(frequency * t, 0.0), 1.0)
+            return min_value + progress * (max_value - min_value)
 
         offset = 0.5 * (max_value + min_value)
         amplitude = 0.5 * (max_value - min_value)
@@ -698,6 +716,10 @@ class PatternRunner(Node):
         if elapsed <= final_pause_duration:
             self.current_sequence_condition = "pause"
             self.sequence_led_active = False
+            if dof_name == "dof3_resistance":
+                # The gearbox must stay at the END angle (20 rotations),
+                # not return to the start when the ramp completes.
+                return float(self.get_parameter(f"{dof_name}.max").value)
             return value
 
         elapsed -= final_pause_duration
@@ -754,20 +776,6 @@ class PatternRunner(Node):
         
         return total_duration
 
-    def compute_dof3_resistance_rotation(self, t):
-        start_value = float(
-            self.get_parameter("dof3.value").value
-        )
-
-        angular_speed = (
-            self.resistance_direction
-            * 2.0
-            * math.pi
-            * self.resistance_speed_rps
-        )
-
-        return start_value + angular_speed * t
-    
     def update_dof4_tip_compensation(self, dof4_value):
         if self.dof4_tip_compensation_pulses == 0:
             return
@@ -823,13 +831,11 @@ class PatternRunner(Node):
         """
         elapsed = time.time() - self.start_time
 
-        # Same pre-motion LED sync for all DOFs, including DOF4.
+        # Use the same pre-motion LED sync for standard and resistance trials.
         led_should_be_on = (
-            not self.resistance_test
-            and self.led_pulse_start_delay
+            self.led_pulse_start_delay
             <= elapsed
-            <
-            self.led_pulse_start_delay + self.led_pulse_duration
+            < self.led_pulse_start_delay + self.led_pulse_duration
         )
 
         led_msg = Bool()
@@ -844,17 +850,15 @@ class PatternRunner(Node):
             self.led_off_sent = True
             self.get_logger().info("LED OFF")
 
-        if self.resistance_test:
-            motion_start = 0.0
-        else:
-            motion_start = (
-                self.led_pulse_start_delay
-                + self.led_pulse_duration
-                + self.motion_after_led_off_wait
-            )
+        motion_start = (
+            self.led_pulse_start_delay
+            + self.led_pulse_duration
+            + self.motion_after_led_off_wait
+        )
 
-        # Only use the pre-motion hold for the standard diagnostic sequence.
-        if not self.resistance_test and elapsed < motion_start:
+        # Hold every DOF at its start value during LED synchronization.
+        # This is a stationary hold, not a prerun or homing motion.
+        if elapsed < motion_start:
             values = [
                 float(self.get_parameter("dof1.value").value),
                 float(self.get_parameter("dof2.value").value),
@@ -870,17 +874,8 @@ class PatternRunner(Node):
         # Real continuous test starts only after LED off + small wait.
         t = elapsed - motion_start
 
-        if self.resistance_test:
-            pattern_duration = (
-                self.resistance_rotations
-                / self.resistance_speed_rps
-            )
-
-        elif self.active_sequence_dof is not None:
-            pattern_duration = self.get_sequence_duration(
-                self.active_sequence_dof
-            )
-
+        if self.active_sequence_dof is not None:
+            pattern_duration = self.get_sequence_duration(self.active_sequence_dof)
         else:
             pattern_duration = self.duration
 
@@ -906,20 +901,16 @@ class PatternRunner(Node):
             return
 
         if self.resistance_test:
+            # Reuse the SAME sequence scheduling as the normal triangle run,
+            # but drive only physical DOF3 with the dof3_resistance ramp.
             dof_values = {
-                "dof1": float(
-                    self.get_parameter("dof1.value").value
-                ),
-                "dof2": float(
-                    self.get_parameter("dof2.value").value
-                ),
-                "dof3": self.compute_dof3_resistance_rotation(t),
-                "dof4": float(
-                    self.get_parameter("dof4.value").value
-                ),
+                name: float(self.get_parameter(f"{name}.value").value)
+                for name in ("dof1", "dof2", "dof3", "dof4")
             }
-
-            self.current_sequence_condition = "dof3_resistance_rotation"
+            resistance_angle = self.compute_dof_sequence("dof3_resistance", t)
+            if resistance_angle is None:
+                resistance_angle = float(self.get_parameter("dof3_resistance.max").value)
+            dof_values["dof3"] = resistance_angle
             self.publish_sequence_condition()
 
         else:

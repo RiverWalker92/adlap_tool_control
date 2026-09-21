@@ -1053,6 +1053,21 @@ def get_metric_window(segment, replay_time):
 
     final_hold = FINAL_HOLD_DURATION_S.get(test_type)
 
+    if segment.get("is_resistance_test"):
+        command_times_abs = get_actual_command_times(segment)
+        full_mask = np.isfinite(replay_time)
+        return {
+            "start_s": float(replay_time[0]),
+            "end_s": float(replay_time[-1]),
+            "mask": full_mask,
+            "source": "full_resistance_run",
+            "command_count": int(command_times_abs.size),
+            "logged_command_span_s": (
+                float(command_times_abs[-1] - command_times_abs[0])
+                if command_times_abs.size >= 2 else 0.0
+            ),
+        }
+
     if final_hold is None:
         if "segment_start_time_s" in segment:
             # Bij DOF-/instrumenttrials bevat het replaysegment de volledige
@@ -3088,6 +3103,9 @@ def detect_pattern_type(rows):
             info.get("motor_name", "")
         ).lower()
 
+        if re.match(r"dof[1-4]_resistance(?:_|$)", motor_name):
+            return "resistance"
+
         if re.search(r"dof[\s_-]*[1-4]", motor_name):
             return "dof"
 
@@ -4099,6 +4117,20 @@ def plot_motor(file_path, output_dir, replay_file=None):
         print("Detected motor-pattern commands.")
         segments = split_motor_pattern_segments(rows)
 
+    elif pattern_type == "resistance":
+        print("Detected DOF resistance test.")
+        segments = []
+        for base_segment in split_motor_pattern_segments(rows):
+            for motor_index in (0, 3):
+                segments.append({
+                    **base_segment,
+                    "info": {
+                        **base_segment["info"],
+                        "motor_name": f"m{motor_index}",
+                    },
+                    "is_resistance_test": True,
+                })
+
     elif pattern_type == "dof":
         print("Detected DOF-pattern commands.")
         segments = split_dof_pattern_segments(rows)
@@ -4145,7 +4177,7 @@ def plot_motor(file_path, output_dir, replay_file=None):
     else:
         print(f"Loaded offline Motor DT replay: {replay_file}")
 
-    if pattern_type == "motor":
+    if pattern_type in ("motor", "resistance"):
         plot_motor_pattern_results(
             segments,
             output_dir,

@@ -865,12 +865,27 @@ def resolve_motor_model_dir(
                 "gearbox_variant is required for gearbox_only."
             )
 
-    return (
-        DEFAULT_GEARBOX_MODEL_ROOT
-        / gearbox_variant
-        / "motors_gearbox_results"
-        / "models"
-    )
+        # Resistance-test models for gearbox_1.
+        if gearbox_variant == "gearbox_1":
+            return (
+                Path.home()
+                / "ros2_ws"
+                / "test_data"
+                / "automated_trials"
+                / "trainings data V6 resistance_test"
+                / "motors_gearbox"
+                / "motors_gearbox_results_resistance_test"
+                / "gearbox_1"
+                / "models"
+            )
+
+        # Existing model selection for other gearbox variants.
+        return (
+            DEFAULT_GEARBOX_MODEL_ROOT
+            / gearbox_variant
+            / "motors_gearbox_results"
+            / "models"
+        )
 
     if coupling_mode == "full_setup":
         if not instrument_config:

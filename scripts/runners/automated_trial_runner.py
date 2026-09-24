@@ -789,12 +789,26 @@ def main():
                 f"Using DOF from terminal argument: DOF{args.dof}"
             )
 
-    # Camera-based output measurements are currently available for DOF2 and
-    # DOF4 of the full instrument setup.
-    if coupling_mode != "full_setup" or args.no_camera:
-        use_camera = False
-    else:
-        use_camera = args.dof in [2, 4]
+    # Camera-based output measurements are available for DOF2 and DOF4 of
+    # the full instrument setup, except DOF4 with scissors. During cutting,
+    # the operator holds the material in front of the camera, so video-based
+    # angle detection would produce unreliable results.
+    instrument_info = (detected_hardware or {}).get("instrument") or {}
+    scissors_connected = any(
+        "scissor" in str(value).lower()
+        for value in (instrument_config, instrument_info.get("name"))
+        if value is not None
+    )
+
+    use_camera = (
+        coupling_mode == "full_setup"
+        and not args.no_camera
+        and args.dof in [2, 4]
+        and not (scissors_connected and args.dof == 4)
+    )
+
+    if scissors_connected and args.dof == 4 and not args.no_camera:
+        print("Scissors DOF4: video recording and angle detection disabled.")
 
     use_instrument_plots = (
         pattern_mode == "dof"

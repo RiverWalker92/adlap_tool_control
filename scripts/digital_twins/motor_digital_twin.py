@@ -868,13 +868,8 @@ def resolve_motor_model_dir(
         # Resistance-test models for gearbox_1.
         if gearbox_variant == "gearbox_1":
             return (
-                Path.home()
-                / "ros2_ws"
-                / "test_data"
-                / "automated_trials"
-                / "trainings data V6 resistance_test"
-                / "motors_gearbox"
-                / "motors_gearbox_results_resistance_test"
+                DEFAULT_GEARBOX_MODEL_ROOT
+                / "motors_gearbox_results"
                 / "gearbox_1"
                 / "models"
             )
@@ -901,6 +896,7 @@ def resolve_motor_model_dir(
 
         return (
             DEFAULT_FULL_SETUP_MODEL_ROOT
+            / "full_setup_results"
             / instrument_config
             / "models"
         )
@@ -923,13 +919,13 @@ def load_motor_dt_models(model_dir):
 
         stored_instrument_config = model_package.get("instrument_config")
 
-        if stored_instrument_config != "scissors" and "scissors" in model_dir.parts:
+        if stored_instrument_config not in (None, "scissors") and "scissors" in model_dir.parts:
             raise RuntimeError(
                 f"Expected a scissors model, but {model_path} contains "
                 f"instrument_config={stored_instrument_config!r}."
             )
 
-        if stored_instrument_config != "gripper" and "gripper" in model_dir.parts:
+        if stored_instrument_config not in (None, "gripper") and "gripper" in model_dir.parts:
             raise RuntimeError(
                 f"Expected a gripper model, but {model_path} contains "
                 f"instrument_config={stored_instrument_config!r}."

@@ -198,6 +198,14 @@ class PatternRunner(Node):
                     )
                 ]
 
+                # Scissors: always use the full DOF4 range.
+                if (
+                    self.coupling_mode == "full_setup"
+                    and "scissor" in self.instrument_config.lower()
+                    and dof_name == "dof4"
+                ):
+                    self.sequence_range_factors[dof_name] = [1.0]
+
                 self.sequence_between_range_pause[dof_name] = float(
                     self.get_required_parameter_value(
                         f"{dof_name}.sequence_between_range_pause"
@@ -455,10 +463,9 @@ class PatternRunner(Node):
                 frequency_factors = list(
                     self.get_parameter(f"dof{i}.sequence_frequency_factors").value
                 )
-                range_factors = list(
-                    self.get_parameter(f"dof{i}.sequence_range_factors").value
-                )
 
+                range_factors = self.sequence_range_factors[f"dof{i}"]
+                
                 frequency_text = "_".join(
                     f"{float(f):.1f}".replace(".", "p")
                     for f in frequency_factors

@@ -184,6 +184,13 @@ class PatternRunner(Node):
                         f"{dof_name}.sequence_frequency_factors"
                     )
                 ]
+                # Scissors DOF4: use only frequency factors 0.5 and 1.0.
+                if (
+                    self.coupling_mode == "full_setup"
+                    and "scissor" in self.instrument_config.lower()
+                    and dof_name == "dof4"
+                ):
+                    self.sequence_frequency_factors[dof_name] = [0.5, 1.0]
 
                 self.sequence_between_frequency_pause[dof_name] = float(
                     self.get_required_parameter_value(
@@ -204,7 +211,7 @@ class PatternRunner(Node):
                     and "scissor" in self.instrument_config.lower()
                     and dof_name == "dof4"
                 ):
-                    self.sequence_range_factors[dof_name] = [1.0]
+                    self.sequence_range_factors[dof_name] = [0.75]
 
                 self.sequence_between_range_pause[dof_name] = float(
                     self.get_required_parameter_value(
@@ -460,9 +467,7 @@ class PatternRunner(Node):
 
             if sequence_active:
                 modes = list(self.get_parameter(f"dof{i}.sequence_modes").value)
-                frequency_factors = list(
-                    self.get_parameter(f"dof{i}.sequence_frequency_factors").value
-                )
+                frequency_factors = self.sequence_frequency_factors[f"dof{i}"]
 
                 range_factors = self.sequence_range_factors[f"dof{i}"]
                 
@@ -530,6 +535,7 @@ class PatternRunner(Node):
             and dof_name == "dof4"
         ):
             min_value = -0.2
+            # do i need to change this???
 
         if range_factor_override is not None:
             range_factor = float(range_factor_override)

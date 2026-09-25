@@ -3297,6 +3297,7 @@ def show_diagnosis_popup(
             "band and duration triggers disabled."
             if diagnosis.get("coupling_mode") == "full_setup"
             and diagnosis.get("dof") == 4
+            and diagnosis.get("instrument_config") == "scissors"
             else (
                 "Gearbox DOF3 resistance: positive upper-band fraction "
                 f"> {100.0 * MAX_OUTSIDE_FRACTION:.0f}% during motion; "

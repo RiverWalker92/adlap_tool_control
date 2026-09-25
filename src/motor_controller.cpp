@@ -156,6 +156,7 @@ void MotorController::send_motor_configuration(int motor_index, bool verbose)
     std::string log_message = message.substr(0, message.size() - 1);
     RCLCPP_DEBUG(logger_, "Writing motor configuration: '%s'", log_message.c_str());
   }
+  RCLCPP_INFO(logger_, "Sending motor configuration: %s", message.c_str());
   serial_->write_data(message);
   rclcpp::sleep_for(std::chrono::milliseconds(min_wait_time_ms_));
 }

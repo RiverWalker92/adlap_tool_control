@@ -38,7 +38,7 @@ public:
       Motor::create_default(), // Default motor config
       Motor::create_default(), // Default motor config
       Motor::create_default(), // Default motor config
-      Motor::create(3, 150.58f, 2, 60, 500, 1000) // M3: 50% duty
+      Motor::create(3, 150.58f, 2, 50, 500, 1000) // M3: 50% duty
 }),
     // Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
     // Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config
@@ -78,10 +78,6 @@ public:
     // commanded_angles_publisher_ =
     //     this->create_publisher<std_msgs::msg::Float64MultiArray>(
     //         "~" + COMMANDED_ANGLES_TOPIC, 10);
-
-    motor_stalled_publisher_ =
-        this->create_publisher<std_msgs::msg::Int32MultiArray>(
-            "~/motor_stalled", 10);
 
     motor_currents_publisher_ =
         this->create_publisher<std_msgs::msg::Float64MultiArray>(
@@ -245,19 +241,6 @@ public:
       };
 
       motor_currents_publisher_->publish(current_msg);
-
-    auto stalled = motor_controller.get_stalled();
-
-    std_msgs::msg::Int32MultiArray stall_msg;
-    stall_msg.data = {
-        static_cast<int32_t>(stalled[0]),
-        static_cast<int32_t>(stalled[1]),
-        static_cast<int32_t>(stalled[2]),
-        static_cast<int32_t>(stalled[3])
-    };
-
-    motor_stalled_publisher_->publish(stall_msg);
-
   }
 
   void publish_motor_positions()
@@ -310,7 +293,6 @@ public:
 
   rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr motor_command_subscription_;
 
-  rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr motor_stalled_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr motor_currents_publisher_;
   rclcpp::TimerBase::SharedPtr motor_currents_timer_;
 

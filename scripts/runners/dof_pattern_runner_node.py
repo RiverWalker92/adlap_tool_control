@@ -96,11 +96,31 @@ class PatternRunner(Node):
 
         # Dedicated DOF3 resistance run is OPT-IN. The regular automatic DOF
         # sequence only selects dof1..dof4, never dof3_resistance.
+        # Dedicated diagnostic patterns are opt-in.
         self.declare_parameter("resistance_test", False)
-        self.resistance_test = bool(self.get_parameter("resistance_test").value)
-        if self.resistance_test and self.active_dof_override != 3:
-            raise ValueError("resistance_test requires active_dof=3")
+        self.resistance_test = bool(
+            self.get_parameter("resistance_test").value
+        )
 
+        self.declare_parameter("cutting_test", False)
+        self.cutting_test = bool(
+            self.get_parameter("cutting_test").value
+        )
+
+        if self.resistance_test and self.cutting_test:
+            raise ValueError(
+                "resistance_test and cutting_test cannot both be active"
+            )
+
+        if self.resistance_test and self.active_dof_override != 3:
+            raise ValueError(
+                "resistance_test requires active_dof=3"
+            )
+
+        if self.cutting_test and self.active_dof_override != 4:
+            raise ValueError(
+                "cutting_test requires active_dof=4"
+            )
         # Resistance movement parameters are read exclusively from the
         # dof3_resistance.* YAML section (rather than duplicate ROS parameters).
         if self.resistance_test:
@@ -108,12 +128,20 @@ class PatternRunner(Node):
             for field in ("mode", "value", "min", "max", "frequency"):
                 self.declare_parameter(f"{prefix}.{field}")
 
+        if self.cutting_test:
+            prefix = "dof4_cutting"
+            for field in ("mode", "value", "min", "max", "frequency"):
+                self.declare_parameter(f"{prefix}.{field}")
         # -------------------------------------------------------------------------
         # Sequence parameters
         # -------------------------------------------------------------------------
         sequence_names = ["dof1", "dof2", "dof3", "dof4"]
+
         if self.resistance_test:
             sequence_names.append("dof3_resistance")
+
+        if self.cutting_test:
+            sequence_names.append("dof4_cutting")
 
         for dof_name in sequence_names:
             self.declare_parameter(f"{dof_name}.sequence_modes")
@@ -146,9 +174,15 @@ class PatternRunner(Node):
 
             if dof_name == "dof3_resistance":
                 self.sequence_enabled[dof_name] = self.resistance_test
-            elif self.resistance_test:
-                # Never execute the ordinary DOF3 sequence in a resistance run.
+
+            elif dof_name == "dof4_cutting":
+                self.sequence_enabled[dof_name] = self.cutting_test
+
+            elif self.resistance_test or self.cutting_test:
+                # During a dedicated diagnostic test, disable all
+                # ordinary DOF sequences.
                 self.sequence_enabled[dof_name] = False
+
             elif self.active_dof_override != 0:
                 self.sequence_enabled[dof_name] = (
                     dof_name == f"dof{self.active_dof_override}"
@@ -342,9 +376,20 @@ class PatternRunner(Node):
         self.led_pulse_start_delay = 1.0
         self.led_pulse_duration = 2.0
         if self.resistance_test:
-            # Use resistance YAML values for the pre-motion sync pulse.
-            self.led_pulse_start_delay = self.sequence_pause_led_start["dof3_resistance"]
-            self.led_pulse_duration = self.sequence_pause_led_duration["dof3_resistance"]
+            self.led_pulse_start_delay = (
+                self.sequence_pause_led_start["dof3_resistance"]
+            )
+            self.led_pulse_duration = (
+                self.sequence_pause_led_duration["dof3_resistance"]
+            )
+
+        elif self.cutting_test:
+            self.led_pulse_start_delay = (
+                self.sequence_pause_led_start["dof4_cutting"]
+            )
+            self.led_pulse_duration = (
+                self.sequence_pause_led_duration["dof4_cutting"]
+            )
         self.led_on_sent = False
         self.led_off_sent = False
         self.motion_after_led_off_wait = 0.2
@@ -455,6 +500,8 @@ class PatternRunner(Node):
                 f"{rotations_text}rot_"
                 f"{speed_text}rps"
             )
+        elif self.cutting_test:
+            return "cutting_dof4_sequence_triangle_freqx1p0_rangex1p0"
         
         for i in range(1, 5):
             mode = self.get_parameter(f"dof{i}.mode").value
@@ -879,6 +926,11 @@ class PatternRunner(Node):
                 float(self.get_parameter("dof4.value").value),
             ]
 
+            if self.cutting_test:
+                values[3] = float(
+                    self.get_parameter("dof4_cutting.value").value
+                )
+
             msg = Float64MultiArray()
             msg.data = values
             self.pub.publish(msg)
@@ -913,21 +965,46 @@ class PatternRunner(Node):
 
             return
 
+
+        dof_values = {
+            name: float(self.get_parameter(f"{name}.value").value)
+            for name in ("dof1", "dof2", "dof3", "dof4")
+        }
         if self.resistance_test:
-            # Reuse the SAME sequence scheduling as the normal triangle run,
-            # but drive only physical DOF3 with the dof3_resistance ramp.
+            resistance_angle = self.compute_dof_sequence(
+                "dof3_resistance",
+                t
+            )
+
+            if resistance_angle is None:
+                resistance_angle = float(
+                    self.get_parameter("dof3_resistance.max").value
+                )
+
+            dof_values["dof3"] = resistance_angle
+            self.publish_sequence_condition()
+
+        elif self.cutting_test:
             dof_values = {
                 name: float(self.get_parameter(f"{name}.value").value)
                 for name in ("dof1", "dof2", "dof3", "dof4")
             }
-            resistance_angle = self.compute_dof_sequence("dof3_resistance", t)
-            if resistance_angle is None:
-                resistance_angle = float(self.get_parameter("dof3_resistance.max").value)
-            dof_values["dof3"] = resistance_angle
+
+            cutting_angle = self.compute_dof_sequence(
+                "dof4_cutting",
+                t
+            )
+
+            if cutting_angle is None:
+                cutting_angle = float(
+                    self.get_parameter("dof4_cutting.value").value
+                )
+
+            # Map the dedicated cutting sequence onto physical DOF4.
+            dof_values["dof4"] = cutting_angle
             self.publish_sequence_condition()
 
         else:
-            dof_values = {}
 
             for dof_name in ["dof1", "dof2", "dof3", "dof4"]:
 

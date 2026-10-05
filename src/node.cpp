@@ -38,7 +38,7 @@ public:
       Motor::create_default(), // Default motor config
       Motor::create_default(), // Default motor config
       Motor::create_default(), // Default motor config
-      Motor::create(3, 150.58f, 2, 60, 500, 1000) // M3: 50% duty
+      Motor::create(3, 150.58f, 2, 60, 500, 1000) // M3: 60% duty
 }),
     // Motor{7, 20.0f, 4, 20, 800, 1500, true, true}, // AE 050 motor config
     // Motor{7, 158.9f, 2, 30, 800, 1500, false, false}), // AE N30 motor config

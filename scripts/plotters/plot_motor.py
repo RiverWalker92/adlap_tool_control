@@ -3340,13 +3340,33 @@ def plot_dof_pattern_results(
 
         for motor_index in active_motors:
 
-            # sharey="row":
-            # sinusoid and triangle use exactly the same
-            # y-axis limits for each type of signal.
+            waveform_columns = [
+                (
+                    "Sinusoid",
+                    patterns.get("sinusoid"),
+                ),
+                (
+                    "Triangle",
+                    patterns.get("triangle"),
+                ),
+            ]
+
+            # Keep only waveforms that are actually present.
+            waveform_columns = [
+                (waveform_name, segment)
+                for waveform_name, segment in waveform_columns
+                if segment is not None
+            ]
+
+            n_columns = len(waveform_columns)
+
             fig, axes = plt.subplots(
                 5,
-                2,
-                figsize=(16, 13),
+                n_columns,
+                figsize=(
+                    9 if n_columns == 1 else 16,
+                    13,
+                ),
                 sharey="row",
                 squeeze=False,
             )
@@ -3361,17 +3381,6 @@ def plot_dof_pattern_results(
                 fontsize=15,
             )
 
-            waveform_columns = [
-                (
-                    "Sinusoid",
-                    patterns.get("sinusoid"),
-                ),
-                (
-                    "Triangle",
-                    patterns.get("triangle"),
-                ),
-            ]
-
             for column_index, (
                 waveform_name,
                 segment,
@@ -3380,15 +3389,6 @@ def plot_dof_pattern_results(
                 # --------------------------------------------------
                 # Missing waveform
                 # --------------------------------------------------
-
-                if segment is None:
-                    for row_index in range(5):
-                        axes[
-                            row_index,
-                            column_index,
-                        ].axis("off")
-
-                    continue
 
                 rows = segment["rows"]
                 dof_index = segment["dof_index"]
@@ -3748,7 +3748,7 @@ def plot_dof_pattern_results(
             # ------------------------------------------------------
 
             for row_index in range(5):
-                for column_index in range(2):
+                for column_index in range(n_columns):
                     if (
                         axes[
                             row_index,
@@ -3761,7 +3761,7 @@ def plot_dof_pattern_results(
                         ].set_xlim(
                             left=0.0
                         )
-
+                        
             plt.tight_layout(
                 rect=[
                     0,

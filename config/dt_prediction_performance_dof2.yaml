@@ -1,0 +1,20 @@
+training_data_root: "~/ros2_ws/test_data/automated_trials/trainings data V7"
+output_dir: "~/ros2_ws/test_data/dt_prediction_performance_results_dof2"
+
+motor:
+  enabled: false
+
+instrument:
+  enabled: true
+
+  dof2:
+    enabled: true
+    dataset: "full_setup/DOF 2/bend_dt_results/bend_training_dataset.csv"
+    model_family: random_forest
+
+  dof4:
+    enabled: false
+
+latex:
+  motor_decimals: 2
+  instrument_decimals: 3

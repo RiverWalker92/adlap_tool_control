@@ -47,7 +47,20 @@ except ImportError:
         create_gain_plot,
         diagnose_dof2_from_metadata,
     )
+# ---------------------------------------------------------------------------
+# Diagnostic switches
+# ---------------------------------------------------------------------------
+ENABLE_MOTOR_DT_RESIDUAL_DIAGNOSIS = False
 
+ENABLE_GEARBOX_DOF3_PERIODIC_DIAGNOSIS = True
+
+GEARBOX_DOF3_PERIODIC_THRESHOLD_MA = 7.5
+GEARBOX_DOF3_EDGE_TRIM_PULSES = 1505
+
+GEARBOX_DOF3_PERIODS = {
+    903: "motor_connection_or_front_middle_gears",
+    1505: "back_middle_gears",
+}
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -1147,6 +1160,391 @@ def analyse_gearbox_friction_current(
         "large_transient_rule_triggered": False,
     }
 
+def analyse_periodic_residual(
+    position: np.ndarray,
+    residual: np.ndarray,
+    period_pulses: int,
+    threshold_ma: float,
+    trim_pulses: float,
+    profile_points: int = 200,
+) -> dict[str, Any]:
+    """Fold current residual by a mechanical pulse period and average cycles."""
+
+    position = np.asarray(
+        position,
+        dtype=float,
+    )
+
+    residual = np.asarray(
+        residual,
+        dtype=float,
+    )
+
+    # ---------------------------------------------------------------
+    # Valid samples only
+    # ---------------------------------------------------------------
+
+    valid = (
+        np.isfinite(position)
+        & np.isfinite(residual)
+    )
+
+    position = position[valid]
+    residual = residual[valid]
+
+    if len(position) < 2:
+        raise ValueError(
+            "Not enough samples for periodic residual analysis."
+        )
+
+    # ---------------------------------------------------------------
+    # Determine movement direction
+    # ---------------------------------------------------------------
+
+    position_diff = np.diff(position)
+
+    nonzero_diff = position_diff[
+        np.abs(position_diff) > 1e-9
+    ]
+
+    if len(nonzero_diff) == 0:
+        raise ValueError(
+            "No encoder motion found for periodic residual analysis."
+        )
+
+    direction = float(
+        np.sign(
+            np.median(nonzero_diff)
+        )
+    )
+
+    if direction == 0:
+        raise ValueError(
+            "Could not determine encoder movement direction."
+        )
+
+    # Convert both movement directions to increasing pulse position.
+    travel = (
+        direction
+        * (position - position[0])
+    )
+
+    # ---------------------------------------------------------------
+    # Remove beginning and end
+    # ---------------------------------------------------------------
+
+    total_travel = float(
+        np.max(travel)
+    )
+
+    if total_travel <= (
+        2.0 * trim_pulses
+        + period_pulses
+    ):
+        raise ValueError(
+            f"Not enough motion after trimming for "
+            f"{period_pulses}-pulse analysis."
+        )
+
+    keep = (
+        (travel >= trim_pulses)
+        & (
+            travel
+            <= total_travel - trim_pulses
+        )
+    )
+
+    travel = travel[keep]
+    residual = residual[keep]
+
+    if len(travel) < 2:
+        raise ValueError(
+            "No samples remain after edge trimming."
+        )
+
+    # Start the analysed part at zero.
+    travel = (
+        travel - np.min(travel)
+    )
+
+    # ---------------------------------------------------------------
+    # Sort by encoder position
+    # ---------------------------------------------------------------
+
+    order = np.argsort(travel)
+
+    travel = travel[order]
+    residual = residual[order]
+
+    # Remove duplicate encoder positions for interpolation.
+    travel, unique_indices = np.unique(
+        travel,
+        return_index=True,
+    )
+
+    residual = residual[
+        unique_indices
+    ]
+
+    # ---------------------------------------------------------------
+    # Create common phase axis for all periods
+    # ---------------------------------------------------------------
+
+    phase_grid = np.linspace(
+        0.0,
+        float(period_pulses),
+        profile_points,
+        endpoint=False,
+    )
+
+    number_of_complete_periods = int(
+        np.floor(
+            np.max(travel)
+            / period_pulses
+        )
+    )
+
+    profiles = []
+
+    # ---------------------------------------------------------------
+    # Cut run into complete periods
+    # ---------------------------------------------------------------
+
+    for cycle in range(
+        number_of_complete_periods
+    ):
+
+        start = (
+            cycle
+            * period_pulses
+        )
+
+        end = (
+            start
+            + period_pulses
+        )
+
+        mask = (
+            (travel >= start)
+            & (travel < end)
+        )
+
+        cycle_position = (
+            travel[mask]
+            - start
+        )
+
+        cycle_residual = residual[
+            mask
+        ]
+
+        if len(cycle_position) < 5:
+            continue
+
+        # Require almost complete coverage of one period.
+        if (
+            np.min(cycle_position)
+            > 0.05 * period_pulses
+            or
+            np.max(cycle_position)
+            < 0.95 * period_pulses
+        ):
+            continue
+
+        cycle_order = np.argsort(
+            cycle_position
+        )
+
+        cycle_position = cycle_position[
+            cycle_order
+        ]
+
+        cycle_residual = cycle_residual[
+            cycle_order
+        ]
+
+        interpolated_profile = np.interp(
+            phase_grid,
+            cycle_position,
+            cycle_residual,
+        )
+
+        profiles.append(
+            interpolated_profile
+        )
+
+    if not profiles:
+        raise ValueError(
+            f"No complete {period_pulses}-pulse periods available."
+        )
+
+    profiles = np.asarray(
+        profiles,
+        dtype=float,
+    )
+
+    # ---------------------------------------------------------------
+    # Average all overlaid periods
+    # ---------------------------------------------------------------
+
+    mean_profile = np.mean(
+        profiles,
+        axis=0,
+    )
+
+    std_profile = np.std(
+        profiles,
+        axis=0,
+    )
+
+    # ---------------------------------------------------------------
+    # Detection:
+    # highest positive point in averaged residual profile
+    # ---------------------------------------------------------------
+
+    peak_index = int(
+        np.argmax(mean_profile)
+    )
+
+    peak_mean_residual = float(
+        mean_profile[peak_index]
+    )
+
+    peak_phase_pulses = float(
+        phase_grid[peak_index]
+    )
+
+    triggered = (
+        peak_mean_residual
+        > threshold_ma
+    )
+
+    return {
+        "period_pulses":
+            int(period_pulses),
+
+        "periods_used":
+            int(len(profiles)),
+
+        "trim_pulses_each_side":
+            float(trim_pulses),
+
+        "threshold_ma":
+            float(threshold_ma),
+
+        "peak_mean_residual_ma":
+            peak_mean_residual,
+
+        "peak_phase_pulses":
+            peak_phase_pulses,
+
+        "triggered":
+            bool(triggered),
+
+        "status":
+            "deviating"
+            if triggered
+            else "healthy",
+
+        "phase_pulses":
+            phase_grid.tolist(),
+
+        "mean_residual_ma":
+            mean_profile.tolist(),
+
+        "std_residual_ma":
+            std_profile.tolist(),
+    }
+
+
+def analyse_dof3_periodic_resistance(
+    position: np.ndarray,
+    residual: np.ndarray,
+) -> dict[str, Any]:
+    """Diagnose DOF3 gearbox resistance from 903/1505-pulse periodicity."""
+
+    result_903 = analyse_periodic_residual(
+        position=position,
+        residual=residual,
+        period_pulses=903,
+        threshold_ma=GEARBOX_DOF3_PERIODIC_THRESHOLD_MA,
+        trim_pulses=GEARBOX_DOF3_EDGE_TRIM_PULSES,
+    )
+
+    result_1505 = analyse_periodic_residual(
+        position=position,
+        residual=residual,
+        period_pulses=1505,
+        threshold_ma=GEARBOX_DOF3_PERIODIC_THRESHOLD_MA,
+        trim_pulses=GEARBOX_DOF3_EDGE_TRIM_PULSES,
+    )
+
+    trigger_903 = result_903[
+        "triggered"
+    ]
+
+    trigger_1505 = result_1505[
+        "triggered"
+    ]
+
+    if (
+        trigger_903
+        and not trigger_1505
+    ):
+        probable_location = (
+            GEARBOX_DOF3_PERIODS[903]
+        )
+
+    elif (
+        trigger_1505
+        and not trigger_903
+    ):
+        probable_location = (
+            GEARBOX_DOF3_PERIODS[1505]
+        )
+
+    elif (
+        trigger_903
+        and trigger_1505
+    ):
+        probable_location = (
+            "gearbox_periodicity_ambiguous"
+        )
+
+    else:
+        probable_location = "none"
+
+    deviating = (
+        trigger_903
+        or trigger_1505
+    )
+
+    return {
+        "status":
+            "deviating"
+            if deviating
+            else "healthy",
+
+        "diagnosis_method":
+            "dof3_periodic_current_residual",
+
+        "fault_type":
+            "increased_gearbox_resistance"
+            if deviating
+            else "none",
+
+        "probable_location":
+            probable_location,
+
+        "threshold_ma":
+            GEARBOX_DOF3_PERIODIC_THRESHOLD_MA,
+
+        "period_903":
+            result_903,
+
+        "period_1505":
+            result_1505,
+    }
 
 def analyse_signal(
     residual: np.ndarray,
@@ -1641,6 +2039,8 @@ def analyse_motor_test(
 
     is_gearbox_friction_dof3 = gearbox_friction_trial
 
+    periodic_resistance_result = None
+
     if is_gearbox_friction_dof3:
         commanded_target = np.asarray(
             [
@@ -1697,6 +2097,33 @@ def analyse_motor_test(
             mean_residual_limit=mean_limit,
         )
         current_result["gearbox_variant"] = gearbox_variant
+
+        # -----------------------------------------------------------
+        # New DOF3 periodic resistance diagnosis
+        # -----------------------------------------------------------
+
+        if ENABLE_GEARBOX_DOF3_PERIODIC_DIAGNOSIS:
+
+            measured_position = np.asarray(
+                [
+                    float(
+                        row["measured_positions"][motor]
+                    )
+                    for row in rows
+                ],
+                dtype=float,
+            )
+
+            periodic_resistance_result = (
+                analyse_dof3_periodic_resistance(
+                    position=measured_position[
+                        motion_mask
+                    ],
+                    residual=current_residual[
+                        motion_mask
+                    ],
+                )
+            )
 
     elif is_scissor_dof4_current:
 
@@ -1764,8 +2191,7 @@ def analyse_motor_test(
         
     deviating = (
         position_result["status"] == "deviating"
-        or
-        current_result["status"] == "deviating"
+        or current_result["status"] == "deviating"
     )
 
     triggered_signals = []
@@ -1799,6 +2225,9 @@ def analyse_motor_test(
 
         "current":
             current_result,
+
+        "periodic_resistance":
+            periodic_resistance_result,
     }
 
 
@@ -2078,41 +2507,123 @@ def diagnose_replay(
     # A missing gearbox-motor result cannot establish a healthy gearbox.
     gearbox_incomplete = gearbox_friction_trial and bool(skipped_conditions)
 
-    deviating_results = [
-        result
-        for result in results
-        if result["status"] == "deviating"
-    ]
+    if ENABLE_MOTOR_DT_RESIDUAL_DIAGNOSIS:
 
-    pause_deviating = (
-        pause_analysis is not None
-        and pause_analysis.get("status")
-            == "deviating"
-    )
+        deviating_results = [
+            result
+            for result in results
+            if result["status"] == "deviating"
+        ]
 
-    motion_affected_motors = {
+        pause_deviating = (
+            pause_analysis is not None
+            and pause_analysis.get("status") == "deviating"
+        )
+
+        motion_affected_motors = {
+            result["motor"]
+            for result in deviating_results
+        }
+
+        pause_affected_motors = set(
+            pause_analysis.get(
+                "affected_motors",
+                [],
+            )
+            if pause_analysis
+            else []
+        )
+
+    else:
+
+        # Motor-DT position/current residuals are calculated,
+        # but do not affect the final diagnosis.
+        deviating_results = []
+        pause_deviating = False
+        motion_affected_motors = set()
+        pause_affected_motors = set()
+
+    # ---------------------------------------------------------------
+    # DOF3 periodic gearbox-resistance diagnosis
+    # ---------------------------------------------------------------
+
+    periodic_deviating_results = []
+
+    if (
+        ENABLE_GEARBOX_DOF3_PERIODIC_DIAGNOSIS
+        and gearbox_friction_trial
+    ):
+        periodic_deviating_results = [
+            result
+            for result in results
+            if (
+                result.get("periodic_resistance") is not None
+                and result["periodic_resistance"].get("status") == "deviating"
+            )
+        ]
+
+    periodic_affected_motors = {
         result["motor"]
-        for result in deviating_results
+        for result in periodic_deviating_results
     }
 
-    pause_affected_motors = set(
-        pause_analysis.get(
-            "affected_motors",
-            [],
-        )
-        if pause_analysis
-        else []
+    periodic_deviating = bool(
+        periodic_deviating_results
     )
+
+    # ---------------------------------------------------------------
+    # Determine periodic fault location
+    # ---------------------------------------------------------------
+
+    periodic_locations = {
+        result["periodic_resistance"].get("probable_location")
+        for result in periodic_deviating_results
+        if (
+            result.get("periodic_resistance") is not None
+            and result["periodic_resistance"].get("probable_location")
+            not in (None, "none")
+        )
+    }
+
+    if len(periodic_locations) == 1:
+
+        periodic_fault_location = next(
+            iter(periodic_locations)
+        )
+
+    elif len(periodic_locations) > 1:
+
+        periodic_fault_location = (
+            "gearbox_periodicity_ambiguous"
+        )
+
+    else:
+
+        periodic_fault_location = "none"
+
+    # ---------------------------------------------------------------
+    # Combine affected motors
+    # ---------------------------------------------------------------
 
     affected_motors = sorted(
         motion_affected_motors
         | pause_affected_motors
+        | periodic_affected_motors
     )
+
+    # ---------------------------------------------------------------
+    # Overall diagnosis
+    # ---------------------------------------------------------------
 
     deviating = (
         bool(deviating_results)
         or pause_deviating
+        or periodic_deviating
     )
+
+    # ---------------------------------------------------------------
+    # Motor-level results
+    # ---------------------------------------------------------------
 
     motor_results = {}
 
@@ -2145,20 +2656,37 @@ def diagnose_replay(
 
         pause_motor_deviating = (
             pause_motor_result is not None
-            and pause_motor_result.get("status")
-                == "deviating"
+            and pause_motor_result.get("status") == "deviating"
+        )
+
+        periodic_motor_deviating = any(
+            (
+                test.get("periodic_resistance") is not None
+                and test["periodic_resistance"].get("status") == "deviating"
+            )
+            for test in motor_tests
         )
 
         motor_is_deviating = (
-            bool(motor_deviations)
-            or pause_motor_deviating
+            (
+                ENABLE_MOTOR_DT_RESIDUAL_DIAGNOSIS
+                and (
+                    bool(motor_deviations)
+                    or pause_motor_deviating
+                )
+            )
+            or periodic_motor_deviating
         )
 
         motor_results[f"motor_{motor}"] = {
             "status":
                 "deviating"
                 if motor_is_deviating
-                else ("not_evaluated" if not motor_tests else "healthy"),
+                else (
+                    "not_evaluated"
+                    if not motor_tests
+                    else "healthy"
+                ),
 
             "tests":
                 motor_tests,
@@ -2166,6 +2694,10 @@ def diagnose_replay(
             "pause_baseline":
                 pause_motor_result,
         }
+
+    # ---------------------------------------------------------------
+    # Descriptive residual statistics
+    # ---------------------------------------------------------------
 
     position_deviations = sum(
         result["position"]["status"] == "deviating"
@@ -2216,11 +2748,15 @@ def diagnose_replay(
             else ("invalid" if gearbox_incomplete else "healthy"),
 
         "probable_fault_location": (
-            "undetermined"
-            if gearbox_incomplete and not deviating
-            else determine_fault_location(
-                coupling_mode=coupling_mode,
-                deviating=deviating,
+            periodic_fault_location
+            if periodic_deviating
+            else (
+                "undetermined"
+                if gearbox_incomplete and not deviating
+                else determine_fault_location(
+                    coupling_mode=coupling_mode,
+                    deviating=deviating,
+                )
             )
         ),
 
@@ -2266,8 +2802,22 @@ def diagnose_replay(
                 len(results),
 
             "deviating_motor_test_combinations":
-                len(deviating_results),
+                len(
+                    {
+                        (result["motor"], result["test_type"], result.get("condition"))
+                        for result in (
+                            deviating_results
+                            + periodic_deviating_results
+                        )
+                    }
+                ),
 
+            "periodic_gearbox_deviations":
+                len(periodic_deviating_results),
+
+            "periodic_fault_location":
+                periodic_fault_location,
+                
             "position_deviations":
                 int(position_deviations),
 

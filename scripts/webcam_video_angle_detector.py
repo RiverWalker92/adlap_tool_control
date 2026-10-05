@@ -656,7 +656,10 @@ def process_video(
     debug_video_path = output_dir / f"{video_stem}_{dof_name}_h264.mp4"
     debug_frame_path = output_dir / f"{video_stem}_{dof_name}_debug_frame.png"
 
-    open_jaws_debug_frame_saved = False
+    open_jaws_raw_frame_path = output_path.with_name(
+        output_path.stem + "_open_jaws_frame.png"
+    )
+
     open_jaws_debug_frame_path = output_path.with_name(
         output_path.stem + "_open_jaws_debug_frame.png"
     )
@@ -903,19 +906,6 @@ def process_video(
             fy=preview_scale,
         )
 
-        if (
-            not open_jaws_debug_frame_saved
-            and secondary_marker_color is not None
-            and measured_angle_secondary_shaft is not None
-            and not np.isnan(measured_angle_secondary_shaft)
-            and abs(measured_angle_secondary_shaft) > float(
-                debug_config["open_jaws_threshold_deg"]
-            )
-            and ros_time_s is not None
-        ):
-            cv2.imwrite(str(open_jaws_debug_frame_path), display)
-            print(f"Saved open jaws debug frame: {open_jaws_debug_frame_path}")
-            open_jaws_debug_frame_saved = True
 
         if debug_writer is None:
             height, width = small.shape[:2]
@@ -1042,6 +1032,27 @@ def process_video(
                     2.0 * abs(red_zeroed)
                 )
 
+        valid_open_jaw_records = [
+            r for r in records
+            if r.get("measured_angle_between_jaws") is not None
+            and r.get("ros_time_s") is not None
+        ]
+
+        if valid_open_jaw_records:
+            open_jaws_record = max(
+                valid_open_jaw_records,
+                key=lambda r: r["measured_angle_between_jaws"]
+            )
+
+            open_jaws_frame_index = open_jaws_record["frame_index"]
+
+            print(
+                f"Most open jaws at frame {open_jaws_frame_index}: "
+                f"{open_jaws_record['measured_angle_between_jaws']:.2f} deg"
+            )
+    else:
+        valid_open_jaw_records = []
+        
     secondary_closed_baseline = None
 
     if active_dof == 4 and secondary_marker_color is not None:
@@ -1137,7 +1148,200 @@ def process_video(
         "Applied centred median filter to video measurements: "
         f"window={filter_config['median_window']} frames"
     )
+    # ---------------------------------------------------------
+    # Save raw + annotated frame at maximum jaw opening
+    # ---------------------------------------------------------
 
+    if (
+        active_dof == 4
+        and secondary_marker_color is None
+        and valid_open_jaw_records
+    ):
+        debug_cap = cv2.VideoCapture(str(video_path))
+        debug_cap.set(
+            cv2.CAP_PROP_POS_FRAMES,
+            open_jaws_frame_index
+        )
+
+        ret, open_jaws_frame = debug_cap.read()
+        debug_cap.release()
+
+        if ret:
+            # -------------------------------------------------
+            # 1. Save original frame without annotations
+            # -------------------------------------------------
+            cv2.imwrite(
+                str(open_jaws_raw_frame_path),
+                open_jaws_frame
+            )
+
+            # -------------------------------------------------
+            # 2. Re-run red-marker and shaft detection
+            # -------------------------------------------------
+            red_angle, red_line = detect_red_marker_angle(
+                open_jaws_frame,
+                marker_config,
+                kernel,
+            )
+
+            shaft_angle_debug, shaft_line_debug = detect_shaft_angle(
+                open_jaws_frame,
+                shaft_config,
+            )
+
+            red_shaft_angle = relative_angle_between(
+                red_angle,
+                shaft_angle_debug,
+            )
+
+            red_zeroed_angle = (
+                red_shaft_angle - red_start_baseline
+                if red_start_baseline is not None
+                and not np.isnan(red_shaft_angle)
+                else np.nan
+            )
+
+            jaw_opening_angle = (
+                2.0 * abs(red_zeroed_angle)
+                if not np.isnan(red_zeroed_angle)
+                else np.nan
+            )
+
+            # -------------------------------------------------
+            # 3. Create annotated debug frame
+            # -------------------------------------------------
+            debug_display = open_jaws_frame.copy()
+
+            # LED ROI
+            x, y, w, h = led_config["roi"]
+            cv2.rectangle(
+                debug_display,
+                (x, y),
+                (x + w, y + h),
+                (0, 255, 255),
+                3,
+            )
+
+            # Marker ROI
+            x, y, w, h = marker_config["roi"]
+            cv2.rectangle(
+                debug_display,
+                (x, y),
+                (x + w, y + h),
+                (0, 0, 255),
+                3,
+            )
+
+            # Shaft ROI
+            x, y, w, h = shaft_config["roi"]
+            cv2.rectangle(
+                debug_display,
+                (x, y),
+                (x + w, y + h),
+                (255, 0, 0),
+                3,
+            )
+
+            # Detected lines
+            draw_line(
+                debug_display,
+                red_line,
+                (0, 0, 255),
+            )
+
+            draw_line(
+                debug_display,
+                shaft_line_debug,
+                (0, 0, 0),
+            )
+
+            # -------------------------------------------------
+            # 4. Add measurement text
+            # -------------------------------------------------
+            cv2.putText(
+                debug_display,
+                f"frame: {open_jaws_frame_index}",
+                (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+            )
+
+            cv2.putText(
+                debug_display,
+                f"red marker: {red_angle:.2f} deg",
+                (30, 90),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+            )
+
+            cv2.putText(
+                debug_display,
+                f"shaft: {shaft_angle_debug:.2f} deg",
+                (30, 130),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 0, 0),
+                2,
+            )
+
+            cv2.putText(
+                debug_display,
+                f"red vs shaft: {red_shaft_angle:.2f} deg",
+                (30, 170),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+            )
+
+            cv2.putText(
+                debug_display,
+                f"red zeroed: {red_zeroed_angle:.2f} deg",
+                (30, 210),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+            )
+
+            cv2.putText(
+                debug_display,
+                f"jaw opening: {jaw_opening_angle:.2f} deg",
+                (30, 250),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 255, 255),
+                2,
+            )
+
+            # -------------------------------------------------
+            # 5. Save annotated frame
+            # -------------------------------------------------
+            cv2.imwrite(
+                str(open_jaws_debug_frame_path),
+                debug_display
+            )
+
+            print(
+                f"Saved open jaws raw frame: "
+                f"{open_jaws_raw_frame_path}"
+            )
+
+            print(
+                f"Saved open jaws debug frame: "
+                f"{open_jaws_debug_frame_path}"
+            )
+
+        else:
+            print(
+                f"WARNING: Could not reload open-jaws frame "
+                f"{open_jaws_frame_index}"
+            )
+            
    
     with output_path.open("w", encoding="utf-8") as f:
         for r in records:

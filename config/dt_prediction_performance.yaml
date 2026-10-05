@@ -1,0 +1,50 @@
+# dt_prediction_performance.yaml
+# Final thesis-evaluation configuration for the current V6 folder structure.
+
+training_data_root: "~/ros2_ws/test_data/automated_trials/trainings data V6"
+output_dir: "~/ros2_ws/test_data/dt_prediction_performance_results"
+
+motor:
+  enabled: true
+
+  # Existing training code is reused only for loading, preprocessing and
+  # feature construction. The final LORO evaluator fixes Random Forest.
+  training_script: "~/ros2_ws/src/adlap_tool_control/scripts/training/train_motor_digital_twin.py"
+  model_family: random_forest
+
+  configurations:
+    motor_only:
+      enabled: true
+      data_dir: "motors_only_dof_pattern"
+      input_source: targets
+
+    gearbox_only:
+      enabled: true
+      data_dir: "motors_gearbox"
+      input_source: targets
+      variants:
+        - gearbox_1
+        - gearbox_2
+
+    full_setup:
+      enabled: true
+      data_dir: "full_setup/gripper"
+      input_source: targets
+      instrument_config: gripper
+
+instrument:
+  enabled: true
+
+  dof2:
+    enabled: true
+    dataset: "full_setup/gripper/DOF 2/bend_dt_results/bend_training_dataset.csv"
+    model_family: random_forest
+
+  dof4:
+    enabled: true
+    data_dir: "full_setup/gripper/DOF 4"
+    prediction_index: 3
+
+latex:
+  motor_decimals: 2
+  instrument_decimals: 3

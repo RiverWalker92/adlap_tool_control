@@ -64,7 +64,7 @@ public:
     
     /// @brief Create default motor configuration
     static Motor create_default() {
-        return create(3, 150.58f, 2);  // 3 magnets * 150:1 gearbox * 2 mode = 900 pulses
+        return create(3, 150.58f, 2);  // 3 magnets * 150:1 gearbox * 2 mode = 903 pulses
     }
 };
 

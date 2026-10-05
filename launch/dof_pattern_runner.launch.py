@@ -69,6 +69,9 @@ def generate_launch_description():
     resistance_speed_rps = LaunchConfiguration("resistance_speed_rps")
     resistance_direction = LaunchConfiguration("resistance_direction")
 
+    # cutting test:
+    cutting_test = LaunchConfiguration("cutting_test")
+    
     # Executes the DOF pattern runner node with the specified parameters and configuration.
     dof_pattern_runner_node = Node(
         package="adlap_tool_control",
@@ -84,6 +87,7 @@ def generate_launch_description():
                 "resistance_rotations": resistance_rotations,
                 "resistance_speed_rps": resistance_speed_rps,
                 "resistance_direction": resistance_direction,
+                "cutting_test": cutting_test,
             },
         ],
         output="screen",
@@ -194,6 +198,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "resistance_direction",
             default_value="1",
+        ),
+
+        DeclareLaunchArgument(
+            "cutting_test",
+            default_value="false",
         ),
 
         dof_pattern_runner_node,

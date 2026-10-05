@@ -559,13 +559,28 @@ def main():
         default=1,
     )
 
+    parser.add_argument(
+        "--cutting-test",
+        action="store_true",
+        help="Run the dedicated DOF4 cutting test.",
+    )
+
     args = parser.parse_args()
     params_file = Path(args.params_file).expanduser()
     if args.resistance_test and args.dof != 3:
         raise RuntimeError(
             "--resistance-test requires --dof 3."
         )
+    
+    if args.cutting_test and args.dof != 4:
+        raise RuntimeError(
+            "--cutting-test requires --dof 4."
+        )
 
+    if args.resistance_test and args.cutting_test:
+        raise RuntimeError(
+            "--resistance-test and --cutting-test cannot both be active."
+        )
     # -------------------------------------------------------------------------
     # Hardware identification and trial configuration
     # -------------------------------------------------------------------------
@@ -804,12 +819,23 @@ def main():
         coupling_mode == "full_setup"
         and not args.no_camera
         and args.dof in [2, 4]
-        and not (scissors_connected and args.dof == 4)
+        and not (
+            scissors_connected
+            and args.dof == 4
+            and not args.cutting_test
+        )
     )
 
-    if scissors_connected and args.dof == 4 and not args.no_camera:
-        print("Scissors DOF4: video recording and angle detection disabled.")
-
+    if (
+        scissors_connected
+        and args.dof == 4
+        and not args.cutting_test
+        and not args.no_camera
+    ):
+        print(
+            "Scissors DOF4: video recording and angle detection disabled."
+        )
+        
     use_instrument_plots = (
         pattern_mode == "dof"
         and coupling_mode in {"gearbox_only", "full_setup"}
@@ -834,10 +860,16 @@ def main():
     if pattern_mode == "motor":
         run_name = f"auto_motor_{timestamp}"
         dof_dir_name = "motor"
+
     elif pattern_mode == "dof":
         if args.resistance_test:
             run_name = f"auto_dof3_resistance_{timestamp}"
             dof_dir_name = "dof3_resistance"
+
+        elif args.cutting_test:
+            run_name = f"auto_dof4_cutting_{timestamp}"
+            dof_dir_name = "dof4_cutting"
+
         else:
             run_name = f"auto_dof{args.dof}_{timestamp}"
             dof_dir_name = f"dof{args.dof}"
@@ -938,6 +970,15 @@ def main():
                 f" resistance_rotations:={args.resistance_rotations}"
                 f" resistance_speed_rps:={args.resistance_speed_rps}"
                 f" resistance_direction:={args.resistance_direction}"
+            )
+        if args.cutting_test:
+            if args.dof != 4:
+                raise RuntimeError(
+                    "--cutting-test requires --dof 4."
+                )
+
+            args.pattern_cmd += (
+                " cutting_test:=true"
             )
             
     print(f"Coupling mode: {coupling_mode}")

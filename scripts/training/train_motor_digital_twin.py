@@ -25,6 +25,7 @@ from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from scipy.stats import rankdata
 
 VALID_CONFIGURATIONS = (
     "motor_only",
@@ -37,6 +38,7 @@ EVENT_TAIL_S = 1.0
 STATIONARY_ENCODER_VELOCITY_THRESHOLD = 5.0
 MOTOR_COMMAND_TOLERANCE_PULSES = 0.5
 RUN_REFERENCE_WINDOW_S = 1.0
+CURRENT_PHASE_PERIOD_PULSES = 903.0
 
 DEFAULT_GEARBOX_CONFIG_PATH = (
     Path(get_package_share_directory("adlap_tool_control"))
@@ -1449,21 +1451,57 @@ def instrument_commands_from_segment(segment):
     return np.asarray(commands, dtype=float).T
 
 
-def coupled_motor_target_feature_names():
+MOTOR_COUPLING_PAIRS = {
+    0: (0, 3),
+    1: (1, 2),
+    2: (2, 1),
+    3: (3, 0),
+}
+
+
+def coupled_motor_pair_indices(motor_index):
+    """
+    Return the predicted motor first, followed by its mechanically coupled
+    partner.
+
+    M0 <-> M3 : tip rotation / articulation path
+    M1 <-> M2 : shaft rotation / bending path
+    """
+    if motor_index not in MOTOR_COUPLING_PAIRS:
+        raise ValueError(f"Unsupported motor index: {motor_index}")
+
+    return MOTOR_COUPLING_PAIRS[motor_index]
+
+
+def coupled_motor_target_feature_names(motor_index):
+    """
+    Reduced coupled-target feature set.
+
+    Removed as redundant:
+      - previous_target_relative: almost identical to target_relative
+      - target_velocity: strongly redundant with target_delta at fixed sample rate
+      - target_is_moving: derived from target change + time_since_change
+
+    Kept per motor:
+      - target_relative
+      - target_delta
+      - abs(target_delta)
+      - target_direction
+      - time_since_target_change
+
+    The predicted motor and its mechanically coupled partner are used.
+    """
     names = []
 
-    for motor_index in range(4):
-        prefix = f"m{motor_index}"
+    for target_motor_index in coupled_motor_pair_indices(motor_index):
+        prefix = f"m{target_motor_index}"
 
         names.extend([
             f"{prefix}_target_relative_pulses",
-            f"{prefix}_previous_target_relative_pulses",
             f"{prefix}_target_delta_pulses",
             f"abs_{prefix}_target_delta_pulses",
             f"{prefix}_target_direction",
-            f"{prefix}_target_velocity_pulses_per_s",
             f"time_since_{prefix}_target_change_s",
-            f"{prefix}_target_is_moving",
         ])
 
     return names
@@ -1527,9 +1565,9 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
     """
     Build gearbox/full-setup Motor-DT samples from logged motor targets.
 
-    All four logged motor_target_positions channels are used as input
-    features. Targets and encoder positions are expressed relative to
-    the start of each individual motion pattern.
+    Only the predicted motor and its mechanically coupled partner are used
+    as model-input target channels. Targets and encoder positions are expressed
+    relative to the start of each individual motion pattern.
 
     Commanded instrument angles are retained only for DOF segmentation
     and plotting.
@@ -1641,41 +1679,16 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
     # 5. Command features
     # ----------------------------------------------------------
 
-    feature_columns = []
+    # ----------------------------------------------------------
+    # 5a. Keep the existing global motion mask for evaluation only.
+    # ----------------------------------------------------------
     motor_moving_masks = []
 
     for target_motor_index in range(4):
         absolute_target = motor_targets_absolute_run[target_motor_index]
 
-        # if coupling_mode == "motor_only":
-        #     relative_target = absolute_target.copy()
-        # else:
-        #     relative_target = (
-        #         absolute_target
-        #         - run_motor_target_reference[target_motor_index]
-        #     )
-
-        relative_target = (
+        _, held_delta = held_command_delta(
             absolute_target
-            - run_motor_target_reference[target_motor_index]
-        )
-
-        previous_relative_target = relative_target.copy()
-
-        if len(relative_target) > 1:
-            previous_relative_target[1:] = relative_target[:-1]
-
-        instantaneous_delta, held_delta = held_command_delta(
-            absolute_target
-        )
-
-        direction = np.sign(
-            held_delta
-        )
-
-        velocity = safe_gradient(
-            absolute_target,
-            t_run,
         )
 
         time_after_change = time_since_signal_change(
@@ -1692,23 +1705,46 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
             moving.astype(bool)
         )
 
+    dynamic_mask_run = np.logical_or.reduce(
+        motor_moving_masks
+    )
+
+    # ----------------------------------------------------------
+    # 5b. Reduced physically coupled model inputs.
+    # ----------------------------------------------------------
+    feature_columns = []
+
+    for target_motor_index in coupled_motor_pair_indices(motor_index):
+        absolute_target = motor_targets_absolute_run[target_motor_index]
+
+        relative_target = (
+            absolute_target
+            - run_motor_target_reference[target_motor_index]
+        )
+
+        instantaneous_delta, held_delta = held_command_delta(
+            absolute_target
+        )
+
+        direction = np.sign(
+            held_delta
+        )
+
+        time_after_change = time_since_signal_change(
+            t_run,
+            absolute_target,
+        )
+
         feature_columns.extend([
             relative_target,
-            previous_relative_target,
             instantaneous_delta,
             np.abs(instantaneous_delta),
             direction,
-            velocity,
             time_after_change,
-            moving,
         ])
 
     X_command_run = np.column_stack(
         feature_columns
-    )
-
-    dynamic_mask_run = np.logical_or.reduce(
-        motor_moving_masks
     )
 
     # ----------------------------------------------------------
@@ -1723,6 +1759,40 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
     X_command = X_command_run[
         pattern_slice
     ]
+
+    # ----------------------------------------------------------
+    # 903-pulse motor phase feature for encoder AND current DT
+    # ----------------------------------------------------------
+    # Use the ABSOLUTE commanded motor target. Using the run-relative
+    # target would reset the phase at every test and would therefore not
+    # represent the same physical motor phase between runs.
+    predicted_motor_absolute_target = (
+        motor_targets_absolute_run[
+            motor_index,
+            pattern_slice,
+        ]
+    )
+
+    motor_phase_903_rad = (
+        2.0
+        * np.pi
+        * np.mod(
+            predicted_motor_absolute_target,
+            CURRENT_PHASE_PERIOD_PULSES,
+        )
+        / CURRENT_PHASE_PERIOD_PULSES
+    )
+
+    phase_903_sin = np.sin(motor_phase_903_rad)
+    phase_903_cos = np.cos(motor_phase_903_rad)
+
+    X_encoder = np.column_stack([
+        X_command,
+        phase_903_sin,
+        phase_903_cos,
+    ])
+
+    X_current = X_encoder.copy()
 
     # if coupling_mode == "motor_only":
     #     motor_targets = motor_targets_absolute_run[
@@ -1939,14 +2009,16 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
             stationary_mask,
     }
 
-    # Encoder model and current model use the same command features,
-    # but have different targets:
-    #
-    # encoder target = relative displacement [pulses]
-    # current target = filtered current [mA]
+    # Encoder and current DT both receive:
+    #   10 reduced target features:
+    #       5 from the predicted motor
+    #       5 from its mechanically coupled partner
+    #   + sin(2*pi*absolute_target/903)
+    #   + cos(2*pi*absolute_target/903)
+    #   = 12 features total
     return (
-        X_command,
-        X_command.copy(),
+        X_encoder,
+        X_current,
         encoder,
         filtered_current,
         metadata,
@@ -2372,6 +2444,373 @@ def stack_evaluation_masks(samples):
         for sample in samples
     ])
     return dynamic_mask, stationary_mask
+
+
+
+def write_correlation_matrix_csv(path, labels, matrix):
+    """Save a labelled correlation matrix without requiring pandas."""
+    path = Path(path)
+
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([""] + list(labels))
+
+        for label, row in zip(labels, matrix):
+            writer.writerow([
+                label,
+                *[
+                    "" if not np.isfinite(value) else float(value)
+                    for value in row
+                ],
+            ])
+
+
+def plot_correlation_matrix(path, labels, matrix, title):
+    """Save a correlation heatmap."""
+    number_of_variables = len(labels)
+    figure_size = max(10.0, 0.42 * number_of_variables)
+
+    fig, ax = plt.subplots(
+        figsize=(figure_size, figure_size),
+    )
+
+    image = ax.imshow(
+        matrix,
+        vmin=-1.0,
+        vmax=1.0,
+        aspect="auto",
+    )
+
+    ax.set_xticks(np.arange(number_of_variables))
+    ax.set_yticks(np.arange(number_of_variables))
+    ax.set_xticklabels(
+        labels,
+        rotation=90,
+        fontsize=7,
+    )
+    ax.set_yticklabels(
+        labels,
+        fontsize=7,
+    )
+    ax.set_title(title)
+
+    colorbar = fig.colorbar(
+        image,
+        ax=ax,
+        fraction=0.046,
+        pad=0.04,
+    )
+    colorbar.set_label("Correlation coefficient")
+
+    fig.tight_layout()
+    fig.savefig(
+        path,
+        dpi=200,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
+
+
+def save_current_feature_correlations(
+    X_current,
+    y_current,
+    feature_names,
+    output_dir,
+    motor_index,
+    max_samples=200000,
+):
+    """
+    Analyse redundancy between current-model inputs and their association
+    with measured current.
+
+    Two correlation types are written:
+      - Pearson: linear correlation
+      - Spearman: monotonic/rank correlation
+
+    Correlations are calculated on TRAINING data only and do not affect
+    model fitting or model selection.
+    """
+    X_current = np.asarray(
+        X_current,
+        dtype=float,
+    )
+    y_current = np.asarray(
+        y_current,
+        dtype=float,
+    ).reshape(-1)
+
+    if X_current.ndim != 2:
+        raise RuntimeError(
+            "Current feature correlation expects a 2D feature matrix."
+        )
+
+    if X_current.shape[0] != len(y_current):
+        raise RuntimeError(
+            "Current feature matrix and current target lengths do not match."
+        )
+
+    if X_current.shape[1] != len(feature_names):
+        raise RuntimeError(
+            "Number of current feature names does not match feature columns: "
+            f"{len(feature_names)} names for {X_current.shape[1]} columns."
+        )
+
+    number_of_samples = X_current.shape[0]
+
+    # Correlation does not need every 100 Hz sample when datasets are large.
+    # Deterministic evenly spaced sampling keeps runtime and memory bounded.
+    if number_of_samples > max_samples:
+        sample_indices = np.linspace(
+            0,
+            number_of_samples - 1,
+            max_samples,
+            dtype=int,
+        )
+        X_analysis = X_current[sample_indices]
+        y_analysis = y_current[sample_indices]
+    else:
+        X_analysis = X_current
+        y_analysis = y_current
+
+    data = np.column_stack([
+        X_analysis,
+        y_analysis,
+    ])
+
+    finite_rows = np.all(
+        np.isfinite(data),
+        axis=1,
+    )
+    data = data[finite_rows]
+
+    if len(data) < 3:
+        print(
+            f"Skipping current feature correlation for motor {motor_index}: "
+            "fewer than 3 finite samples."
+        )
+        return
+
+    labels = list(feature_names) + [
+        f"measured_current_m{motor_index}_mA"
+    ]
+
+    # Pearson correlation.
+    with np.errstate(
+        invalid="ignore",
+        divide="ignore",
+    ):
+        pearson = np.corrcoef(
+            data,
+            rowvar=False,
+        )
+
+    # Spearman = Pearson correlation of rank-transformed variables.
+    ranked_data = np.column_stack([
+        rankdata(
+            data[:, column_index],
+            method="average",
+        )
+        for column_index in range(data.shape[1])
+    ])
+
+    with np.errstate(
+        invalid="ignore",
+        divide="ignore",
+    ):
+        spearman = np.corrcoef(
+            ranked_data,
+            rowvar=False,
+        )
+
+    analysis_dir = (
+        Path(output_dir)
+        / "feature_correlations"
+        / f"motor_{motor_index}"
+    )
+    analysis_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    pearson_csv = analysis_dir / "current_pearson_matrix.csv"
+    spearman_csv = analysis_dir / "current_spearman_matrix.csv"
+
+    write_correlation_matrix_csv(
+        pearson_csv,
+        labels,
+        pearson,
+    )
+    write_correlation_matrix_csv(
+        spearman_csv,
+        labels,
+        spearman,
+    )
+
+    plot_correlation_matrix(
+        analysis_dir / "current_pearson_matrix.png",
+        labels,
+        pearson,
+        (
+            f"Motor {motor_index} current features - "
+            "Pearson correlation"
+        ),
+    )
+    plot_correlation_matrix(
+        analysis_dir / "current_spearman_matrix.png",
+        labels,
+        spearman,
+        (
+            f"Motor {motor_index} current features - "
+            "Spearman correlation"
+        ),
+    )
+
+    # Compact summary: correlation of every input directly with current output.
+    summary_rows = []
+
+    for feature_index, feature_name in enumerate(feature_names):
+        pearson_value = pearson[feature_index, -1]
+        spearman_value = spearman[feature_index, -1]
+
+        summary_rows.append({
+            "feature": feature_name,
+            "pearson_with_current": (
+                None
+                if not np.isfinite(pearson_value)
+                else float(pearson_value)
+            ),
+            "spearman_with_current": (
+                None
+                if not np.isfinite(spearman_value)
+                else float(spearman_value)
+            ),
+            "max_abs_correlation_with_current": float(
+                np.nanmax([
+                    abs(pearson_value),
+                    abs(spearman_value),
+                ])
+            )
+            if np.any(
+                np.isfinite([
+                    pearson_value,
+                    spearman_value,
+                ])
+            )
+            else None,
+        })
+
+    summary_rows = sorted(
+        summary_rows,
+        key=lambda row: (
+            row["max_abs_correlation_with_current"] is None,
+            -row["max_abs_correlation_with_current"]
+            if row["max_abs_correlation_with_current"] is not None
+            else 0.0,
+        ),
+    )
+
+    summary_csv = (
+        analysis_dir
+        / "current_feature_to_output_correlations.csv"
+    )
+
+    with open(summary_csv, "w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "feature",
+                "pearson_with_current",
+                "spearman_with_current",
+                "max_abs_correlation_with_current",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(summary_rows)
+
+    # A readable plot focused only on input -> current association.
+    valid_rows = [
+        row
+        for row in summary_rows
+        if row["pearson_with_current"] is not None
+        or row["spearman_with_current"] is not None
+    ]
+
+    if valid_rows:
+        plot_rows = list(reversed(valid_rows))
+        y_positions = np.arange(len(plot_rows))
+        bar_height = 0.38
+
+        fig_height = max(
+            6.0,
+            0.32 * len(plot_rows),
+        )
+
+        fig, ax = plt.subplots(
+            figsize=(11, fig_height),
+        )
+
+        pearson_values = [
+            (
+                row["pearson_with_current"]
+                if row["pearson_with_current"] is not None
+                else np.nan
+            )
+            for row in plot_rows
+        ]
+        spearman_values = [
+            (
+                row["spearman_with_current"]
+                if row["spearman_with_current"] is not None
+                else np.nan
+            )
+            for row in plot_rows
+        ]
+
+        ax.barh(
+            y_positions - bar_height / 2.0,
+            pearson_values,
+            height=bar_height,
+            label="Pearson",
+        )
+        ax.barh(
+            y_positions + bar_height / 2.0,
+            spearman_values,
+            height=bar_height,
+            label="Spearman",
+        )
+
+        ax.set_yticks(y_positions)
+        ax.set_yticklabels(
+            [row["feature"] for row in plot_rows],
+            fontsize=8,
+        )
+        ax.set_xlim(-1.0, 1.0)
+        ax.set_xlabel(
+            f"Correlation with measured M{motor_index} current"
+        )
+        ax.set_title(
+            f"Motor {motor_index} current input-output correlations"
+        )
+        ax.grid(
+            True,
+            axis="x",
+            alpha=0.3,
+        )
+        ax.legend()
+
+        fig.tight_layout()
+        fig.savefig(
+            analysis_dir
+            / "current_feature_to_output_correlations.png",
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    print(
+        f"Saved current feature correlations for motor {motor_index}: "
+        f"{analysis_dir}"
+    )
 
 
 def compute_metrics(y_true, y_pred):
@@ -2802,8 +3241,8 @@ def load_segments_from_files(
     command_converter = None
     if coupling_mode != "motor_only":
         print(
-            "Coupled Motor-DT input: all four logged "
-            "motor_target_positions."
+            "Coupled Motor-DT input: predicted motor + mechanically "
+            "coupled partner target features."
         )
 
     for file_path in ordered_file_paths:
@@ -2950,7 +3389,7 @@ def train_motor_models(
     #     "is_moving",
     # ]
     if input_source == "commands":
-        encoder_feature_names = [
+        common_encoder_feature_names = [
             "commanded_target_pulses",
             "abs_commanded_target_pulses",
             "target_delta_pulses",
@@ -2963,17 +3402,29 @@ def train_motor_models(
         feature_scheme = "motor_relative_command_v1"
 
     else:
-        encoder_feature_names = (
-            coupled_motor_target_feature_names()
+        common_encoder_feature_names = None
+
+        feature_scheme = (
+            "paired_motor_targets_reduced_phase903_v4"
         )
 
-        feature_scheme = "all_motor_targets_run_relative_v1"
-
-    current_feature_names = list(
-        encoder_feature_names
-    )
-
     for motor_index, samples in samples_by_motor.items():
+        if input_source == "commands":
+            encoder_feature_names = list(
+                common_encoder_feature_names
+            )
+        else:
+            encoder_feature_names = (
+                coupled_motor_target_feature_names(motor_index)
+                + [
+                    "motor_phase_903_sin",
+                    "motor_phase_903_cos",
+                ]
+            )
+
+        current_feature_names = list(
+            encoder_feature_names
+        )
         if len(samples) < 2:
             print(f"Skipping motor {motor_index}: not enough samples.")
             continue
@@ -2984,6 +3435,14 @@ def train_motor_models(
         X_encoder_test, X_current_test, y_encoder_test, y_current_test = stack_samples(test_samples)
         dynamic_test_mask, stationary_test_mask = stack_evaluation_masks(
             test_samples
+        )
+
+        save_current_feature_correlations(
+            X_current=X_current_train,
+            y_current=y_current_train,
+            feature_names=current_feature_names,
+            output_dir=output_dir,
+            motor_index=motor_index,
         )
 
         encoder_models = make_encoder_models()
@@ -3108,6 +3567,8 @@ def train_motor_models(
             "current_model_results": current_model_results,
             "local_encoder_winner": best_encoder_model_name,
             "local_current_winner": best_current_model_name,
+            "encoder_feature_names": list(encoder_feature_names),
+            "current_feature_names": list(current_feature_names),
             "n_train_samples": int(len(X_encoder_train)),
             "n_test_samples": int(len(X_encoder_test)),
             "train_segments": len(train_samples),
@@ -3137,6 +3598,8 @@ def train_motor_models(
     for motor_index, cached in motor_training_cache.items():
         encoder_model_results = cached["encoder_model_results"]
         current_model_results = cached["current_model_results"]
+        encoder_feature_names = cached["encoder_feature_names"]
+        current_feature_names = cached["current_feature_names"]
 
         encoder_result = encoder_model_results[common_model_name]
         current_result = current_model_results[common_model_name]
@@ -3348,7 +3811,13 @@ def plot_predictions(
             output_dir,
         )
 
-    elif feature_schemes == {"all_motor_targets_run_relative_v1"}:
+    elif (
+        feature_schemes == {"all_motor_targets_run_relative_v1"}
+        or feature_schemes
+        == {"all_motor_targets_run_relative_phase903_v3"}
+        or feature_schemes
+        == {"paired_motor_targets_reduced_phase903_v4"}
+    ):
         plot_dof_pattern_predictions(
             samples_by_motor,
             trained_models,
@@ -4046,9 +4515,22 @@ def train_motor_digital_twin(
             "method": "logged_motor_target_features",
             "applies_to": [coupling_mode],
             "model_input": (
-                "all_four_motor_target_positions_"
-                "with_continuous_run_history"
+                "predicted_motor_and_mechanically_coupled_partner_"
+                "target_features"
             ),
+            "motor_pair_mapping": {
+                "0": [0, 3],
+                "1": [1, 2],
+                "2": [2, 1],
+                "3": [3, 0],
+            },
+            "reduced_features_per_target_motor": [
+                "target_relative_pulses",
+                "target_delta_pulses",
+                "abs_target_delta_pulses",
+                "target_direction",
+                "time_since_target_change_s",
+            ],
             "target_reference": (
                 "relative_to_initial_run_motor_target"
             ),
@@ -4063,7 +4545,28 @@ def train_motor_digital_twin(
                 if conversion_parameters is not None
                 else None
             ),
-            "feature_names": coupled_motor_target_feature_names(),
+            "encoder_feature_names_by_motor": {
+                str(motor_index): (
+                    coupled_motor_target_feature_names(motor_index)
+                    + [
+                        "motor_phase_903_sin",
+                        "motor_phase_903_cos",
+                    ]
+                )
+                for motor_index in range(4)
+            },
+            "current_feature_names_by_motor": {
+                str(motor_index): (
+                    coupled_motor_target_feature_names(motor_index)
+                    + [
+                        "motor_phase_903_sin",
+                        "motor_phase_903_cos",
+                    ]
+                )
+                for motor_index in range(4)
+            },
+            "motor_phase_period_pulses": CURRENT_PHASE_PERIOD_PULSES,
+            "motor_phase_source": "absolute_commanded_motor_target",
             "log_order": [
                 str(path)
                 for path in sorted(
@@ -4114,6 +4617,349 @@ def train_motor_digital_twin(
 
     print(f"\nMotor Digital Twin training completed.")
     print(f"Output folder: {output_dir}")
+
+
+
+def load_available_gearbox_variants(config_path):
+    """
+    Return (variant_names, active_variant) from gearbox_params.yaml.
+    Used by unattended --configuration all training.
+    """
+    config_path = Path(config_path).expanduser().resolve()
+
+    with open(config_path, "r") as f:
+        document = yaml.safe_load(f)
+
+    gearbox = document.get("gearbox", {})
+    variants = sorted(gearbox.get("variants", {}).keys())
+    active_variant = gearbox.get("active_variant")
+
+    if not variants:
+        raise RuntimeError(
+            f"No gearbox variants found in {config_path}."
+        )
+
+    if active_variant not in variants:
+        active_variant = variants[0]
+
+    return variants, active_variant
+
+
+def run_training_job(
+    *,
+    coupling_mode,
+    input_source,
+    input_dir,
+    output_dir,
+    args,
+    gearbox_variant=None,
+    instrument_config=None,
+):
+    """Run one isolated Motor-DT training job."""
+    input_dir = Path(input_dir).expanduser()
+    output_dir = Path(output_dir).expanduser()
+
+    print("\n" + "#" * 88)
+    print("UNATTENDED TRAINING JOB")
+    print(f"  configuration:     {coupling_mode}")
+    print(f"  input source:      {input_source}")
+    print(f"  gearbox variant:   {gearbox_variant}")
+    print(f"  instrument config: {instrument_config}")
+    print(f"  input folder:      {input_dir}")
+    print(f"  output folder:     {output_dir}")
+    print("#" * 88)
+
+    if not input_dir.exists():
+        raise RuntimeError(
+            f"Input folder does not exist: {input_dir}"
+        )
+
+    file_paths = find_motor_jsonl_files(
+        input_dir=input_dir,
+        coupling_mode=coupling_mode,
+    )
+
+    conversion_parameters = None
+
+    if coupling_mode != "motor_only":
+        conversion_parameters = load_gearbox_conversion_parameters(
+            config_path=args.gearbox_config,
+            gearbox_variant=gearbox_variant,
+        )
+        print(
+            "Coupled Motor-DT metadata: "
+            f"gearbox variant {conversion_parameters['variant']}"
+        )
+
+    train_motor_digital_twin(
+        file_paths=file_paths,
+        output_dir=output_dir,
+        coupling_mode=coupling_mode,
+        input_source=input_source,
+        gearbox_variant=gearbox_variant,
+        instrument_config=instrument_config,
+        conversion_parameters=conversion_parameters,
+        controller_starting_positions=args.controller_starting_positions,
+    )
+
+
+def run_all_training_jobs(args, training_config, training_data_root):
+    """
+    Train every separable model without mixing gearbox variants or instruments.
+
+    Jobs:
+      1. motor_only / commands
+      2. motor_only / targets, when configured
+      3. gearbox_only / every gearbox variant that has a data folder
+      4. full_setup / gripper and scissors when an instrument-specific
+         input folder exists
+
+    One failed job is reported and the remaining jobs continue. A final summary
+    is printed so an overnight run is not lost because one dataset is missing.
+    """
+    motor_configurations_raw = training_config[
+        "motor_dt"
+    ]["configurations"]
+
+    gearbox_variants, active_gearbox_variant = (
+        load_available_gearbox_variants(
+            args.gearbox_config
+        )
+    )
+
+    jobs = []
+
+    # ----------------------------------------------------------
+    # 1. Motor-only, command input
+    # ----------------------------------------------------------
+    if "motor_only_commands" in motor_configurations_raw:
+        entry = motor_configurations_raw["motor_only_commands"]
+        jobs.append({
+            "name": "motor_only_commands",
+            "coupling_mode": "motor_only",
+            "input_source": "commands",
+            "input_dir": resolve_training_path(
+                training_data_root,
+                entry["input_dir"],
+            ),
+            "output_dir": resolve_training_path(
+                training_data_root,
+                entry["output_dir"],
+            ),
+            "gearbox_variant": None,
+            "instrument_config": None,
+        })
+
+    # ----------------------------------------------------------
+    # 2. Motor-only, target input
+    # ----------------------------------------------------------
+    if "motor_only_targets" in motor_configurations_raw:
+        entry = motor_configurations_raw["motor_only_targets"]
+        jobs.append({
+            "name": "motor_only_targets",
+            "coupling_mode": "motor_only",
+            "input_source": "targets",
+            "input_dir": resolve_training_path(
+                training_data_root,
+                entry["input_dir"],
+            ),
+            "output_dir": resolve_training_path(
+                training_data_root,
+                entry["output_dir"],
+            ),
+            "gearbox_variant": None,
+            "instrument_config": None,
+        })
+
+    # ----------------------------------------------------------
+    # 3. Gearbox-only, one isolated model per gearbox variant
+    # ----------------------------------------------------------
+    if "gearbox_only" in motor_configurations_raw:
+        entry = motor_configurations_raw["gearbox_only"]
+        base_input_dir = resolve_training_path(
+            training_data_root,
+            entry["input_dir"],
+        )
+        base_output_dir = resolve_training_path(
+            training_data_root,
+            entry["output_dir"],
+        )
+
+        for gearbox_variant in gearbox_variants:
+            variant_input_dir = (
+                base_input_dir / gearbox_variant
+            )
+
+            if not variant_input_dir.exists():
+                print(
+                    f"Skipping gearbox_only/{gearbox_variant}: "
+                    f"folder not found: {variant_input_dir}"
+                )
+                continue
+
+            jobs.append({
+                "name": f"gearbox_only_{gearbox_variant}",
+                "coupling_mode": "gearbox_only",
+                "input_source": "targets",
+                "input_dir": variant_input_dir,
+                "output_dir": (
+                    base_output_dir / gearbox_variant
+                ),
+                "gearbox_variant": gearbox_variant,
+                "instrument_config": None,
+            })
+
+    # ----------------------------------------------------------
+    # 4. Full setup, one isolated model per instrument
+    # ----------------------------------------------------------
+    # Full-setup replay currently selects models by instrument configuration,
+    # not by gearbox variant. Therefore use ONE gearbox variant here: the
+    # active variant from gearbox_params.yaml. Do not train multiple gearbox
+    # variants into the same output folder.
+    if "full_setup" in motor_configurations_raw:
+        entry = motor_configurations_raw["full_setup"]
+        base_input_dir = resolve_training_path(
+            training_data_root,
+            entry["input_dir"],
+        )
+        base_output_dir = resolve_training_path(
+            training_data_root,
+            entry["output_dir"],
+        )
+
+        for instrument_config in ("gripper", "scissors"):
+            # Prefer explicit instrument folders below full_setup.
+            instrument_input_dir = (
+                base_input_dir / instrument_config
+            )
+
+            if not instrument_input_dir.exists():
+                if instrument_config == "gripper":
+                    # In the existing project layout, the configured
+                    # full_setup directory itself is the historical gripper
+                    # dataset. Use it only when there is no explicit
+                    # scissors subfolder below it.
+                    scissors_below_full_setup = (
+                        base_input_dir / "scissors"
+                    )
+
+                    if (
+                        base_input_dir.exists()
+                        and not scissors_below_full_setup.exists()
+                    ):
+                        instrument_input_dir = base_input_dir
+
+                elif instrument_config == "scissors":
+                    # Older training layouts stored scissors as a sibling
+                    # of full_setup.
+                    sibling_candidates = [
+                        training_data_root / "scissors",
+                        training_data_root / "scissors_withoutcutting",
+                    ]
+
+                    instrument_input_dir = next(
+                        (
+                            candidate
+                            for candidate in sibling_candidates
+                            if candidate.exists()
+                        ),
+                        instrument_input_dir,
+                    )
+
+            if not instrument_input_dir.exists():
+                print(
+                    f"Skipping full_setup/{instrument_config}: "
+                    "no unambiguous instrument-specific training folder found. "
+                    f"Checked around: {base_input_dir}"
+                )
+                continue
+
+            jobs.append({
+                "name": f"full_setup_{instrument_config}",
+                "coupling_mode": "full_setup",
+                "input_source": "targets",
+                "input_dir": instrument_input_dir,
+                "output_dir": (
+                    base_output_dir / instrument_config
+                ),
+                "gearbox_variant": active_gearbox_variant,
+                "instrument_config": instrument_config,
+            })
+
+    if not jobs:
+        raise RuntimeError(
+            "No unattended training jobs could be constructed."
+        )
+
+    print("\n" + "=" * 88)
+    print("UNATTENDED MOTOR-DT TRAINING PLAN")
+    print("=" * 88)
+    for index, job in enumerate(jobs, start=1):
+        print(
+            f"{index:2d}. {job['name']}: "
+            f"{job['input_dir']} -> {job['output_dir']}"
+        )
+    print("=" * 88)
+
+    completed = []
+    failed = []
+
+    for index, job in enumerate(jobs, start=1):
+        print(
+            f"\nStarting job {index}/{len(jobs)}: "
+            f"{job['name']}"
+        )
+
+        try:
+            run_training_job(
+                coupling_mode=job["coupling_mode"],
+                input_source=job["input_source"],
+                input_dir=job["input_dir"],
+                output_dir=job["output_dir"],
+                args=args,
+                gearbox_variant=job["gearbox_variant"],
+                instrument_config=job["instrument_config"],
+            )
+            completed.append(job["name"])
+            print(
+                f"\nCOMPLETED {index}/{len(jobs)}: "
+                f"{job['name']}"
+            )
+
+        except Exception as exc:
+            failed.append((job["name"], str(exc)))
+            print(
+                "\n" + "!" * 88
+            )
+            print(
+                f"FAILED {index}/{len(jobs)}: "
+                f"{job['name']}"
+            )
+            print(f"Reason: {exc}")
+            print(
+                "Continuing with the remaining training jobs."
+            )
+            print(
+                "!" * 88
+            )
+
+    print("\n" + "=" * 88)
+    print("UNATTENDED TRAINING SUMMARY")
+    print("=" * 88)
+    print(f"Completed: {len(completed)}/{len(jobs)}")
+    for name in completed:
+        print(f"  OK     {name}")
+
+    for name, reason in failed:
+        print(f"  FAILED {name}: {reason}")
+
+    print("=" * 88)
+
+    if failed:
+        raise RuntimeError(
+            f"{len(failed)} of {len(jobs)} unattended training jobs failed. "
+            "See the log above for details."
+        )
 
 
 def main():
@@ -4211,6 +5057,37 @@ def main():
     )
 
     args = parser.parse_args()
+
+    training_config, training_data_root = load_training_config(
+        args.training_config
+    )
+
+    # ----------------------------------------------------------
+    # Unattended "train everything" mode
+    # ----------------------------------------------------------
+    if args.configuration == "all":
+        if (
+            args.file is not None
+            or args.input_dir is not None
+            or args.output_dir is not None
+            or args.gearbox_variant is not None
+            or args.instrument_config is not None
+            or args.input_source != "auto"
+        ):
+            raise RuntimeError(
+                "When --configuration all is used, do not also provide "
+                "--file, --input-dir, --output-dir, --gearbox-variant, "
+                "--instrument-config or a non-auto --input-source. "
+                "The all-mode discovers isolated jobs automatically."
+            )
+
+        run_all_training_jobs(
+            args=args,
+            training_config=training_config,
+            training_data_root=training_data_root,
+        )
+        return
+
     if (
         args.configuration == "full_setup"
         and args.instrument_config is None
@@ -4220,30 +5097,11 @@ def main():
             "--configuration full_setup is selected."
         )
 
-    if args.configuration == "all":
-        raise RuntimeError(
-            "Train configurations separately so that gearbox and "
-            "instrument-specific models are not mixed."
-        )
-
-    training_config, training_data_root = load_training_config(
-        args.training_config
-    )
-
     motor_configurations_raw = training_config[
         "motor_dt"
     ]["configurations"]
 
-    if args.configuration == "all":
-        if args.file is not None or args.input_dir is not None or args.output_dir is not None:
-            raise RuntimeError(
-                "--file, --input-dir and --output-dir require one specific "
-                "--configuration. Edit training_config.yaml to change the default paths "
-                "used by --configuration all."
-            )
-        selected_configurations = list(VALID_CONFIGURATIONS)
-    else:
-        selected_configurations = [args.configuration]
+    selected_configurations = [args.configuration]
 
     for coupling_mode in selected_configurations:
 
@@ -4318,10 +5176,26 @@ def main():
                     "--gearbox-variant is required for coupled Motor-DT training."
                 )
 
+        # ----------------------------------------------------------
+        # Gearbox-specific input/output folders
+        # ----------------------------------------------------------
         if coupling_mode == "gearbox_only":
+            # Only select training data from the requested gearbox.
+            if args.input_dir is None:
+                input_dir = input_dir / selected_gearbox_variant
+
             output_dir = output_dir / selected_gearbox_variant
 
         elif coupling_mode == "full_setup":
+            # Prefer an instrument-specific input folder when present so
+            # gripper and scissors data are never mixed accidentally.
+            if args.input_dir is None:
+                instrument_input_dir = (
+                    input_dir / args.instrument_config
+                )
+                if instrument_input_dir.exists():
+                    input_dir = instrument_input_dir
+
             output_dir = output_dir / args.instrument_config
             
         print(f"Motor DT input source: {input_source}")

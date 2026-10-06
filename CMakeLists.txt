@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -77,6 +78,7 @@ add_executable(controller
   src/serial_port.cpp
   src/keyboard_reader.cpp
   src/motor_controller.cpp
+  src/motor_saving.cpp
   src/motor_thread.cpp
 )
 
@@ -84,6 +86,7 @@ add_executable(tool_controller_node src/tool_controller_node.cpp)
 add_executable(circular_trajectory_node src/circular_trajectory_node.cpp)
   
 ament_target_dependencies(controller rclcpp std_msgs geometry_msgs)
+target_link_libraries(controller nlohmann_json::nlohmann_json)
 ament_target_dependencies(tool_controller_node
   rclcpp
   geometry_msgs

@@ -3,6 +3,7 @@
 #include "adlap_tool_control/serial_port.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <array>
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -74,6 +75,13 @@ public:
     MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const std::array<Motor, 4>& motors);
     ~MotorController();
 
+    // Save state to JSON on shutdown
+    void save_state_to_json() const;
+    void save_starting_positions_to_json(const std::array<int, 4>& starting_positions_snapshot);
+
+    // State verification / restoration
+    bool restore_saved_starting_positions(bool force_restore = false);
+
     // Member variables
     std::array<Motor, 4> motors;  // Motor configuration parameters
     
@@ -142,9 +150,23 @@ private:
     int min_wait_time_ms_ = 4;
 
     void find_hall_sensor_positions();
+    struct LoadedSavedState
+    {
+        std::string start_file_key;
+        std::string shutdown_file_key;
+        std::array<int, 4> start_file_starting_positions{0, 0, 0, 0};
+        std::array<int, 4> shutdown_file_starting_positions{0, 0, 0, 0};
+        std::array<int, 4> shutdown_file_current_positions{0, 0, 0, 0};
+    };
+
+    bool load_saved_state_files(LoadedSavedState& loaded_state) const;
+    bool compare_saved_state_files(const LoadedSavedState& loaded_state) const;
+    bool compare_saved_state_to_current_positions(const LoadedSavedState& loaded_state) const;
 
     // Motor state
     std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
+    std::atomic<bool> starting_positions_initialized_{false};
+    std::string starting_positions_key_;
     std::array<int, 4> target_positions_{0, 0, 0, 0};
     std::array<int, 10> response_values_{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::array<int, 4> response_positions_{0, 0, 0, 0};

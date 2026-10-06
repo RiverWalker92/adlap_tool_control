@@ -5,7 +5,6 @@
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
-#include <stdexcept>
 #include <thread>
 
 namespace
@@ -357,11 +356,17 @@ std::array<bool, 2> MotorController::get_hall_sensors() const
 
 void MotorController::update_starting_positions()
 {
-  std::lock_guard<std::mutex> lock(state_mtx_);
-  for (size_t i = 0; i < 4; ++i)
+  std::array<int, 4> starting_positions_snapshot;
   {
-    starting_positions[i] = response_positions_[i];
+    std::lock_guard<std::mutex> lock(state_mtx_);
+    for (size_t i = 0; i < 4; ++i)
+    {
+      starting_positions[i] = response_positions_[i];
+      starting_positions_snapshot[i] = starting_positions[i];
+    }
+    starting_positions_initialized_.store(true, std::memory_order_release);
   }
+  save_starting_positions_to_json(starting_positions_snapshot);
 }
 
 void MotorController::update_target_positions()

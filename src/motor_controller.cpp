@@ -1,14 +1,8 @@
-#pragma once
 #include "adlap_tool_control/motor_controller.hpp"
-#include <sstream>
-#include <stdexcept>
-#include <thread>
+
 #include <chrono>
-#include <atomic>
-#include <condition_variable>
 #include <cstdint>
-#include <mutex>
-#include <thread>
+#include <stdexcept>
 
 MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Logger logger, const std::array<Motor, 4>& motors)
     : serial_(serial), logger_(logger), motors(motors)
@@ -30,7 +24,6 @@ MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Log
       send_motor_configuration(i, /*verbose=*/true);
     }
     update_target_positions();
-    update_starting_positions();
   }
   catch (...)
   {
@@ -42,6 +35,11 @@ MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Log
 MotorController::~MotorController()
 {
   stop_stream_reader();
+
+  if (starting_positions_initialized_.load(std::memory_order_acquire))
+  {
+    save_state_to_json();
+  }
 }
 
 
@@ -169,6 +167,5 @@ std::array<int, 4>& MotorController::get_duty_cycles() const
   }
   return duty_cycle_array;
 }
-
 
 

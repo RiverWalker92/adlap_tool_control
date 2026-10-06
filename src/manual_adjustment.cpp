@@ -188,14 +188,30 @@ void InstrumentController::manual_adjustment()
         gearbox.motor_controller.send_relative_motor_positions(0, -step_size, -step_size, 0, true);
         RCLCPP_INFO(logger_, "Q");
         break;
+      case KEYCODE_F:
+        RCLCPP_INFO(logger_, "F -> Force restore saved starting positions");
+        if (!gearbox.motor_controller.restore_saved_starting_positions(true)) {
+          RCLCPP_ERROR(logger_, "Failed to force restore saved starting positions");
+          break;
+        }
+        else{
+          RCLCPP_INFO(logger_, "Successfully force restored saved starting positions");
+          ready_for_angles = true;
+        }
+        break;
       case KEYCODE_ENTER:
         RCLCPP_INFO(logger_, "ENTER");
         if (!ready_for_angles) {
-          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
-          break;
+          RCLCPP_WARN(logger_, "Not initialized yet, press 'I' to initialize motors and 'U' to update starting positions, will try to restore saved starting positions now");  
+          if (!gearbox.motor_controller.restore_saved_starting_positions()) {
+            RCLCPP_ERROR(logger_, "Failed to restore saved starting positions (force with 'F' if not moved and power cycled)");
+            break;
+          }
+          else{
+            RCLCPP_INFO(logger_, "Successfully restored saved starting positions");
+          }
         }
         input.shutdown();
-        gearbox.motor_controller.update_starting_positions();
         return;
       default:
         RCLCPP_WARN(logger_, "Unknown key pressed: 0x%02X", c);

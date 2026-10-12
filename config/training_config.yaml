@@ -25,5 +25,5 @@ motor_dt:
 
 
 hybrid_bend_dt:
-  input_dir: "full_setup/DOF 2"
-  output_dir: "full_setup/DOF 2/bend_dt_results"
+  input_dir: "full_setup/gripper/DOF 2"
+  output_dir: "full_setup/gripper/DOF 2/bend_dt_results"

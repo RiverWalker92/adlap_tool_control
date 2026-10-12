@@ -1,0 +1,48 @@
+{
+  "config": {
+    "phase_samples": 150,
+    "encoder_pulses": 903,
+    "retained_rotations": 30,
+    "first_rotation_index": 1,
+    "motion_speed_threshold": -300,
+    "edge_margin_seconds": 1,
+    "position_error_limit": 100,
+    "command_limits": [
+      -30050,
+      -50
+    ],
+    "runs": [
+      {
+        "id": "auto_dof3_resistance_20260921_121136",
+        "label": 1,
+        "file": "data/auto_dof3_resistance_20260921_121136_motor_dt_replay.jsonl"
+      },
+      {
+        "id": "auto_dof3_resistance_20261007_101649",
+        "label": 0,
+        "file": "data/auto_dof3_resistance_20261007_101649_motor_dt_replay.jsonl"
+      },
+      {
+        "id": "auto_dof3_resistance_20261007_101805",
+        "label": 0,
+        "file": "data/auto_dof3_resistance_20261007_101805_motor_dt_replay.jsonl"
+      },
+      {
+        "id": "auto_dof3_resistance_20261007_102015",
+        "label": 0,
+        "file": "data/auto_dof3_resistance_20261007_102015_motor_dt_replay.jsonl"
+      }
+    ]
+  },
+  "versions": {
+    "python": "3.12.3",
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "scipy": "1.17.0",
+    "scikit_learn": "1.8.0",
+    "joblib": "1.6.0"
+  },
+  "RC": "OLS slope of current residual against phase with intercept, using unique phase points; mA/rad. This coefficient depends on the phase origin.",
+  "validation": "Healthy run and degraded block withheld; 5 and 10 rotations separately",
+  "limitations": "One degraded run. Repeated fold predictions are dependent. Twenty- and thirty-rotation predictions are descriptive."
+}

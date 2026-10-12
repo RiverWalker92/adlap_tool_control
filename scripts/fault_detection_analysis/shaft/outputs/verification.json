@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Analytical constant, harmonic amplitudes and RMS identity",
+    "Shared-intercept gain and centred residual offset invariance",
+    "Complete dataset, unique cycles, native sample counts and per-motor RMS identities",
+    "All 3616 folds exclude the test run; all scores and 3164 metric rows reconstructed",
+    "All PNG image files decode"
+  ],
+  "native_current_samples": 25196,
+  "native_video_frames": 7555,
+  "observed_runs": 4,
+  "cycles": 216,
+  "condition_observations": 72,
+  "folds": 3616,
+  "held_out_predictions": 65088
+}

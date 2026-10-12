@@ -1,0 +1,9 @@
+{
+  "changed_models": 5,
+  "unchanged_models": 136,
+  "unchanged_feature_columns_verified": 80,
+  "unchanged_predictions_identical": true,
+  "new_peak_column": "closing_filtered_abs_peak",
+  "filter": "same filtered_measured_currents as DT replay",
+  "all_original_samples": true
+}

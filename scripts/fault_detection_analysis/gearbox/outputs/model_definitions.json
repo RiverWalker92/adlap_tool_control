@@ -1,0 +1,188 @@
+{
+  "M0_peak": {
+    "features": [
+      "M0_peak"
+    ]
+  },
+  "M3_peak": {
+    "features": [
+      "M3_peak"
+    ]
+  },
+  "M0_M3_peak": {
+    "features": [
+      "M0_peak",
+      "M3_peak"
+    ]
+  },
+  "M0_abs_peak": {
+    "features": [
+      "M0_abs_peak"
+    ]
+  },
+  "M3_abs_peak": {
+    "features": [
+      "M3_abs_peak"
+    ]
+  },
+  "M0_M3_abs_peak": {
+    "features": [
+      "M0_abs_peak",
+      "M3_abs_peak"
+    ]
+  },
+  "M0_mean": {
+    "features": [
+      "M0_mean"
+    ]
+  },
+  "M3_mean": {
+    "features": [
+      "M3_mean"
+    ]
+  },
+  "M0_M3_mean": {
+    "features": [
+      "M0_mean",
+      "M3_mean"
+    ]
+  },
+  "M0_abs_auc": {
+    "features": [
+      "M0_abs_auc"
+    ]
+  },
+  "M3_abs_auc": {
+    "features": [
+      "M3_abs_auc"
+    ]
+  },
+  "M0_M3_abs_auc": {
+    "features": [
+      "M0_abs_auc",
+      "M3_abs_auc"
+    ]
+  },
+  "M0_pos_auc": {
+    "features": [
+      "M0_pos_auc"
+    ]
+  },
+  "M3_pos_auc": {
+    "features": [
+      "M3_pos_auc"
+    ]
+  },
+  "M0_M3_pos_auc": {
+    "features": [
+      "M0_pos_auc",
+      "M3_pos_auc"
+    ]
+  },
+  "M0_rms": {
+    "features": [
+      "M0_rms"
+    ]
+  },
+  "M3_rms": {
+    "features": [
+      "M3_rms"
+    ]
+  },
+  "M0_M3_rms": {
+    "features": [
+      "M0_rms",
+      "M3_rms"
+    ]
+  },
+  "M0_phase_sd": {
+    "features": [
+      "M0_phase_sd"
+    ]
+  },
+  "M3_phase_sd": {
+    "features": [
+      "M3_phase_sd"
+    ]
+  },
+  "M0_M3_phase_sd": {
+    "features": [
+      "M0_phase_sd",
+      "M3_phase_sd"
+    ]
+  },
+  "M0_ptp": {
+    "features": [
+      "M0_ptp"
+    ]
+  },
+  "M3_ptp": {
+    "features": [
+      "M3_ptp"
+    ]
+  },
+  "M0_M3_ptp": {
+    "features": [
+      "M0_ptp",
+      "M3_ptp"
+    ]
+  },
+  "M0_a1": {
+    "features": [
+      "M0_a1"
+    ]
+  },
+  "M3_a1": {
+    "features": [
+      "M3_a1"
+    ]
+  },
+  "M0_M3_a1": {
+    "features": [
+      "M0_a1",
+      "M3_a1"
+    ]
+  },
+  "M0_a2": {
+    "features": [
+      "M0_a2"
+    ]
+  },
+  "M3_a2": {
+    "features": [
+      "M3_a2"
+    ]
+  },
+  "M0_M3_a2": {
+    "features": [
+      "M0_a2",
+      "M3_a2"
+    ]
+  },
+  "M0_rc": {
+    "features": [
+      "M0_rc"
+    ]
+  },
+  "M3_rc": {
+    "features": [
+      "M3_rc"
+    ]
+  },
+  "M0_M3_rc": {
+    "features": [
+      "M0_rc",
+      "M3_rc"
+    ]
+  },
+  "shape_corr": {
+    "features": [
+      "shape_corr"
+    ]
+  },
+  "ellipse_area": {
+    "features": [
+      "ellipse_area"
+    ]
+  }
+}

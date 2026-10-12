@@ -1,0 +1,88 @@
+{
+  "conditions": [
+    "sinusoid_f0p5_r1p0",
+    "triangle_f0p5_r1p0",
+    "sinusoid_f1p0_r1p0",
+    "triangle_f1p0_r1p0",
+    "sinusoid_f2p0_r1p0",
+    "triangle_f2p0_r1p0"
+  ],
+  "segments": [
+    {
+      "condition": "sinusoid_f0p5_r1p0",
+      "concatenated_start_s": 0.0,
+      "concatenated_end_s": 5.9999918937683105
+    },
+    {
+      "condition": "triangle_f0p5_r1p0",
+      "concatenated_start_s": 5.9999918937683105,
+      "concatenated_end_s": 11.99999189376831
+    },
+    {
+      "condition": "sinusoid_f1p0_r1p0",
+      "concatenated_start_s": 11.99999189376831,
+      "concatenated_end_s": 14.999988317489624
+    },
+    {
+      "condition": "triangle_f1p0_r1p0",
+      "concatenated_start_s": 14.999988317489624,
+      "concatenated_end_s": 17.999978184700012
+    },
+    {
+      "condition": "sinusoid_f2p0_r1p0",
+      "concatenated_start_s": 17.999978184700012,
+      "concatenated_end_s": 19.499983310699463
+    },
+    {
+      "condition": "triangle_f2p0_r1p0",
+      "concatenated_start_s": 19.499983310699463,
+      "concatenated_end_s": 20.999922394752502
+    }
+  ],
+  "inset": {
+    "runs": [
+      "auto_dof2_20260909_153903",
+      "auto_dof2_20260910_122627"
+    ],
+    "aggregation": "mean of both faulty runs",
+    "condition": "triangle_f0p5_r1p0",
+    "event_log_s_by_run": {
+      "auto_dof2_20260909_153903": 102.74338581085205,
+      "auto_dof2_20260910_122627": 102.72743322372436
+    },
+    "condition_time_s": 4.5200000000000005,
+    "hybrid_deficit_deg": 7.194584106907282,
+    "inset_start_s": 0.0,
+    "inset_end_s": 6.0
+  },
+  "zoom_condition": "triangle_f0p5_r1p0",
+  "zoom_window_s": 2.0,
+  "video_offset": "mean(video - hybrid) removed per cycle",
+  "band": "minimum and maximum of the two runs per class",
+  "alignment": "logged condition boundaries; no lag fitting",
+  "event_rule": "overview: largest positive-peak deficit of faulty mean against healthy mean after cycle-offset alignment; optional individual zooms: per run",
+  "units_motor": "logged encoder counts; no conversion to angle",
+  "motor_inset_signal": "encoder_deviation = measured_positions - offline_predicted_positions",
+  "source_hashes": {
+    "auto_dof2_20261007_094745": {
+      "ros_log": "f48c36713d843e8ac3bd41b3057df75abc9a3b54d4f134c0affacff400b415a2",
+      "motor_dt_replay": "44e7b90c5e9510dc8827342f97643bee0f16d2c5bc25712161ce06921490ee98",
+      "webcam_angles": "76f64b127b4a06a9979ffbf221f5a56ba411c467e2484cbb57d456ad463c2902"
+    },
+    "auto_dof2_20261007_114052": {
+      "ros_log": "8b3a45d88810c11e888cac70b0424ffd9a9c843003b95297e121af375bc7caa3",
+      "motor_dt_replay": "6413900763f85e8d053b0196c5ff1563e5547e0ac3d0a5845ef422c0a770b73d",
+      "webcam_angles": "26d812628dba5535f7e192e1c3100b0c5586bd1b5ee4ef5837f5ce12a54ba075"
+    },
+    "auto_dof2_20260909_153903": {
+      "ros_log": "0c94e868b2578e008db523245ef5aab00daff631a58f6fce3631baa1806d1555",
+      "motor_dt_replay": "ad6a609cde00de719c76aab58fc93e8a20cc27b2f9fef15cf9ec6349434df2c2",
+      "webcam_angles": "4a8f785692663e78f7f4f9104a3ccdd0cb8d0307b76c08fb51cde1165a5e7b11"
+    },
+    "auto_dof2_20260910_122627": {
+      "ros_log": "a7745d4b5c0939e2b783e4925a770f2bdc37c17500d7caddea5da1c4044dab18",
+      "motor_dt_replay": "d8c78a3288ae3e9cb5b716de7304542d83f75b3b7db039bf958526584ae4b67b",
+      "webcam_angles": "8b8da42c7087ca996415569791e612694d16c3961eb68ffa2675714e794adc7c"
+    }
+  }
+}

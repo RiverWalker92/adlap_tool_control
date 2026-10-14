@@ -1,0 +1,63 @@
+{
+  "mapping": {
+    "0": [
+      "121222",
+      "122221"
+    ],
+    "1": [
+      "130008",
+      "130634"
+    ],
+    "2": [
+      "132706",
+      "133157"
+    ],
+    "3": [
+      "134408",
+      "134815"
+    ],
+    "4": [
+      "140753",
+      "141519"
+    ],
+    "6": [
+      "150213",
+      "150506"
+    ],
+    "8": [
+      "151435",
+      "152040"
+    ]
+  },
+  "residual": "Supplied filtered measured minus predicted current, fixed DT; no DT retraining",
+  "filter": "Supplied causal MA5",
+  "measured_current_features": "All features, including the absolute closing peak and RC, use supplied filtered measured current. Unfiltered current is used only to verify ROS/replay alignment, never as a feature.",
+  "windows": "Opening and closing: initial3% of commanded travel excluded. No pauses. Closing RC:30-80% commanded closing travel.",
+  "sample_policy": "Use all actual valid original samples. No fixed count and no extra endpoint.",
+  "sample_count_summary": {
+    "opening": {
+      "min": 485,
+      "max": 486,
+      "median": 486.0
+    },
+    "closing": {
+      "min": 485,
+      "max": 486,
+      "median": 485.5
+    },
+    "cycle": {
+      "min": 970,
+      "max": 972,
+      "median": 971.0
+    }
+  },
+  "interpolation": "Only for DFT: uniform time grid with exactly the native valid sample count of that specific direction or active cycle. No interpolation across the omitted reversal gap. All other parameters use native samples/timestamps directly.",
+  "integrals": "Native-sample trapezoids in seconds, including the existing first/last sample. Full cycle=sum separate opening+closing integrals; no excluded-gap integration.",
+  "phase_mean": "Native-time integral divided by valid duration. Active-cycle integral divided by summed directional durations. Distinct from arithmetic sample mean.",
+  "sd": "Population ddof0 on all native valid observations",
+  "fft": "DFT on a uniform grid of N equal to actual observed sample count per window; h1/h2 describe profile shape, not physical rotation orders",
+  "joint": "Pearson waveform correlation and pi sqrt(det(population covariance)) from paired original M0/M3 samples",
+  "same_data_verified": true,
+  "checks_against_old_features": true,
+  "dt_training_independence": "Not established from run/replay metadata"
+}

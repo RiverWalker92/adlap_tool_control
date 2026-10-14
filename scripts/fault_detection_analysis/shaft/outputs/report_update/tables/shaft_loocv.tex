@@ -1,0 +1,29 @@
+\begin{table}[t]
+\centering
+\caption{Pooled shaft LDA cross-validation for one-cycle and three-cycle observations, with 108 and 36 observations per class, respectively. Each complete run is held out once. Green highlights the selected M1 absolute-peak model. Counts are repeated observations from two runs per class.}
+\label{tab:dof2-overall}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm} cccc !{\color{black!25}\vrule width 0.4pt} cccc}
+\toprule
+ & \multicolumn{4}{c}{\textbf{1 cycle}} & \multicolumn{4}{c}{\textbf{3 cycles}} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+\textbf{Parameters} & TP & FP & TN & FN & TP & FP & TN & FN \\
+\midrule
+M1 absolute peak & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} \\
+M1 RMS & 108 & 0 & 108 & 0 & 36 & 0 & 36 & 0 \\
+M2 phase mean & 82 & 0 & 108 & 26 & 27 & 0 & 36 & 9 \\
+M2 second harmonic & 81 & 0 & 108 & 27 & 28 & 0 & 36 & 8 \\
+M2 RC & 54 & 3 & 105 & 54 & 18 & 1 & 35 & 18 \\
+Absolute gain diff. & 76 & 8 & 100 & 32 & 24 & 2 & 34 & 12 \\
+Positive/negative gains & 106 & 19 & 89 & 2 & 36 & 6 & 30 & 0 \\
+Centred video MAE & 86 & 15 & 93 & 22 & 28 & 5 & 31 & 8 \\
+M1 peak + gain diff. & 108 & 0 & 108 & 0 & 36 & 0 & 36 & 0 \\
+M2 mean + gain diff. & 74 & 4 & 104 & 34 & 25 & 1 & 35 & 11 \\
+M2 harmonic + gain diff. & 81 & 2 & 106 & 27 & 26 & 0 & 36 & 10 \\
+M2 harmonic + video MAE & 69 & 8 & 100 & 39 & 23 & 3 & 33 & 13 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

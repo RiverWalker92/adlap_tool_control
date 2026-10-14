@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering
+\caption{Separate amplitude-specific LDA models using three-cycle feature means and complete-run cross-validation. Each amplitude contains 12 degraded and 12 healthy observations. Amplitudes are 0.10, 0.20 and 0.40 rad. These models differ from the pooled model in Table~\ref{tab:dof2-overall}.}
+\label{tab:dof2-amplitude}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm} cccc !{\color{black!25}\vrule width 0.4pt} cccc !{\color{black!25}\vrule width 0.4pt} cccc}
+\toprule
+ & \multicolumn{4}{c}{\textbf{Small}} & \multicolumn{4}{c}{\textbf{Medium}} & \multicolumn{4}{c}{\textbf{Full}} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9} \cmidrule(lr){10-13}
+\textbf{Parameters} & TP & FP & TN & FN & TP & FP & TN & FN & TP & FP & TN & FN \\
+\midrule
+M1 absolute peak & \gbcorrect{12} & \gbcorrect{0} & \gbcorrect{12} & \gbcorrect{0} & \gbcorrect{12} & \gbcorrect{0} & \gbcorrect{12} & \gbcorrect{0} & \gbcorrect{12} & \gbcorrect{0} & \gbcorrect{12} & \gbcorrect{0} \\
+M2 phase mean & 6 & 2 & 10 & 6 & 11 & 0 & 12 & 1 & 10 & 0 & 12 & 2 \\
+M2 second harmonic & 6 & 0 & 12 & 6 & 11 & 0 & 12 & 1 & 12 & 0 & 12 & 0 \\
+Absolute gain diff. & 7 & 2 & 10 & 5 & 8 & 1 & 11 & 4 & 8 & 0 & 12 & 4 \\
+Positive/negative gains & 10 & 6 & 6 & 2 & 12 & 0 & 12 & 0 & 12 & 0 & 12 & 0 \\
+M2 mean + gain diff. & 6 & 2 & 10 & 6 & 11 & 0 & 12 & 1 & 8 & 0 & 12 & 4 \\
+M2 harmonic + gain diff. & 9 & 1 & 11 & 3 & 12 & 0 & 12 & 0 & 12 & 0 & 12 & 0 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

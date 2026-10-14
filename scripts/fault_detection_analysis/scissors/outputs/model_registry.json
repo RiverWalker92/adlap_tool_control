@@ -4,7 +4,7 @@
     "parameters": [
       "closing_M3_signed_max"
     ],
-    "label": "Closing M3 residual Signed maximum",
+    "label": "Closing M3 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -12,7 +12,7 @@
     "parameters": [
       "closing_M3_abs_max"
     ],
-    "label": "Closing M3 residual Absolute maximum",
+    "label": "Closing M3 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -20,7 +20,7 @@
     "parameters": [
       "closing_M3_phase_mean"
     ],
-    "label": "Closing M3 residual Phase mean",
+    "label": "Closing M3 Mean",
     "category": "residual_single"
   },
   {
@@ -28,7 +28,7 @@
     "parameters": [
       "closing_M3_abs_integral"
     ],
-    "label": "Closing M3 residual Absolute integral",
+    "label": "Closing M3 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -36,7 +36,7 @@
     "parameters": [
       "closing_M3_positive_integral"
     ],
-    "label": "Closing M3 residual Positive integral",
+    "label": "Closing M3 Positive integral",
     "category": "residual_single"
   },
   {
@@ -44,7 +44,7 @@
     "parameters": [
       "closing_M3_rms"
     ],
-    "label": "Closing M3 residual RMS",
+    "label": "Closing M3 RMS",
     "category": "residual_single"
   },
   {
@@ -52,7 +52,7 @@
     "parameters": [
       "closing_M3_phase_sd"
     ],
-    "label": "Closing M3 residual Phase SD",
+    "label": "Closing M3 SD",
     "category": "residual_single"
   },
   {
@@ -60,7 +60,7 @@
     "parameters": [
       "closing_M3_peak_to_peak"
     ],
-    "label": "Closing M3 residual Peak-to-peak range",
+    "label": "Closing M3 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -68,7 +68,7 @@
     "parameters": [
       "closing_M3_harmonic1"
     ],
-    "label": "Closing M3 residual Fundamental amplitude",
+    "label": "Closing M3 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -76,7 +76,7 @@
     "parameters": [
       "closing_M3_harmonic2"
     ],
-    "label": "Closing M3 residual Second harmonic amplitude",
+    "label": "Closing M3 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -84,7 +84,7 @@
     "parameters": [
       "closing_M0_signed_max"
     ],
-    "label": "Closing M0 residual Signed maximum",
+    "label": "Closing M0 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -92,7 +92,7 @@
     "parameters": [
       "closing_M0_abs_max"
     ],
-    "label": "Closing M0 residual Absolute maximum",
+    "label": "Closing M0 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -100,7 +100,7 @@
     "parameters": [
       "closing_M0_phase_mean"
     ],
-    "label": "Closing M0 residual Phase mean",
+    "label": "Closing M0 Mean",
     "category": "residual_single"
   },
   {
@@ -108,7 +108,7 @@
     "parameters": [
       "closing_M0_abs_integral"
     ],
-    "label": "Closing M0 residual Absolute integral",
+    "label": "Closing M0 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -116,7 +116,7 @@
     "parameters": [
       "closing_M0_positive_integral"
     ],
-    "label": "Closing M0 residual Positive integral",
+    "label": "Closing M0 Positive integral",
     "category": "residual_single"
   },
   {
@@ -124,7 +124,7 @@
     "parameters": [
       "closing_M0_rms"
     ],
-    "label": "Closing M0 residual RMS",
+    "label": "Closing M0 RMS",
     "category": "residual_single"
   },
   {
@@ -132,7 +132,7 @@
     "parameters": [
       "closing_M0_phase_sd"
     ],
-    "label": "Closing M0 residual Phase SD",
+    "label": "Closing M0 SD",
     "category": "residual_single"
   },
   {
@@ -140,7 +140,7 @@
     "parameters": [
       "closing_M0_peak_to_peak"
     ],
-    "label": "Closing M0 residual Peak-to-peak range",
+    "label": "Closing M0 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -148,7 +148,7 @@
     "parameters": [
       "closing_M0_harmonic1"
     ],
-    "label": "Closing M0 residual Fundamental amplitude",
+    "label": "Closing M0 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -156,7 +156,7 @@
     "parameters": [
       "closing_M0_harmonic2"
     ],
-    "label": "Closing M0 residual Second harmonic amplitude",
+    "label": "Closing M0 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -180,7 +180,7 @@
     "parameters": [
       "opening_M3_signed_max"
     ],
-    "label": "Opening M3 residual Signed maximum",
+    "label": "Opening M3 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -188,7 +188,7 @@
     "parameters": [
       "opening_M3_abs_max"
     ],
-    "label": "Opening M3 residual Absolute maximum",
+    "label": "Opening M3 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -196,7 +196,7 @@
     "parameters": [
       "opening_M3_phase_mean"
     ],
-    "label": "Opening M3 residual Phase mean",
+    "label": "Opening M3 Mean",
     "category": "residual_single"
   },
   {
@@ -204,7 +204,7 @@
     "parameters": [
       "opening_M3_abs_integral"
     ],
-    "label": "Opening M3 residual Absolute integral",
+    "label": "Opening M3 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -212,7 +212,7 @@
     "parameters": [
       "opening_M3_positive_integral"
     ],
-    "label": "Opening M3 residual Positive integral",
+    "label": "Opening M3 Positive integral",
     "category": "residual_single"
   },
   {
@@ -220,7 +220,7 @@
     "parameters": [
       "opening_M3_rms"
     ],
-    "label": "Opening M3 residual RMS",
+    "label": "Opening M3 RMS",
     "category": "residual_single"
   },
   {
@@ -228,7 +228,7 @@
     "parameters": [
       "opening_M3_phase_sd"
     ],
-    "label": "Opening M3 residual Phase SD",
+    "label": "Opening M3 SD",
     "category": "residual_single"
   },
   {
@@ -236,7 +236,7 @@
     "parameters": [
       "opening_M3_peak_to_peak"
     ],
-    "label": "Opening M3 residual Peak-to-peak range",
+    "label": "Opening M3 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -244,7 +244,7 @@
     "parameters": [
       "opening_M3_harmonic1"
     ],
-    "label": "Opening M3 residual Fundamental amplitude",
+    "label": "Opening M3 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -252,7 +252,7 @@
     "parameters": [
       "opening_M3_harmonic2"
     ],
-    "label": "Opening M3 residual Second harmonic amplitude",
+    "label": "Opening M3 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -260,7 +260,7 @@
     "parameters": [
       "opening_M0_signed_max"
     ],
-    "label": "Opening M0 residual Signed maximum",
+    "label": "Opening M0 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -268,7 +268,7 @@
     "parameters": [
       "opening_M0_abs_max"
     ],
-    "label": "Opening M0 residual Absolute maximum",
+    "label": "Opening M0 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -276,7 +276,7 @@
     "parameters": [
       "opening_M0_phase_mean"
     ],
-    "label": "Opening M0 residual Phase mean",
+    "label": "Opening M0 Mean",
     "category": "residual_single"
   },
   {
@@ -284,7 +284,7 @@
     "parameters": [
       "opening_M0_abs_integral"
     ],
-    "label": "Opening M0 residual Absolute integral",
+    "label": "Opening M0 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -292,7 +292,7 @@
     "parameters": [
       "opening_M0_positive_integral"
     ],
-    "label": "Opening M0 residual Positive integral",
+    "label": "Opening M0 Positive integral",
     "category": "residual_single"
   },
   {
@@ -300,7 +300,7 @@
     "parameters": [
       "opening_M0_rms"
     ],
-    "label": "Opening M0 residual RMS",
+    "label": "Opening M0 RMS",
     "category": "residual_single"
   },
   {
@@ -308,7 +308,7 @@
     "parameters": [
       "opening_M0_phase_sd"
     ],
-    "label": "Opening M0 residual Phase SD",
+    "label": "Opening M0 SD",
     "category": "residual_single"
   },
   {
@@ -316,7 +316,7 @@
     "parameters": [
       "opening_M0_peak_to_peak"
     ],
-    "label": "Opening M0 residual Peak-to-peak range",
+    "label": "Opening M0 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -324,7 +324,7 @@
     "parameters": [
       "opening_M0_harmonic1"
     ],
-    "label": "Opening M0 residual Fundamental amplitude",
+    "label": "Opening M0 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -332,7 +332,7 @@
     "parameters": [
       "opening_M0_harmonic2"
     ],
-    "label": "Opening M0 residual Second harmonic amplitude",
+    "label": "Opening M0 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -356,7 +356,7 @@
     "parameters": [
       "cycle_M3_signed_max"
     ],
-    "label": "Cycle M3 residual Signed maximum",
+    "label": "Cycle M3 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -364,7 +364,7 @@
     "parameters": [
       "cycle_M3_abs_max"
     ],
-    "label": "Cycle M3 residual Absolute maximum",
+    "label": "Cycle M3 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -372,7 +372,7 @@
     "parameters": [
       "cycle_M3_phase_mean"
     ],
-    "label": "Cycle M3 residual Phase mean",
+    "label": "Cycle M3 Mean",
     "category": "residual_single"
   },
   {
@@ -380,7 +380,7 @@
     "parameters": [
       "cycle_M3_abs_integral"
     ],
-    "label": "Cycle M3 residual Absolute integral",
+    "label": "Cycle M3 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -388,7 +388,7 @@
     "parameters": [
       "cycle_M3_positive_integral"
     ],
-    "label": "Cycle M3 residual Positive integral",
+    "label": "Cycle M3 Positive integral",
     "category": "residual_single"
   },
   {
@@ -396,7 +396,7 @@
     "parameters": [
       "cycle_M3_rms"
     ],
-    "label": "Cycle M3 residual RMS",
+    "label": "Cycle M3 RMS",
     "category": "residual_single"
   },
   {
@@ -404,7 +404,7 @@
     "parameters": [
       "cycle_M3_phase_sd"
     ],
-    "label": "Cycle M3 residual Phase SD",
+    "label": "Cycle M3 SD",
     "category": "residual_single"
   },
   {
@@ -412,7 +412,7 @@
     "parameters": [
       "cycle_M3_peak_to_peak"
     ],
-    "label": "Cycle M3 residual Peak-to-peak range",
+    "label": "Cycle M3 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -420,7 +420,7 @@
     "parameters": [
       "cycle_M3_harmonic1"
     ],
-    "label": "Cycle M3 residual Fundamental amplitude",
+    "label": "Cycle M3 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -428,7 +428,7 @@
     "parameters": [
       "cycle_M3_harmonic2"
     ],
-    "label": "Cycle M3 residual Second harmonic amplitude",
+    "label": "Cycle M3 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -436,7 +436,7 @@
     "parameters": [
       "cycle_M0_signed_max"
     ],
-    "label": "Cycle M0 residual Signed maximum",
+    "label": "Cycle M0 Signed maximum",
     "category": "residual_single"
   },
   {
@@ -444,7 +444,7 @@
     "parameters": [
       "cycle_M0_abs_max"
     ],
-    "label": "Cycle M0 residual Absolute maximum",
+    "label": "Cycle M0 Absolute maximum",
     "category": "residual_single"
   },
   {
@@ -452,7 +452,7 @@
     "parameters": [
       "cycle_M0_phase_mean"
     ],
-    "label": "Cycle M0 residual Phase mean",
+    "label": "Cycle M0 Mean",
     "category": "residual_single"
   },
   {
@@ -460,7 +460,7 @@
     "parameters": [
       "cycle_M0_abs_integral"
     ],
-    "label": "Cycle M0 residual Absolute integral",
+    "label": "Cycle M0 Absolute integral",
     "category": "residual_single"
   },
   {
@@ -468,7 +468,7 @@
     "parameters": [
       "cycle_M0_positive_integral"
     ],
-    "label": "Cycle M0 residual Positive integral",
+    "label": "Cycle M0 Positive integral",
     "category": "residual_single"
   },
   {
@@ -476,7 +476,7 @@
     "parameters": [
       "cycle_M0_rms"
     ],
-    "label": "Cycle M0 residual RMS",
+    "label": "Cycle M0 RMS",
     "category": "residual_single"
   },
   {
@@ -484,7 +484,7 @@
     "parameters": [
       "cycle_M0_phase_sd"
     ],
-    "label": "Cycle M0 residual Phase SD",
+    "label": "Cycle M0 SD",
     "category": "residual_single"
   },
   {
@@ -492,7 +492,7 @@
     "parameters": [
       "cycle_M0_peak_to_peak"
     ],
-    "label": "Cycle M0 residual Peak-to-peak range",
+    "label": "Cycle M0 Peak-to-peak range",
     "category": "residual_single"
   },
   {
@@ -500,7 +500,7 @@
     "parameters": [
       "cycle_M0_harmonic1"
     ],
-    "label": "Cycle M0 residual Fundamental amplitude",
+    "label": "Cycle M0 First Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -508,7 +508,7 @@
     "parameters": [
       "cycle_M0_harmonic2"
     ],
-    "label": "Cycle M0 residual Second harmonic amplitude",
+    "label": "Cycle M0 Second Fourier amplitude",
     "category": "residual_single"
   },
   {
@@ -528,84 +528,20 @@
     "category": "joint_single"
   },
   {
-    "model": "current_signed_max",
+    "model": "closing_M0_rc30_80",
     "parameters": [
-      "closing_current_M3_signed_max"
+      "closing_M0_rc30_80"
     ],
-    "label": "Closing M3 filtered current Signed maximum",
-    "category": "current_single"
+    "label": "M0 closing RC 30-80%",
+    "category": "residual_single"
   },
   {
-    "model": "current_abs_max",
+    "model": "closing_M3_rc30_80",
     "parameters": [
-      "closing_current_M3_abs_max"
+      "closing_M3_rc30_80"
     ],
-    "label": "Closing M3 filtered current Absolute maximum",
-    "category": "current_single"
-  },
-  {
-    "model": "current_phase_mean",
-    "parameters": [
-      "closing_current_M3_phase_mean"
-    ],
-    "label": "Closing M3 filtered current Phase mean",
-    "category": "current_single"
-  },
-  {
-    "model": "current_abs_integral",
-    "parameters": [
-      "closing_current_M3_abs_integral"
-    ],
-    "label": "Closing M3 filtered current Absolute integral",
-    "category": "current_single"
-  },
-  {
-    "model": "current_positive_integral",
-    "parameters": [
-      "closing_current_M3_positive_integral"
-    ],
-    "label": "Closing M3 filtered current Positive integral",
-    "category": "current_single"
-  },
-  {
-    "model": "current_rms",
-    "parameters": [
-      "closing_current_M3_rms"
-    ],
-    "label": "Closing M3 filtered current RMS",
-    "category": "current_single"
-  },
-  {
-    "model": "current_phase_sd",
-    "parameters": [
-      "closing_current_M3_phase_sd"
-    ],
-    "label": "Closing M3 filtered current Phase SD",
-    "category": "current_single"
-  },
-  {
-    "model": "current_peak_to_peak",
-    "parameters": [
-      "closing_current_M3_peak_to_peak"
-    ],
-    "label": "Closing M3 filtered current Peak-to-peak range",
-    "category": "current_single"
-  },
-  {
-    "model": "current_harmonic1",
-    "parameters": [
-      "closing_current_M3_harmonic1"
-    ],
-    "label": "Closing M3 filtered current Fundamental amplitude",
-    "category": "current_single"
-  },
-  {
-    "model": "current_harmonic2",
-    "parameters": [
-      "closing_current_M3_harmonic2"
-    ],
-    "label": "Closing M3 filtered current Second harmonic amplitude",
-    "category": "current_single"
+    "label": "M3 closing RC 30-80%",
+    "category": "residual_single"
   },
   {
     "model": "closing_paired_signed_max",
@@ -613,7 +549,7 @@
       "closing_M0_signed_max",
       "closing_M3_signed_max"
     ],
-    "label": "Closing M0 + M3 residual Signed maximum",
+    "label": "Closing M0 + M3 Signed maximum",
     "category": "motor_pair"
   },
   {
@@ -622,7 +558,7 @@
       "closing_M0_abs_max",
       "closing_M3_abs_max"
     ],
-    "label": "Closing M0 + M3 residual Absolute maximum",
+    "label": "Closing M0 + M3 Absolute maximum",
     "category": "motor_pair"
   },
   {
@@ -631,7 +567,7 @@
       "closing_M0_phase_mean",
       "closing_M3_phase_mean"
     ],
-    "label": "Closing M0 + M3 residual Phase mean",
+    "label": "Closing M0 + M3 Mean",
     "category": "motor_pair"
   },
   {
@@ -640,7 +576,7 @@
       "closing_M0_abs_integral",
       "closing_M3_abs_integral"
     ],
-    "label": "Closing M0 + M3 residual Absolute integral",
+    "label": "Closing M0 + M3 Absolute integral",
     "category": "motor_pair"
   },
   {
@@ -649,7 +585,7 @@
       "closing_M0_positive_integral",
       "closing_M3_positive_integral"
     ],
-    "label": "Closing M0 + M3 residual Positive integral",
+    "label": "Closing M0 + M3 Positive integral",
     "category": "motor_pair"
   },
   {
@@ -658,7 +594,7 @@
       "closing_M0_rms",
       "closing_M3_rms"
     ],
-    "label": "Closing M0 + M3 residual RMS",
+    "label": "Closing M0 + M3 RMS",
     "category": "motor_pair"
   },
   {
@@ -667,7 +603,7 @@
       "closing_M0_phase_sd",
       "closing_M3_phase_sd"
     ],
-    "label": "Closing M0 + M3 residual Phase SD",
+    "label": "Closing M0 + M3 SD",
     "category": "motor_pair"
   },
   {
@@ -676,7 +612,7 @@
       "closing_M0_peak_to_peak",
       "closing_M3_peak_to_peak"
     ],
-    "label": "Closing M0 + M3 residual Peak-to-peak range",
+    "label": "Closing M0 + M3 Peak-to-peak range",
     "category": "motor_pair"
   },
   {
@@ -685,7 +621,7 @@
       "closing_M0_harmonic1",
       "closing_M3_harmonic1"
     ],
-    "label": "Closing M0 + M3 residual Fundamental amplitude",
+    "label": "Closing M0 + M3 First Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -694,7 +630,7 @@
       "closing_M0_harmonic2",
       "closing_M3_harmonic2"
     ],
-    "label": "Closing M0 + M3 residual Second harmonic amplitude",
+    "label": "Closing M0 + M3 Second Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -703,7 +639,7 @@
       "opening_M0_signed_max",
       "opening_M3_signed_max"
     ],
-    "label": "Opening M0 + M3 residual Signed maximum",
+    "label": "Opening M0 + M3 Signed maximum",
     "category": "motor_pair"
   },
   {
@@ -712,7 +648,7 @@
       "opening_M0_abs_max",
       "opening_M3_abs_max"
     ],
-    "label": "Opening M0 + M3 residual Absolute maximum",
+    "label": "Opening M0 + M3 Absolute maximum",
     "category": "motor_pair"
   },
   {
@@ -721,7 +657,7 @@
       "opening_M0_phase_mean",
       "opening_M3_phase_mean"
     ],
-    "label": "Opening M0 + M3 residual Phase mean",
+    "label": "Opening M0 + M3 Mean",
     "category": "motor_pair"
   },
   {
@@ -730,7 +666,7 @@
       "opening_M0_abs_integral",
       "opening_M3_abs_integral"
     ],
-    "label": "Opening M0 + M3 residual Absolute integral",
+    "label": "Opening M0 + M3 Absolute integral",
     "category": "motor_pair"
   },
   {
@@ -739,7 +675,7 @@
       "opening_M0_positive_integral",
       "opening_M3_positive_integral"
     ],
-    "label": "Opening M0 + M3 residual Positive integral",
+    "label": "Opening M0 + M3 Positive integral",
     "category": "motor_pair"
   },
   {
@@ -748,7 +684,7 @@
       "opening_M0_rms",
       "opening_M3_rms"
     ],
-    "label": "Opening M0 + M3 residual RMS",
+    "label": "Opening M0 + M3 RMS",
     "category": "motor_pair"
   },
   {
@@ -757,7 +693,7 @@
       "opening_M0_phase_sd",
       "opening_M3_phase_sd"
     ],
-    "label": "Opening M0 + M3 residual Phase SD",
+    "label": "Opening M0 + M3 SD",
     "category": "motor_pair"
   },
   {
@@ -766,7 +702,7 @@
       "opening_M0_peak_to_peak",
       "opening_M3_peak_to_peak"
     ],
-    "label": "Opening M0 + M3 residual Peak-to-peak range",
+    "label": "Opening M0 + M3 Peak-to-peak range",
     "category": "motor_pair"
   },
   {
@@ -775,7 +711,7 @@
       "opening_M0_harmonic1",
       "opening_M3_harmonic1"
     ],
-    "label": "Opening M0 + M3 residual Fundamental amplitude",
+    "label": "Opening M0 + M3 First Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -784,7 +720,7 @@
       "opening_M0_harmonic2",
       "opening_M3_harmonic2"
     ],
-    "label": "Opening M0 + M3 residual Second harmonic amplitude",
+    "label": "Opening M0 + M3 Second Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -793,7 +729,7 @@
       "cycle_M0_signed_max",
       "cycle_M3_signed_max"
     ],
-    "label": "Cycle M0 + M3 residual Signed maximum",
+    "label": "Cycle M0 + M3 Signed maximum",
     "category": "motor_pair"
   },
   {
@@ -802,7 +738,7 @@
       "cycle_M0_abs_max",
       "cycle_M3_abs_max"
     ],
-    "label": "Cycle M0 + M3 residual Absolute maximum",
+    "label": "Cycle M0 + M3 Absolute maximum",
     "category": "motor_pair"
   },
   {
@@ -811,7 +747,7 @@
       "cycle_M0_phase_mean",
       "cycle_M3_phase_mean"
     ],
-    "label": "Cycle M0 + M3 residual Phase mean",
+    "label": "Cycle M0 + M3 Mean",
     "category": "motor_pair"
   },
   {
@@ -820,7 +756,7 @@
       "cycle_M0_abs_integral",
       "cycle_M3_abs_integral"
     ],
-    "label": "Cycle M0 + M3 residual Absolute integral",
+    "label": "Cycle M0 + M3 Absolute integral",
     "category": "motor_pair"
   },
   {
@@ -829,7 +765,7 @@
       "cycle_M0_positive_integral",
       "cycle_M3_positive_integral"
     ],
-    "label": "Cycle M0 + M3 residual Positive integral",
+    "label": "Cycle M0 + M3 Positive integral",
     "category": "motor_pair"
   },
   {
@@ -838,7 +774,7 @@
       "cycle_M0_rms",
       "cycle_M3_rms"
     ],
-    "label": "Cycle M0 + M3 residual RMS",
+    "label": "Cycle M0 + M3 RMS",
     "category": "motor_pair"
   },
   {
@@ -847,7 +783,7 @@
       "cycle_M0_phase_sd",
       "cycle_M3_phase_sd"
     ],
-    "label": "Cycle M0 + M3 residual Phase SD",
+    "label": "Cycle M0 + M3 SD",
     "category": "motor_pair"
   },
   {
@@ -856,7 +792,7 @@
       "cycle_M0_peak_to_peak",
       "cycle_M3_peak_to_peak"
     ],
-    "label": "Cycle M0 + M3 residual Peak-to-peak range",
+    "label": "Cycle M0 + M3 Peak-to-peak range",
     "category": "motor_pair"
   },
   {
@@ -865,7 +801,7 @@
       "cycle_M0_harmonic1",
       "cycle_M3_harmonic1"
     ],
-    "label": "Cycle M0 + M3 residual Fundamental amplitude",
+    "label": "Cycle M0 + M3 First Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -874,7 +810,7 @@
       "cycle_M0_harmonic2",
       "cycle_M3_harmonic2"
     ],
-    "label": "Cycle M0 + M3 residual Second harmonic amplitude",
+    "label": "Cycle M0 + M3 Second Fourier amplitude",
     "category": "motor_pair"
   },
   {
@@ -887,15 +823,6 @@
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_signed_max",
-    "parameters": [
-      "closing_current_M3_signed_max",
-      "closing_M3_signed_max"
-    ],
-    "label": "Closing M3 current + residual Signed maximum",
-    "category": "current_residual_pair"
-  },
-  {
     "model": "directions_M3_abs_max",
     "parameters": [
       "closing_M3_abs_max",
@@ -905,31 +832,13 @@
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_abs_max",
-    "parameters": [
-      "closing_current_M3_abs_max",
-      "closing_M3_abs_max"
-    ],
-    "label": "Closing M3 current + residual Absolute maximum",
-    "category": "current_residual_pair"
-  },
-  {
     "model": "directions_M3_phase_mean",
     "parameters": [
       "closing_M3_phase_mean",
       "opening_M3_phase_mean"
     ],
-    "label": "M3 closing + opening Phase mean",
+    "label": "M3 closing + opening Mean",
     "category": "direction_pair"
-  },
-  {
-    "model": "current_residual_phase_mean",
-    "parameters": [
-      "closing_current_M3_phase_mean",
-      "closing_M3_phase_mean"
-    ],
-    "label": "Closing M3 current + residual Phase mean",
-    "category": "current_residual_pair"
   },
   {
     "model": "directions_M3_abs_integral",
@@ -941,15 +850,6 @@
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_abs_integral",
-    "parameters": [
-      "closing_current_M3_abs_integral",
-      "closing_M3_abs_integral"
-    ],
-    "label": "Closing M3 current + residual Absolute integral",
-    "category": "current_residual_pair"
-  },
-  {
     "model": "directions_M3_positive_integral",
     "parameters": [
       "closing_M3_positive_integral",
@@ -957,15 +857,6 @@
     ],
     "label": "M3 closing + opening Positive integral",
     "category": "direction_pair"
-  },
-  {
-    "model": "current_residual_positive_integral",
-    "parameters": [
-      "closing_current_M3_positive_integral",
-      "closing_M3_positive_integral"
-    ],
-    "label": "Closing M3 current + residual Positive integral",
-    "category": "current_residual_pair"
   },
   {
     "model": "directions_M3_rms",
@@ -977,31 +868,13 @@
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_rms",
-    "parameters": [
-      "closing_current_M3_rms",
-      "closing_M3_rms"
-    ],
-    "label": "Closing M3 current + residual RMS",
-    "category": "current_residual_pair"
-  },
-  {
     "model": "directions_M3_phase_sd",
     "parameters": [
       "closing_M3_phase_sd",
       "opening_M3_phase_sd"
     ],
-    "label": "M3 closing + opening Phase SD",
+    "label": "M3 closing + opening SD",
     "category": "direction_pair"
-  },
-  {
-    "model": "current_residual_phase_sd",
-    "parameters": [
-      "closing_current_M3_phase_sd",
-      "closing_M3_phase_sd"
-    ],
-    "label": "Closing M3 current + residual Phase SD",
-    "category": "current_residual_pair"
   },
   {
     "model": "directions_M3_peak_to_peak",
@@ -1013,31 +886,13 @@
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_peak_to_peak",
-    "parameters": [
-      "closing_current_M3_peak_to_peak",
-      "closing_M3_peak_to_peak"
-    ],
-    "label": "Closing M3 current + residual Peak-to-peak range",
-    "category": "current_residual_pair"
-  },
-  {
     "model": "directions_M3_harmonic1",
     "parameters": [
       "closing_M3_harmonic1",
       "opening_M3_harmonic1"
     ],
-    "label": "M3 closing + opening Fundamental amplitude",
+    "label": "M3 closing + opening First Fourier amplitude",
     "category": "direction_pair"
-  },
-  {
-    "model": "current_residual_harmonic1",
-    "parameters": [
-      "closing_current_M3_harmonic1",
-      "closing_M3_harmonic1"
-    ],
-    "label": "Closing M3 current + residual Fundamental amplitude",
-    "category": "current_residual_pair"
   },
   {
     "model": "directions_M3_harmonic2",
@@ -1045,40 +900,24 @@
       "closing_M3_harmonic2",
       "opening_M3_harmonic2"
     ],
-    "label": "M3 closing + opening Second harmonic amplitude",
+    "label": "M3 closing + opening Second Fourier amplitude",
     "category": "direction_pair"
   },
   {
-    "model": "current_residual_harmonic2",
+    "model": "closing_paired_rc30_80",
     "parameters": [
-      "closing_current_M3_harmonic2",
-      "closing_M3_harmonic2"
+      "closing_M0_rc30_80",
+      "closing_M3_rc30_80"
     ],
-    "label": "Closing M3 current + residual Second harmonic amplitude",
-    "category": "current_residual_pair"
-  },
-  {
-    "model": "filtered_peak",
-    "parameters": [
-      "closing_filtered_abs_peak"
-    ],
-    "label": "Filtered absolute closing-current peak",
-    "category": "legacy"
-  },
-  {
-    "model": "rc30_80",
-    "parameters": [
-      "closing_current_rc30_80"
-    ],
-    "label": "Current slope30-80% closing",
-    "category": "legacy"
+    "label": "M0 + M3 closing RC 30-80%",
+    "category": "motor_pair"
   },
   {
     "model": "original_closing_mean",
     "parameters": [
       "closing_M3_original_mean"
     ],
-    "label": "Original-sample closing residual mean",
+    "label": "Original-sample closing mean",
     "category": "legacy"
   },
   {
@@ -1086,7 +925,7 @@
     "parameters": [
       "opening_M3_original_mean"
     ],
-    "label": "Original-sample opening residual mean",
+    "label": "Original-sample opening mean",
     "category": "legacy"
   },
   {
@@ -1094,7 +933,7 @@
     "parameters": [
       "cycle_M3_original_mean"
     ],
-    "label": "Original-sample cycle residual mean",
+    "label": "Original-sample cycle mean",
     "category": "legacy"
   },
   {
@@ -1103,52 +942,43 @@
       "closing_M3_original_mean",
       "opening_M3_original_mean"
     ],
-    "label": "Original-sample closing + opening residual mean",
+    "label": "Original-sample closing + opening mean",
     "category": "legacy_pair"
   },
   {
-    "model": "filtered_peak_rc",
+    "model": "closing_peak_rc",
     "parameters": [
-      "closing_filtered_abs_peak",
-      "closing_current_rc30_80"
+      "closing_M3_abs_max",
+      "closing_M3_rc30_80"
     ],
-    "label": "Filtered absolute closing-current peak + slope30-80%",
-    "category": "legacy_pair"
-  },
-  {
-    "model": "filtered_peak_closing_mean",
-    "parameters": [
-      "closing_filtered_abs_peak",
-      "closing_M3_original_mean"
-    ],
-    "label": "Filtered absolute peak + original closing residual mean",
-    "category": "legacy_pair"
-  },
-  {
-    "model": "filtered_peak_closing_rms",
-    "parameters": [
-      "closing_filtered_abs_peak",
-      "closing_M3_rms"
-    ],
-    "label": "Filtered absolute current peak + closing residual RMS",
+    "label": "M3 closing absolute maximum + RC 30-80%",
     "category": "interpretable_pair"
   },
   {
-    "model": "filtered_peak_closing_phase_mean",
+    "model": "closing_peak_mean",
     "parameters": [
-      "closing_filtered_abs_peak",
+      "closing_M3_abs_max",
       "closing_M3_phase_mean"
     ],
-    "label": "Filtered absolute current peak + closing residual phase mean",
+    "label": "M3 closing absolute maximum + mean",
     "category": "interpretable_pair"
   },
   {
-    "model": "rc_closing_rms",
+    "model": "closing_peak_rms",
     "parameters": [
-      "closing_current_rc30_80",
+      "closing_M3_abs_max",
       "closing_M3_rms"
     ],
-    "label": "Current slope30-80% + closing residual RMS",
+    "label": "M3 closing absolute maximum + RMS",
+    "category": "interpretable_pair"
+  },
+  {
+    "model": "closing_rc_rms",
+    "parameters": [
+      "closing_M3_rc30_80",
+      "closing_M3_rms"
+    ],
+    "label": "M3 closing RC 30-80% + RMS",
     "category": "interpretable_pair"
   },
   {
@@ -1157,7 +987,7 @@
       "closing_M3_phase_mean",
       "closing_M3_phase_sd"
     ],
-    "label": "Closing residual mean + SD",
+    "label": "Closing mean + SD",
     "category": "interpretable_pair"
   },
   {
@@ -1166,7 +996,7 @@
       "closing_M3_phase_mean",
       "closing_M3_rms"
     ],
-    "label": "Closing residual mean + RMS",
+    "label": "Closing mean + RMS",
     "category": "interpretable_pair"
   },
   {
@@ -1175,7 +1005,7 @@
       "cycle_M3_phase_mean",
       "cycle_M3_phase_sd"
     ],
-    "label": "Cycle residual mean + SD",
+    "label": "Cycle mean + SD",
     "category": "interpretable_pair"
   },
   {
@@ -1184,7 +1014,7 @@
       "cycle_M3_phase_mean",
       "cycle_M3_rms"
     ],
-    "label": "Cycle residual mean + RMS",
+    "label": "Cycle mean + RMS",
     "category": "interpretable_pair"
   }
 ]

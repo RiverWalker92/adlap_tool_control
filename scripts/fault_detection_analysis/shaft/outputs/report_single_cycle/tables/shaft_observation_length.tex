@@ -1,0 +1,29 @@
+\begin{table}[t]
+\centering
+\caption{Selected pooled shaft models for one-cycle and three-cycle observations. Each class contains 108 and 36 observations, respectively. Three-cycle observations average descriptors calculated separately within the same command condition. Green indicates no missed detections or false alarms at both observation lengths.}
+\label{tab:dof2-observation-length}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.6cm} cccc !{\color{black!25}\vrule width 0.4pt} cccc}
+\toprule
+ & \multicolumn{4}{c}{\textbf{1 cycle}} & \multicolumn{4}{c}{\textbf{3 cycles}} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+\textbf{Parameters} & TP & FN & TN & FP & TP & FN & TN & FP \\
+\midrule
+M1 absolute peak & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} \\
+M1 RMS & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} \\
+M1 phase mean & 73 & 35 & 108 & 0 & 25 & 11 & 36 & 0 \\
+M2 phase mean & 82 & 26 & 108 & 0 & 27 & 9 & 36 & 0 \\
+M2 amplitude at $2f_{\mathrm{cmd}}$ & 81 & 27 & 108 & 0 & 28 & 8 & 36 & 0 \\
+Negative gain $g_-$ & 107 & 1 & 90 & 18 & 36 & 0 & 30 & 6 \\
+Absolute gain difference & 76 & 32 & 100 & 8 & 24 & 12 & 34 & 2 \\
+Centred video residual MAE & 86 & 22 & 93 & 15 & 28 & 8 & 31 & 5 \\
+Positive gain + negative gain & 106 & 2 & 89 & 19 & 36 & 0 & 30 & 6 \\
+M1 absolute peak + gain difference & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} & \gbcorrect{36} & \gbcorrect{0} \\
+M1 phase mean + gain difference & 102 & 6 & 107 & 1 & 35 & 1 & 36 & 0 \\
+M2 amplitude at $2f_{\mathrm{cmd}}$ + gain difference & 81 & 27 & 106 & 2 & 26 & 10 & 36 & 0 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

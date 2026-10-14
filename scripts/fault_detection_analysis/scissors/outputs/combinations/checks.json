@@ -1,0 +1,18 @@
+{
+  "n_features": 68,
+  "single_models": 68,
+  "pair_models": 2278,
+  "baseline_predictions_matched": 44928,
+  "reference_models_matched": 117,
+  "training_standardisation_only": true,
+  "pair_specific_Ledoit_Wolf": true,
+  "equal_priors": true,
+  "whole_runs_held_out": true,
+  "one_observation_per_cut": true,
+  "no_measured_current_features": true,
+  "best_model_selection_is_exploratory": true,
+  "new_pair_predictions_checked_against_sklearn": 2520,
+  "max_reference_coefficient_error": 1.0970779840135947e-11,
+  "max_reference_intercept_error": 5.1386450650170445e-11,
+  "new_candidate_reference_check_passed": true
+}

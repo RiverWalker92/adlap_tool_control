@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "column_order": [
+    "tp",
+    "fn",
+    "tn",
+    "fp"
+  ],
+  "n_pooled_points": 216,
+  "n_runs": 4,
+  "observation_window_cycles": 1,
+  "source_csv": "cycle_features.csv",
+  "pca_used": false,
+  "copied_existing_main_figures": [],
+  "optional_appendix_tables": [
+    "shaft_observation_length",
+    "shaft_amplitudes",
+    "shaft_alarm"
+  ],
+  "cv_refitted": false,
+  "descriptive_model_features": [
+    "M1_absolute_maximum",
+    "M2_rms"
+  ]
+}

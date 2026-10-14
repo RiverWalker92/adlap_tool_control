@@ -8,14 +8,26 @@ Time integrals use endpoints and exclude the gap between valid directions.
 from pathlib import Path
 import argparse,hashlib,json,re
 import numpy as np
+try:
+ from numpy import trapezoid
+except ImportError:
+ from numpy import trapz as trapezoid
 import pandas as pd
 
 ROOT=Path(__file__).resolve().parents[1]
 MAPPING={0:['121222','122221'],1:['130008','130634'],2:['132706','133157'],3:['134408','134815'],4:['140753','141519'],6:['150213','150506'],8:['151435','152040']}
 METRICS=['signed_max','abs_max','phase_mean','abs_integral','positive_integral','rms','phase_sd','peak_to_peak','harmonic1','harmonic2']
-NAMES={'signed_max':'Signed maximum','abs_max':'Absolute maximum','phase_mean':'Phase mean','abs_integral':'Absolute integral','positive_integral':'Positive integral','rms':'RMS','phase_sd':'Phase SD','peak_to_peak':'Peak-to-peak range','harmonic1':'Fundamental amplitude','harmonic2':'Second harmonic amplitude','wave_corr':'M0-M3 waveform correlation','ellipse_area':'M0-M3 ellipse area'}
+NAMES={'signed_max':'Signed maximum','abs_max':'Absolute maximum','phase_mean':'Mean','abs_integral':'Absolute integral','positive_integral':'Positive integral','rms':'RMS','phase_sd':'SD','peak_to_peak':'Peak-to-peak range','harmonic1':'First Fourier amplitude','harmonic2':'Second Fourier amplitude','wave_corr':'M0-M3 waveform correlation','ellipse_area':'M0-M3 ellipse area'}
 DEFS={'signed_max':'max(r) over all original valid samples','abs_max':'max(abs(r)) over all original valid samples','phase_mean':'Integral r dt / valid segment duration','abs_integral':'Integral abs(r) dt; trapezoids using original timestamps and existing endpoints','positive_integral':'Integral max(r,0) dt; trapezoids using original timestamps and existing endpoints','rms':'sqrt(mean(r^2)), all original valid samples','phase_sd':'Population SD (ddof=0), all original valid samples','peak_to_peak':'max(r)-min(r), all original valid samples','harmonic1':'2*abs(FFT(uniform native-N grid)[1])/N; one profile period','harmonic2':'2*abs(FFT(uniform native-N grid)[2])/N; two profile periods','wave_corr':'cov(r0,r3)/(SD0*SD3), paired original valid samples','ellipse_area':'pi*sqrt(det(population covariance(r0,r3))); no confidence multiplier'}
 UNITS={m:('mA s' if 'integral' in m else 'mA') for m in METRICS};UNITS.update(wave_corr='dimensionless',ellipse_area='mA^2')
+
+def closing_residual_slope(time,residual):
+ t=np.asarray(time,float);x=np.asarray(residual,float)
+ if len(t)<3 or not np.isfinite(t).all() or not np.isfinite(x).all():
+  raise ValueError('Closing RC needs at least three finite paired samples.')
+ t=t-t.mean()
+ if t@t<=0:raise ValueError('Closing RC needs distinct timestamps.')
+ return float(t@(x-x.mean())/(t@t))
 
 def load(p):return [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
 def vector(rows,key,motor):return np.array([r[key][motor] if r.get(key) is not None and r[key][motor] is not None else np.nan for r in rows],float)
@@ -26,7 +38,7 @@ def direction_profile(tt,xx):
  # Magnitude, moments and integrals use every original observation.
  t=np.asarray(tt,float)-tt[0];profile=np.asarray(xx,float).copy();duration=float(t[-1])
  assert len(profile)==len(t) and len(profile)>2 and np.all(np.diff(t)>0)
- areas=(float(np.trapezoid(profile,t)),float(np.trapezoid(np.abs(profile),t)),float(np.trapezoid(np.maximum(profile,0),t)))
+ areas=(float(trapezoid(profile,t)),float(trapezoid(np.abs(profile),t)),float(trapezoid(np.maximum(profile,0),t)))
  # DFT requires a uniform time grid. Its length equals the number of
  # actual valid observations, including their existing first/last samples.
  fft_profile=np.interp(np.linspace(0,duration,len(t)),t,profile)
@@ -88,9 +100,9 @@ def extract(folder,out,mapping=None):
      for phase,idx in [('closing',ci),('opening',oi),('cycle',np.r_[oi,ci])]:r[f'{phase}_M{motor}_original_mean']=float(res[motor][idx].mean())
     for phase in ['closing','opening','cycle']:
      r.update({f'{phase}_joint_{metric}':val for metric,val in joint(profiles[(0,phase)][0],profiles[(3,phase)][0]).items()})
-    measured=direction_profile(t[vc],currents[3][ci]);r.update({f'closing_current_M3_{metric}':val for metric,val in describe(*measured).items()})
-    r['closing_filtered_abs_peak']=float(np.abs(currents[3][ci]).max());assert r['closing_filtered_abs_peak']==r['closing_current_M3_abs_max']
-    inds=c[(cp>=.30)&(cp<=.80)];tt=t[inds]-t[inds].mean();xx=currents[3][inds-offset];r['closing_current_rc30_80']=float(tt@(xx-xx.mean())/(tt@tt))
+    inds=c[(cp>=.30)&(cp<=.80)]
+    for motor in [0,3]:
+     r[f'closing_M{motor}_rc30_80']=closing_residual_slope(t[inds],res[motor][inds-offset])
     targets0=vector(ros,'motor_target_positions',0);targets3=vector(ros,'motor_target_positions',3)
     segments.append(dict(iteration=iteration,run_number=rn,cut=cut,cycle_id=r['cycle_id'],closing_start_s=float(t[c[0]]),closing_valid_start_s=float(t[vc[0]]),closing_end_s=float(t[c[-1]]),opening_start_s=float(t[o[0]]),opening_valid_start_s=float(t[vo[0]]),opening_end_s=float(t[o[-1]]),closing_duration_s=profiles[(3,'closing')][1],opening_duration_s=profiles[(3,'opening')][1],closing_original_samples=len(c),opening_original_samples=len(o),cycle_original_samples=len(c)+len(o),closing_samples=len(ci),opening_samples=len(oi),cycle_samples=len(ci)+len(oi),closing_fft_samples=len(ci),opening_fft_samples=len(oi),cycle_fft_samples=len(ci)+len(oi),M0_target_range_pulses=float(np.ptp(targets0[vc])),M3_target_range_pulses=float(np.ptp(targets3[vc]))))
     qa.append(dict(cycle_id=r['cycle_id'],original_abs_residual_peak=float(np.abs(res[3][ci]).max()),native_abs_residual_peak=r['closing_M3_abs_max'],peak_error=abs(float(np.abs(res[3][ci]).max())-r['closing_M3_abs_max']),phase_mean=r['closing_M3_phase_mean'],original_sample_mean=r['closing_M3_original_mean']))
@@ -100,17 +112,17 @@ def extract(folder,out,mapping=None):
  use_ref=ref.exists() and mapping==MAPPING
  if use_ref:
   old=pd.read_csv(ref);keys=['iteration','run_number','cut'];check=d.merge(old,on=keys,validate='one_to_one',suffixes=('','_old'))
-  for a,b in [('closing_current_rc30_80','rc_fixed_30_80_stroke_ma_per_s'),('closing_M3_original_mean','closing_residual_ma'),('opening_M3_original_mean','opening_residual_ma'),('cycle_M3_original_mean','cycle_residual_ma')]:assert np.allclose(check[a],check[b],atol=1e-8),a
+  for a,b in [('closing_M3_original_mean','closing_residual_ma'),('opening_M3_original_mean','opening_residual_ma'),('cycle_M3_original_mean','cycle_residual_ma')]:assert np.allclose(check[a],check[b],atol=1e-8),a
  d.to_csv(out/'cut_features.csv',index=False);pd.DataFrame(manifest).to_csv(out/'source_alignment.csv',index=False);pd.DataFrame(segments).to_csv(out/'motion_segments.csv',index=False);pd.DataFrame(qa).to_csv(out/'native_sample_check.csv',index=False);pd.DataFrame(profile_rows).to_csv(out/'phase_profiles.csv',index=False);pd.DataFrame(counts).to_csv(out/'sample_counts.csv',index=False)
  definitions=[]
  for phase in ['closing','opening','cycle']:
   for motor in [0,3]:
    for metric in METRICS:definitions.append(dict(column=f'{phase}_M{motor}_{metric}',name=NAMES[metric],signal='Motor DT current residual',phase=phase,motor=motor,definition=DEFS[metric],unit=UNITS[metric]))
   for metric in ['wave_corr','ellipse_area']:definitions.append(dict(column=f'{phase}_joint_{metric}',name=NAMES[metric],signal='M0 and M3 residuals',phase=phase,motor='0+3',definition=DEFS[metric],unit=UNITS[metric]))
- for metric in METRICS:definitions.append(dict(column=f'closing_current_M3_{metric}',name=NAMES[metric],signal='Filtered measured current',phase='closing',motor=3,definition=re.sub(r'\br\b','I',DEFS[metric]),unit=UNITS[metric]))
- definitions.extend([dict(column='closing_filtered_abs_peak',name='Filtered absolute closing-current peak',signal='Filtered measured current',phase='closing',motor=3,definition='max(abs(I_filtered)) over all original valid closing samples; identical to closing_current_M3_abs_max',unit='mA'),dict(column='closing_current_rc30_80',name='Closing-current slope 30-80%',signal='Filtered measured current',phase='closing',motor=3,definition='OLS slope of I_filtered against original time over 30-80% of commanded closing travel',unit='mA/s')])
+ for motor in [0,3]:
+  definitions.append(dict(column=f'closing_M{motor}_rc30_80',name='Closing RC 30-80%',signal='Motor DT current residual',phase='closing',motor=motor,definition='OLS slope of residual against native time over 30-80% of commanded closing travel',unit='mA/s'))
  pd.DataFrame(definitions).to_csv(out/'feature_definitions.csv',index=False)
- config=dict(mapping=mapping,residual='Supplied filtered measured minus predicted current, fixed DT; no DT retraining',filter='Supplied causal MA5',measured_current_features='All features, including the absolute closing peak and RC, use supplied filtered measured current. Unfiltered current is used only to verify ROS/replay alignment, never as a feature.',windows='Opening and closing: initial3% of commanded travel excluded. No pauses. Closing RC:30-80% commanded closing travel.',sample_policy='Use all actual valid original samples. No fixed count and no extra endpoint.', sample_count_summary={phase:{'min':int(pd.DataFrame(segments)[phase+'_samples'].min()),'max':int(pd.DataFrame(segments)[phase+'_samples'].max()),'median':float(pd.DataFrame(segments)[phase+'_samples'].median())} for phase in ['opening','closing','cycle']},interpolation='Only for DFT: uniform time grid with exactly the native valid sample count of that specific direction or active cycle. No interpolation across the omitted reversal gap. All other parameters use native samples/timestamps directly.',integrals='Native-sample trapezoids in seconds, including the existing first/last sample. Full cycle=sum separate opening+closing integrals; no excluded-gap integration.',phase_mean='Native-time integral divided by valid duration. Active-cycle integral divided by summed directional durations. Distinct from arithmetic sample mean.',sd='Population ddof0 on all native valid observations',fft='DFT on a uniform grid of N equal to actual observed sample count per window; h1/h2 describe profile shape, not physical rotation orders',joint='Pearson waveform correlation and pi sqrt(det(population covariance)) from paired original M0/M3 samples',same_data_verified=True,checks_against_old_features=use_ref,dt_training_independence='Not established from run/replay metadata')
+ config=dict(mapping=mapping,residual='Supplied filtered measured minus predicted current, fixed DT; no DT retraining',filter='Supplied causal MA5',measured_current_features='None. Measured current is read only to verify the residual definition and source alignment.',windows='Opening and closing: initial3% of commanded travel excluded. No pauses. Closing residual RC for M0 and M3:30-80% commanded closing travel.',sample_policy='Use all actual valid original samples. No fixed count and no extra endpoint.', sample_count_summary={phase:{'min':int(pd.DataFrame(segments)[phase+'_samples'].min()),'max':int(pd.DataFrame(segments)[phase+'_samples'].max()),'median':float(pd.DataFrame(segments)[phase+'_samples'].median())} for phase in ['opening','closing','cycle']},interpolation='Only for DFT: uniform time grid with exactly the native valid sample count of that specific direction or active cycle. No interpolation across the omitted reversal gap. All other parameters use native samples/timestamps directly.',integrals='Native-sample trapezoids in seconds, including the existing first/last sample. Full cycle=sum separate opening+closing integrals; no excluded-gap integration.',phase_mean='Native-time integral divided by valid duration. Active-cycle integral divided by summed directional durations. Distinct from arithmetic sample mean.',sd='Population ddof0 on all native valid observations',fft='DFT on a uniform grid of N equal to actual observed sample count per window; h1/h2 describe profile shape, not physical rotation orders',joint='Pearson waveform correlation and pi sqrt(det(population covariance)) from paired original M0/M3 samples',same_data_verified=True,checks_against_old_features=use_ref,rc='Residual OLS against native time, M0 and M3, 30-80% commanded closing travel',dt_training_independence='Not established from run/replay metadata')
  (out/'extraction_protocol.json').write_text(json.dumps(config,indent=2))
  print('Extracted',len(d),'cuts;',len(d.columns),'columns. Undefined joint cells:',int(d[[c for c in d if 'joint_wave' in c]].isna().sum().sum()))
  print(pd.DataFrame(segments)[['M0_target_range_pulses','M3_target_range_pulses']].describe().round(3).to_string())

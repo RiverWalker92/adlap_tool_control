@@ -1,0 +1,35 @@
+\begin{table}[t]
+\centering
+\caption{Selected pooled shaft LDA results using leave-one-run-out
+cross-validation and one-cycle observations. Each class contains 108
+observations from two runs. Green indicates no missed detections or
+false alarms.}
+\label{tab:dof2-overall}
+{\fontsize{8.5}{10}\selectfont
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}X rrrr@{}}
+\toprule
+\textbf{LDA input features} & TP & FN & TN & FP \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Current only}} \\
+M1 absolute peak & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} \\
+M1 RMS & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} \\
+M1 phase mean & 73 & 35 & 108 & 0 \\
+M2 phase mean & 82 & 26 & 108 & 0 \\
+M2 amplitude at $2f_{\mathrm{cmd}}$ & 81 & 27 & 108 & 0 \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Video only}} \\
+Negative gain $g_-$ & 107 & 1 & 90 & 18 \\
+Absolute gain difference & 76 & 32 & 100 & 8 \\
+Centred video residual MAE & 86 & 22 & 93 & 15 \\
+Positive gain + negative gain & 106 & 2 & 89 & 19 \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{Current + video}} \\
+M1 absolute peak + gain difference & \gbcorrect{108} & \gbcorrect{0} & \gbcorrect{108} & \gbcorrect{0} \\
+M1 phase mean + gain difference & 102 & 6 & 107 & 1 \\
+M2 amplitude at $2f_{\mathrm{cmd}}$ + gain difference & 81 & 27 & 106 & 2 \\
+\bottomrule
+\end{tabularx}
+}
+\end{table}

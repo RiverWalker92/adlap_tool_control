@@ -29,29 +29,27 @@ def registry():
  def add(name,cols,label,category):rows.append(dict(model=name,parameters=cols,label=label,category=category))
  for phase in ['closing','opening','cycle']:
   for m in [3,0]:
-   for stat in METRICS:add(f'{phase}_M{m}_{stat}',[f'{phase}_M{m}_{stat}'],f'{phase.capitalize()} M{m} residual {NAMES[stat]}','residual_single')
+   for stat in METRICS:add(f'{phase}_M{m}_{stat}',[f'{phase}_M{m}_{stat}'],f'{phase.capitalize()} M{m} {NAMES[stat]}','residual_single')
   for stat in ['wave_corr','ellipse_area']:add(f'{phase}_joint_{stat}',[f'{phase}_joint_{stat}'],f'{phase.capitalize()} {NAMES[stat]}','joint_single')
- for stat in METRICS:add(f'current_{stat}',[f'closing_current_M3_{stat}'],f'Closing M3 filtered current {NAMES[stat]}','current_single')
+ for motor in [0,3]:add(f'closing_M{motor}_rc30_80',[f'closing_M{motor}_rc30_80'],f'M{motor} closing RC 30-80%','residual_single')
  for phase in ['closing','opening','cycle']:
-  for stat in METRICS:add(f'{phase}_paired_{stat}',[f'{phase}_M0_{stat}',f'{phase}_M3_{stat}'],f'{phase.capitalize()} M0 + M3 residual {NAMES[stat]}','motor_pair')
+  for stat in METRICS:add(f'{phase}_paired_{stat}',[f'{phase}_M0_{stat}',f'{phase}_M3_{stat}'],f'{phase.capitalize()} M0 + M3 {NAMES[stat]}','motor_pair')
  for stat in METRICS:
   add(f'directions_M3_{stat}',[f'closing_M3_{stat}',f'opening_M3_{stat}'],f'M3 closing + opening {NAMES[stat]}','direction_pair')
-  add(f'current_residual_{stat}',[f'closing_current_M3_{stat}',f'closing_M3_{stat}'],f'Closing M3 current + residual {NAMES[stat]}','current_residual_pair')
- add('filtered_peak',['closing_filtered_abs_peak'],'Filtered absolute closing-current peak','legacy')
- add('rc30_80',['closing_current_rc30_80'],'Current slope30-80% closing','legacy')
- add('original_closing_mean',['closing_M3_original_mean'],'Original-sample closing residual mean','legacy')
- add('original_opening_mean',['opening_M3_original_mean'],'Original-sample opening residual mean','legacy')
- add('original_cycle_mean',['cycle_M3_original_mean'],'Original-sample cycle residual mean','legacy')
- add('original_directions_mean',['closing_M3_original_mean','opening_M3_original_mean'],'Original-sample closing + opening residual mean','legacy_pair')
- add('filtered_peak_rc',['closing_filtered_abs_peak','closing_current_rc30_80'],'Filtered absolute closing-current peak + slope30-80%','legacy_pair')
- add('filtered_peak_closing_mean',['closing_filtered_abs_peak','closing_M3_original_mean'],'Filtered absolute peak + original closing residual mean','legacy_pair')
- add('filtered_peak_closing_rms',['closing_filtered_abs_peak','closing_M3_rms'],'Filtered absolute current peak + closing residual RMS','interpretable_pair')
- add('filtered_peak_closing_phase_mean',['closing_filtered_abs_peak','closing_M3_phase_mean'],'Filtered absolute current peak + closing residual phase mean','interpretable_pair')
- add('rc_closing_rms',['closing_current_rc30_80','closing_M3_rms'],'Current slope30-80% + closing residual RMS','interpretable_pair')
- add('closing_mean_sd',['closing_M3_phase_mean','closing_M3_phase_sd'],'Closing residual mean + SD','interpretable_pair')
- add('closing_mean_rms',['closing_M3_phase_mean','closing_M3_rms'],'Closing residual mean + RMS','interpretable_pair')
- add('cycle_mean_sd',['cycle_M3_phase_mean','cycle_M3_phase_sd'],'Cycle residual mean + SD','interpretable_pair')
- add('cycle_mean_rms',['cycle_M3_phase_mean','cycle_M3_rms'],'Cycle residual mean + RMS','interpretable_pair')
+ add('closing_paired_rc30_80',['closing_M0_rc30_80','closing_M3_rc30_80'],'M0 + M3 closing RC 30-80%','motor_pair')
+ add('original_closing_mean',['closing_M3_original_mean'],'Original-sample closing mean','legacy')
+ add('original_opening_mean',['opening_M3_original_mean'],'Original-sample opening mean','legacy')
+ add('original_cycle_mean',['cycle_M3_original_mean'],'Original-sample cycle mean','legacy')
+ add('original_directions_mean',['closing_M3_original_mean','opening_M3_original_mean'],'Original-sample closing + opening mean','legacy_pair')
+ add('closing_peak_rc',['closing_M3_abs_max','closing_M3_rc30_80'],'M3 closing absolute maximum + RC 30-80%','interpretable_pair')
+ add('closing_peak_mean',['closing_M3_abs_max','closing_M3_phase_mean'],'M3 closing absolute maximum + mean','interpretable_pair')
+ add('closing_peak_rms',['closing_M3_abs_max','closing_M3_rms'],'M3 closing absolute maximum + RMS','interpretable_pair')
+ add('closing_rc_rms',['closing_M3_rc30_80','closing_M3_rms'],'M3 closing RC 30-80% + RMS','interpretable_pair')
+ add('closing_mean_sd',['closing_M3_phase_mean','closing_M3_phase_sd'],'Closing mean + SD','interpretable_pair')
+ add('closing_mean_rms',['closing_M3_phase_mean','closing_M3_rms'],'Closing mean + RMS','interpretable_pair')
+ add('cycle_mean_sd',['cycle_M3_phase_mean','cycle_M3_phase_sd'],'Cycle mean + SD','interpretable_pair')
+ add('cycle_mean_rms',['cycle_M3_phase_mean','cycle_M3_rms'],'Cycle mean + RMS','interpretable_pair')
+ assert all('current' not in c and 'filtered' not in c for r in rows for c in r['parameters'])
  assert len({r['model'] for r in rows})==len(rows) and all(1<=len(r['parameters'])<=2 for r in rows)
  return rows
 def dataset(df,s,sel):
@@ -69,6 +67,19 @@ def decision(fit,test,cols,k):
  sc,ld,co,b=fit;score=test[cols].to_numpy()@co.T+b;yp=(score[:,0]>0).astype(int) if k==2 else score.argmax(1)
  assert np.array_equal(yp,ld.predict(sc.transform(test[cols].to_numpy())))
  return score,yp
+def decision_counts(cm,k,scenario):
+ counts=dict(TP=int(cm[1,1]) if k==2 else np.nan,
+             FN=int(cm[1,0]) if k==2 else np.nan,
+             TN=int(cm[0,0]) if k==2 else np.nan,
+             FP=int(cm[0,1]) if k==2 else np.nan)
+ # Three-class fault alarms collapse intermediate and blunt into positive.
+ # For medium-vs-blunt, positive is blunt, reference is medium (not healthy).
+ counts.update(alarm_TP=int(cm[1:,1:].sum()),alarm_FN=int(cm[1:,0].sum()),
+               alarm_TN=int(cm[0,0]),alarm_FP=int(cm[0,1:].sum()),
+               reference_label=SCENARIOS[scenario][2][0],
+               positive_labels=';'.join(SCENARIOS[scenario][2][1:]))
+ return counts
+
 def evaluate(df,out,models,scenarios=None):
  warnings.filterwarnings('ignore',message='Only one sample available.*',category=UserWarning)
  warnings.filterwarnings('ignore',message='Only one sample available.*',category=RuntimeWarning)
@@ -94,6 +105,7 @@ def evaluate(df,out,models,scenarios=None):
  for keys,g in p.groupby(['scenario','selection','model','weight'],sort=False):
   s,sel,name,w=keys;k=SCENARIOS[s][1];cm=confusion_matrix(g.truth,g.prediction,labels=range(k));ns=cm.sum(1);rec=np.diag(cm)/ns
   row=dict(scenario=s,selection=sel,model=name,weight=w,n=len(g),correct=int(np.trace(cm)),accuracy=float(np.trace(cm)/len(g)),balanced_accuracy=float(rec.mean()),confusion_matrix=json.dumps(cm.tolist()),positive_correct=int(cm[1,1]) if k==2 else np.nan,positive_n=int(ns[1]) if k==2 else np.nan,sensitivity=float(rec[1]) if k==2 else np.nan,specificity=float(rec[0]),alarm_faulty_correct=int(cm[1:,1:].sum()),alarm_faulty_n=int(ns[1:].sum()),missed_as_reference=int(cm[1:,0].sum()))
+  row.update(decision_counts(cm,k,s))
   for cl in range(k):row[f'class{cl}_correct']=int(cm[cl,cl]);row[f'class{cl}_n']=int(ns[cl])
   results.append(row)
  m=pd.DataFrame(results);p.to_csv(out/'loocv_predictions.csv',index=False);m.to_csv(out/'loocv_metrics.csv',index=False);pd.DataFrame(folds).to_csv(out/'fold_coefficients.csv',index=False)

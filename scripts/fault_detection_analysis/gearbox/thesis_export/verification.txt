@@ -1,0 +1,4 @@
+All 70 pooled CV summaries match the individual predictions.
+Positive class: degraded (1); negative class: healthy (0).
+Figure: 18 healthy blocks and 6 degraded blocks, each representing a 5-rotation window.
+Recorded coefficients used directly; no model refitting or digitisation.

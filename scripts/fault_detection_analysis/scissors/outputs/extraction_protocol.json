@@ -31,8 +31,8 @@
   },
   "residual": "Supplied filtered measured minus predicted current, fixed DT; no DT retraining",
   "filter": "Supplied causal MA5",
-  "measured_current_features": "All features, including the absolute closing peak and RC, use supplied filtered measured current. Unfiltered current is used only to verify ROS/replay alignment, never as a feature.",
-  "windows": "Opening and closing: initial3% of commanded travel excluded. No pauses. Closing RC:30-80% commanded closing travel.",
+  "measured_current_features": "None. Measured current is read only to verify the residual definition and source alignment.",
+  "windows": "Opening and closing: initial3% of commanded travel excluded. No pauses. Closing residual RC for M0 and M3:30-80% commanded closing travel.",
   "sample_policy": "Use all actual valid original samples. No fixed count and no extra endpoint.",
   "sample_count_summary": {
     "opening": {
@@ -59,5 +59,6 @@
   "joint": "Pearson waveform correlation and pi sqrt(det(population covariance)) from paired original M0/M3 samples",
   "same_data_verified": true,
   "checks_against_old_features": true,
+  "rc": "Residual OLS against native time, M0 and M3, 30-80% commanded closing travel",
   "dt_training_independence": "Not established from run/replay metadata"
 }

@@ -1,0 +1,30 @@
+{
+  "features": [
+    "M1_absolute_maximum",
+    "M2_rms"
+  ],
+  "n_points": 216,
+  "class_counts": {
+    "0": 108,
+    "1": 108
+  },
+  "window_cycles": 1,
+  "source_csv": "cycle_features.csv",
+  "ranges": "small, medium and full retained as separate observations",
+  "aggregation": "none; one separate parameter vector per cycle",
+  "fit_scope": "all 216 points; descriptive fit, not a cross-validation model",
+  "raw_coefficients": [
+    1.2281317662198417,
+    0.1137146124960498
+  ],
+  "raw_intercept": -87.86985883590667,
+  "scaler_mean": [
+    68.0424214605676,
+    37.856169010948
+  ],
+  "scaler_scale": [
+    43.63440234116259,
+    26.243587606098323
+  ],
+  "n_pca_components": null
+}

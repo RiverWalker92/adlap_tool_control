@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Run-wise three-class validation. A: M3 closing and opening means. B: M0 and M3 opening means. All inputs describe current residuals. Class counts require the exact label; Fault FN counts intermediate or blunt cuts predicted as healthy. Cuts 2 and 3 remain separate.}
+\label{tab:scissors_severity}
+\begin{tabularx}{\columnwidth}{@{}Xllrrrr@{}}
+\toprule
+Intermediate & Inputs & Cuts & Healthy & Intermediate & Blunt & Fault FN \\
+\midrule
+1,2,3,4,6 & A & All & 6/6 & 19/30 & 3/6 & 2 \\
+1,2,3,4,6 & B & 2,3 & 4/4 & 16/20 & 2/4 & 0 \\
+1,4,6 & A & All & 6/6 & 15/18 & 4/6 & 1 \\
+1,4,6 & B & 2,3 & 4/4 & 10/12 & 2/4 & 0 \\
+4 & A & All & 6/6 & 5/6 & 4/6 & 0 \\
+4 & B & 2,3 & 4/4 & 4/4 & 3/4 & 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}

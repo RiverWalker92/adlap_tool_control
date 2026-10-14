@@ -1,0 +1,7034 @@
+[
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F1186",
+    "parameters": [
+      "closing_M3_harmonic2",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.3103829399812066,
+        0.26300762161242874
+      ]
+    ],
+    "intercept": [
+      -9.47062899685621
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F1814",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        1.2234279232671232,
+        -9.727328717036627
+      ]
+    ],
+    "intercept": [
+      -4.944650559831852
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F1869",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.2667803070536128,
+        0.5936100897703005
+      ]
+    ],
+    "intercept": [
+      -10.204923006401305
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0056",
+    "parameters": [
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.5852493168266847
+      ]
+    ],
+    "intercept": [
+      -4.134041264888092
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0234",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -13.899707456152013,
+        0.270410953426656
+      ]
+    ],
+    "intercept": [
+      -7.031012836474282
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0254",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        1.8148303257822107,
+        0.6089502200659498
+      ]
+    ],
+    "intercept": [
+      -4.1790687649859475
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0827",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.23502120614172506,
+        1.227325184868025
+      ]
+    ],
+    "intercept": [
+      -6.013884573550358
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0829",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.24063984566564728,
+        0.26692894061014893
+      ]
+    ],
+    "intercept": [
+      -8.761718218605008
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0849",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.0004505558860256321,
+        0.5845591304918349
+      ]
+    ],
+    "intercept": [
+      -4.13430840129212
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "all",
+    "model": "F0883",
+    "parameters": [
+      "closing_M3_abs_integral",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.04772150382467945,
+        0.26300762161242874
+      ]
+    ],
+    "intercept": [
+      -9.413965173465455
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0023",
+    "parameters": [
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        69.74373890566035
+      ]
+    ],
+    "intercept": [
+      -47.687768540781406
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0029",
+    "parameters": [
+      "opening_M0_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        29.11643908264645
+      ]
+    ],
+    "intercept": [
+      -36.52761719782178
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0156",
+    "parameters": [
+      "closing_M0_abs_max",
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.32128939726628286,
+        70.20575923011921
+      ]
+    ],
+    "intercept": [
+      -50.77871560885126
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0162",
+    "parameters": [
+      "closing_M0_abs_max",
+      "opening_M0_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.30907261067658764,
+        29.35899584035559
+      ]
+    ],
+    "intercept": [
+      -39.50143209297745
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0240",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -28.872693451122778,
+        -29.873567055782164
+      ]
+    ],
+    "intercept": [
+      -8.992661581329012
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0285",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        5.281133978285566,
+        64.36452767332082
+      ]
+    ],
+    "intercept": [
+      -50.44833035941862
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0291",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_M0_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        5.5914982225251855,
+        26.008247531017233
+      ]
+    ],
+    "intercept": [
+      -39.44530330444305
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0304",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        8.154184092941719,
+        -32.534178738485025
+      ]
+    ],
+    "intercept": [
+      -15.378388922111958
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0348",
+    "parameters": [
+      "closing_M0_positive_integral",
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        -51.19466427508635,
+        130.0214372561644
+      ]
+    ],
+    "intercept": [
+      -74.88554325549342
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "first",
+    "model": "F0410",
+    "parameters": [
+      "closing_M0_rms",
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        10.525033765491282,
+        68.73461136573374
+      ]
+    ],
+    "intercept": [
+      -52.85292262288669
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F0296",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        4.432426436584839,
+        2.0625536348386238
+      ]
+    ],
+    "intercept": [
+      -12.448540323838571
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1184",
+    "parameters": [
+      "closing_M3_harmonic2",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.35530287613498474,
+        2.0625536348386238
+      ]
+    ],
+    "intercept": [
+      -10.781703803055771
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1231",
+    "parameters": [
+      "closing_joint_wave_corr",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -6.606325221860563,
+        2.0625536348386238
+      ]
+    ],
+    "intercept": [
+      -7.908329682239915
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1322",
+    "parameters": [
+      "opening_M0_signed_max",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.12802663846195186,
+        2.196245864873726
+      ]
+    ],
+    "intercept": [
+      -9.887833103185574
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1323",
+    "parameters": [
+      "opening_M0_signed_max",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        0.1336778498996682,
+        0.2979429709154961
+      ]
+    ],
+    "intercept": [
+      -12.94246428417998
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1324",
+    "parameters": [
+      "opening_M0_signed_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.14087608833601434,
+        0.4031998336352463
+      ]
+    ],
+    "intercept": [
+      -13.0166725276509
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1366",
+    "parameters": [
+      "opening_M0_abs_max",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.1329462208670751,
+        2.1991192271523934
+      ]
+    ],
+    "intercept": [
+      -10.017519455864338
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1367",
+    "parameters": [
+      "opening_M0_abs_max",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        0.1368298943698434,
+        0.2968896913102554
+      ]
+    ],
+    "intercept": [
+      -12.990094886646808
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1368",
+    "parameters": [
+      "opening_M0_abs_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.14483912125939327,
+        0.40279794989408235
+      ]
+    ],
+    "intercept": [
+      -13.108187738957605
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_all",
+    "selection": "later",
+    "model": "F1409",
+    "parameters": [
+      "opening_M0_phase_mean",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.14525531925618493,
+        2.0625536348386238
+      ]
+    ],
+    "intercept": [
+      -6.80638999557349
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "After filing (1,2,3,4,6,8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.3030850110145074
+      ]
+    ],
+    "intercept": [
+      -40.97630560883774
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.3030850110145074
+      ]
+    ],
+    "intercept": [
+      -40.97630560883774
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.6137918116996616
+      ]
+    ],
+    "intercept": [
+      -100.13014718052949
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0034",
+    "parameters": [
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        5.372330432584314
+      ]
+    ],
+    "intercept": [
+      -11.702380563153234
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0036",
+    "parameters": [
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        1.185804993634973
+      ]
+    ],
+    "intercept": [
+      -21.171043951116026
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0054",
+    "parameters": [
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.3030850110145074
+      ]
+    ],
+    "intercept": [
+      -40.97630560883774
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0055",
+    "parameters": [
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.3030850110145074
+      ]
+    ],
+    "intercept": [
+      -40.97630560883774
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.36165498407212304
+      ]
+    ],
+    "intercept": [
+      -60.62661871106194
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0066",
+    "parameters": [
+      "closing_M0_rc30_80"
+    ],
+    "coefficients": [
+      [
+        -70.44342820738478
+      ]
+    ],
+    "intercept": [
+      -9.13954143010133
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "all",
+    "model": "F0067",
+    "parameters": [
+      "closing_M3_rc30_80"
+    ],
+    "coefficients": [
+      [
+        1.0643602670849717
+      ]
+    ],
+    "intercept": [
+      -18.041994945006678
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0002",
+    "parameters": [
+      "closing_M0_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -159.78997976712105
+      ]
+    ],
+    "intercept": [
+      -23.13706518282146
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0003",
+    "parameters": [
+      "closing_M0_abs_integral"
+    ],
+    "coefficients": [
+      [
+        84.62132403558196
+      ]
+    ],
+    "intercept": [
+      -107.45823266555185
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0008",
+    "parameters": [
+      "closing_M0_harmonic1"
+    ],
+    "coefficients": [
+      [
+        5398.620296834051
+      ]
+    ],
+    "intercept": [
+      -1022.3630082010623
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0009",
+    "parameters": [
+      "closing_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        834.4864138209339
+      ]
+    ],
+    "intercept": [
+      -94.42184779509908
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.627175425271747
+      ]
+    ],
+    "intercept": [
+      -89.50614871077904
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.627175425271747
+      ]
+    ],
+    "intercept": [
+      -89.50614871077904
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0012",
+    "parameters": [
+      "closing_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        19.886564212215973
+      ]
+    ],
+    "intercept": [
+      -350.71480341767494
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0013",
+    "parameters": [
+      "closing_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        12.520434711483905
+      ]
+    ],
+    "intercept": [
+      -1278.8823533363177
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0014",
+    "parameters": [
+      "closing_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        54.91314958056768
+      ]
+    ],
+    "intercept": [
+      -5150.3891418351295
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "first",
+    "model": "F0015",
+    "parameters": [
+      "closing_M3_rms"
+    ],
+    "coefficients": [
+      [
+        15.42982790615167
+      ]
+    ],
+    "intercept": [
+      -523.5169793248584
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 4
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.3173875408040213
+      ]
+    ],
+    "intercept": [
+      -41.7172758797316
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.3173875408040213
+      ]
+    ],
+    "intercept": [
+      -41.7172758797316
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.7473519451418555
+      ]
+    ],
+    "intercept": [
+      -120.65347879965965
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0034",
+    "parameters": [
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        5.571789839828481
+      ]
+    ],
+    "intercept": [
+      -10.778946045937213
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0036",
+    "parameters": [
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.9807746799620466
+      ]
+    ],
+    "intercept": [
+      -16.619863159311162
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0054",
+    "parameters": [
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.3173875408040213
+      ]
+    ],
+    "intercept": [
+      -41.7172758797316
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0055",
+    "parameters": [
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.3173875408040213
+      ]
+    ],
+    "intercept": [
+      -41.7172758797316
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.3681682993566817
+      ]
+    ],
+    "intercept": [
+      -61.616998430639256
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0077",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.23202389046500105,
+        0.35287044668404866
+      ]
+    ],
+    "intercept": [
+      -49.420711878348186
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_blunt",
+    "selection": "later",
+    "model": "F0078",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.23202389046500105,
+        0.35287044668404866
+      ]
+    ],
+    "intercept": [
+      -49.420711878348186
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0056",
+    "parameters": [
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        2.7710879830917974
+      ]
+    ],
+    "intercept": [
+      -13.061368615784545
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0254",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.926636065042514,
+        2.780934215591933
+      ]
+    ],
+    "intercept": [
+      -13.078868993046886
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0827",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.831447943527035,
+        1.9409070208441888
+      ]
+    ],
+    "intercept": [
+      -10.61221932757906
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0829",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.8944993053253549,
+        0.42165322662914073
+      ]
+    ],
+    "intercept": [
+      -15.517619326271245
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0849",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.07708181018299828,
+        2.8795693276094454
+      ]
+    ],
+    "intercept": [
+      -13.03883977788194
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0881",
+    "parameters": [
+      "closing_M3_abs_integral",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.15600964917939725,
+        1.6670661023289155
+      ]
+    ],
+    "intercept": [
+      -12.213740330948486
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0903",
+    "parameters": [
+      "closing_M3_abs_integral",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.011893482574373629,
+        2.8338428702753036
+      ]
+    ],
+    "intercept": [
+      -12.74386464629961
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0934",
+    "parameters": [
+      "closing_M3_positive_integral",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.1747153337112901,
+        1.8229461567258451
+      ]
+    ],
+    "intercept": [
+      -11.994791652785283
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0936",
+    "parameters": [
+      "closing_M3_positive_integral",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.18473753317290956,
+        0.3895181332721373
+      ]
+    ],
+    "intercept": [
+      -16.474569035101425
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "all",
+    "model": "F0956",
+    "parameters": [
+      "closing_M3_positive_integral",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.008943552005491375,
+        2.8238275729520357
+      ]
+    ],
+    "intercept": [
+      -12.929311685587358
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0023",
+    "parameters": [
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        62.43973930247957
+      ]
+    ],
+    "intercept": [
+      -42.65379259171182
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0029",
+    "parameters": [
+      "opening_M0_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        24.30115719448159
+      ]
+    ],
+    "intercept": [
+      -30.80664189339457
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0042",
+    "parameters": [
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -96.34068038870919
+      ]
+    ],
+    "intercept": [
+      -15.705219892521267
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0046",
+    "parameters": [
+      "cycle_M0_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -139.526538059803
+      ]
+    ],
+    "intercept": [
+      -8.167802064467747
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0053",
+    "parameters": [
+      "cycle_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        230.21855370633048
+      ]
+    ],
+    "intercept": [
+      -11.910299212895495
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0109",
+    "parameters": [
+      "closing_M0_signed_max",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        0.16091390981120363,
+        -96.41564997728723
+      ]
+    ],
+    "intercept": [
+      -16.035643920093285
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0113",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M0_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.16327462928713954,
+        -139.84748795292083
+      ]
+    ],
+    "intercept": [
+      -8.509461209588112
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0120",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        0.1584046030196096,
+        230.38945921050103
+      ]
+    ],
+    "intercept": [
+      -12.232381553996603
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0131",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        0.1585955062866566,
+        -30.31617468552035
+      ]
+    ],
+    "intercept": [
+      -5.149141138094873
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "first",
+    "model": "F0156",
+    "parameters": [
+      "closing_M0_abs_max",
+      "opening_M0_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.3746815763273372,
+        62.924519972694796
+      ]
+    ],
+    "intercept": [
+      -46.396953337266645
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0012",
+    "parameters": [
+      "closing_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        1.3772521370614363
+      ]
+    ],
+    "intercept": [
+      -8.264154283411283
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0034",
+    "parameters": [
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        3.272548557375015
+      ]
+    ],
+    "intercept": [
+      -10.414447648917243
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0056",
+    "parameters": [
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        4.566890963930316
+      ]
+    ],
+    "intercept": [
+      -20.967911475274335
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0079",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.13572250576214578,
+        1.5364626187779455
+      ]
+    ],
+    "intercept": [
+      -11.185160858125382
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0080",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        0.05933298133345752,
+        0.32579509631070813
+      ]
+    ],
+    "intercept": [
+      -16.67835113531909
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0081",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.10018909362835132,
+        0.356454815263779
+      ]
+    ],
+    "intercept": [
+      -15.285139239256392
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0101",
+    "parameters": [
+      "closing_M0_signed_max",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.059332981333457505,
+        3.272548557375015
+      ]
+    ],
+    "intercept": [
+      -11.273767427628117
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0123",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.17289727219863393,
+        4.914088359042468
+      ]
+    ],
+    "intercept": [
+      -25.06606649888607
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0145",
+    "parameters": [
+      "closing_M0_abs_max",
+      "closing_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.10803487640824841,
+        1.4294180697493344
+      ]
+    ],
+    "intercept": [
+      -10.474747740466645
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "healthy_medium146",
+    "selection": "later",
+    "model": "F0146",
+    "parameters": [
+      "closing_M0_abs_max",
+      "closing_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        0.06495108797094294,
+        0.32579509631070813
+      ]
+    ],
+    "intercept": [
+      -16.959861721873075
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.10964491467587144
+      ]
+    ],
+    "intercept": [
+      -16.927354227251207
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.10964491467587144
+      ]
+    ],
+    "intercept": [
+      -16.927354227251207
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.12890568576115508
+      ]
+    ],
+    "intercept": [
+      -23.4597101477596
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0054",
+    "parameters": [
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.11899708614900917
+      ]
+    ],
+    "intercept": [
+      -18.707093210551847
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0055",
+    "parameters": [
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.11899708614900917
+      ]
+    ],
+    "intercept": [
+      -18.707093210551847
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.12118645968596575
+      ]
+    ],
+    "intercept": [
+      -23.205866437956576
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0084",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.013989922755571038,
+        0.12890568576115508
+      ]
+    ],
+    "intercept": [
+      -23.288561403848338
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0128",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.013989922755571038,
+        0.12118645968596575
+      ]
+    ],
+    "intercept": [
+      -23.034717694045312
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0150",
+    "parameters": [
+      "closing_M0_abs_max",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.011217252745049113,
+        0.12871492233672152
+      ]
+    ],
+    "intercept": [
+      -23.25433968379787
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "all",
+    "model": "F0194",
+    "parameters": [
+      "closing_M0_abs_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.015116917667541654,
+        0.12099009389173498
+      ]
+    ],
+    "intercept": [
+      -22.938283993440386
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 24
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.14256826687193933
+      ]
+    ],
+    "intercept": [
+      -21.981284647956798
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.14256826687193933
+      ]
+    ],
+    "intercept": [
+      -21.981284647956798
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.19036499909436727
+      ]
+    ],
+    "intercept": [
+      -33.734384066161276
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0054",
+    "parameters": [
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.14256826687193933
+      ]
+    ],
+    "intercept": [
+      -21.981284647956798
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0055",
+    "parameters": [
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.14256826687193933
+      ]
+    ],
+    "intercept": [
+      -21.981284647956798
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0056",
+    "parameters": [
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        2.397332562381654
+      ]
+    ],
+    "intercept": [
+      -34.79467558041524
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0058",
+    "parameters": [
+      "cycle_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.2386922730246474
+      ]
+    ],
+    "intercept": [
+      -36.24301388373494
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.1826126499831625
+      ]
+    ],
+    "intercept": [
+      -32.88713466853336
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0077",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.15201368306473886,
+        0.1426747125277743
+      ]
+    ],
+    "intercept": [
+      -21.688182904783908
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "first",
+    "model": "F0078",
+    "parameters": [
+      "closing_M0_signed_max",
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        -0.15201368306473886,
+        0.1426747125277743
+      ]
+    ],
+    "intercept": [
+      -21.688182904783908
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 8
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F2330",
+    "parameters": [
+      "cycle_M3_peak_to_peak",
+      "closing_M3_rc30_80"
+    ],
+    "coefficients": [
+      [
+        0.14727574544151298,
+        -0.23123932448360782
+      ]
+    ],
+    "intercept": [
+      -23.563319066718133
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        0.09999676627987722
+      ]
+    ],
+    "intercept": [
+      -15.447971446010122
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.09999676627987722
+      ]
+    ],
+    "intercept": [
+      -15.447971446010122
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.1167311373203718
+      ]
+    ],
+    "intercept": [
+      -21.52317093322743
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.11511682180900641
+      ]
+    ],
+    "intercept": [
+      -22.69956949265227
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0150",
+    "parameters": [
+      "closing_M0_abs_max",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.0414711766444302,
+        0.1205802711350509
+      ]
+    ],
+    "intercept": [
+      -22.993633246673404
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0323",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        1.4036286755233711,
+        0.11286088644122291
+      ]
+    ],
+    "intercept": [
+      -24.30751985004671
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0628",
+    "parameters": [
+      "closing_M0_harmonic1",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.46402632641844627,
+        0.11486564129632895
+      ]
+    ],
+    "intercept": [
+      -22.760350914374623
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0693",
+    "parameters": [
+      "closing_M3_signed_max",
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        0.05843167269287571,
+        0.05843167269287571
+      ]
+    ],
+    "intercept": [
+      -18.05360002894009
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "medium146_blunt",
+    "selection": "later",
+    "model": "F0699",
+    "parameters": [
+      "closing_M3_signed_max",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        0.04540574911509558,
+        0.08540919625157628
+      ]
+    ],
+    "intercept": [
+      -22.762449266286694
+    ],
+    "class_labels": [
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "score>0 (standard)",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 16
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1158",
+    "parameters": [
+      "closing_M3_harmonic1",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        0.09825008667722161,
+        -0.8133943618677582
+      ],
+      [
+        -0.04524863687406434,
+        0.115835410413797
+      ],
+      [
+        0.037495823944971626,
+        0.46588813062636625
+      ]
+    ],
+    "intercept": [
+      1.5260331176945412,
+      -1.3251905933159025,
+      -7.856021725601448
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1160",
+    "parameters": [
+      "closing_M3_harmonic1",
+      "cycle_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        0.09795431267814284,
+        -0.08860268429742478
+      ],
+      [
+        -0.04664148265193421,
+        0.013270250484986465
+      ],
+      [
+        0.04197013527765975,
+        0.048791932842465406
+      ]
+    ],
+    "intercept": [
+      3.4166834078661594,
+      -1.6311025004320836,
+      -8.742313849754371
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1253",
+    "parameters": [
+      "closing_joint_wave_corr",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -6.87399581568272,
+        -0.7630680244229615
+      ],
+      [
+        3.448019564866683,
+        0.10010006113202412
+      ],
+      [
+        -3.470062878917331,
+        0.4627678410268888
+      ]
+    ],
+    "intercept": [
+      1.492806278242064,
+      -1.39194978202966,
+      -7.857596668040895
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1431",
+    "parameters": [
+      "opening_M0_phase_mean",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.05492813637840587,
+        -0.5818216062518684
+      ],
+      [
+        -0.057853109822964745,
+        0.009162453953517636
+      ],
+      [
+        0.2284874658473001,
+        0.5543342443913152
+      ]
+    ],
+    "intercept": [
+      1.627058640653659,
+      -1.1585066387128307,
+      -8.35464971806596
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1473",
+    "parameters": [
+      "opening_M0_abs_integral",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.013066182064334575,
+        -0.5818601933138229
+      ],
+      [
+        -0.011522536563439401,
+        0.009131048003685712
+      ],
+      [
+        0.047633791754652786,
+        0.5544670493027654
+      ]
+    ],
+    "intercept": [
+      1.6412687368689527,
+      -1.1457738644552107,
+      -8.41187968187056
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1514",
+    "parameters": [
+      "opening_M0_positive_integral",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.012208548456457644,
+        -0.5818404027759919
+      ],
+      [
+        -0.011740879012727449,
+        0.009145778362635809
+      ],
+      [
+        0.04743118549463998,
+        0.5544030676880842
+      ]
+    ],
+    "intercept": [
+      1.6338016022048265,
+      -1.151998675005929,
+      -8.383377623189538
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1554",
+    "parameters": [
+      "opening_M0_rms",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.03529619726141113,
+        -0.5818259987157068
+      ],
+      [
+        -0.02663450090868353,
+        0.009163708987300866
+      ],
+      [
+        0.11519969998746174,
+        0.5543348717538039
+      ]
+    ],
+    "intercept": [
+      1.6631409572186335,
+      -1.1292586351903608,
+      -8.574287666775374
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1593",
+    "parameters": [
+      "opening_M0_phase_sd",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.04066481412182242,
+        -0.581828426320012
+      ],
+      [
+        -0.02996352190836419,
+        0.00916226994463388
+      ],
+      [
+        0.13055537984691498,
+        0.55434161648611
+      ]
+    ],
+    "intercept": [
+      1.6684388386845814,
+      -1.1255416702440397,
+      -8.607147727994043
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1668",
+    "parameters": [
+      "opening_M0_harmonic1",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.032761194523748156,
+        -0.5818234472581904
+      ],
+      [
+        -0.030686679265633916,
+        0.009162513181602409
+      ],
+      [
+        0.1248212323206499,
+        0.5543359077133827
+      ]
+    ],
+    "intercept": [
+      1.632692985117452,
+      -1.1531194030348408,
+      -8.394012110054653
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1704",
+    "parameters": [
+      "opening_M0_harmonic2",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.04120331059426175,
+        -0.5818166599967511
+      ],
+      [
+        -0.03855279264220647,
+        0.009168881068823397
+      ],
+      [
+        0.15686168852088117,
+        0.5543100167902807
+      ]
+    ],
+    "intercept": [
+      1.6344254197524144,
+      -1.1514187238177338,
+      -8.42576994499165
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0716",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.07895569607486402,
+        -1.6689083963512246
+      ],
+      [
+        -0.017937555860830085,
+        0.416923674783044
+      ],
+      [
+        0.13276836365735445,
+        0.4181373720020926
+      ]
+    ],
+    "intercept": [
+      8.734534632469956,
+      -1.1637053119547596,
+      -24.436154850664757
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0718",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.07866100206392228,
+        -0.3421980730601267
+      ],
+      [
+        -0.017438722235500546,
+        0.10735283403185154
+      ],
+      [
+        0.1309771687704241,
+        0.020139570964572025
+      ]
+    ],
+    "intercept": [
+      11.902692918979675,
+      -2.7343079676190722,
+      -22.908921819589356
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0772",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.07895569607486402,
+        -1.6689083963512246
+      ],
+      [
+        -0.017937555860830085,
+        0.416923674783044
+      ],
+      [
+        0.13276836365735445,
+        0.4181373720020926
+      ]
+    ],
+    "intercept": [
+      8.734534632469956,
+      -1.1637053119547596,
+      -24.436154850664757
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0774",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.07866100206392228,
+        -0.3421980730601267
+      ],
+      [
+        -0.017438722235500546,
+        0.10735283403185154
+      ],
+      [
+        0.1309771687704241,
+        0.020139570964572025
+      ]
+    ],
+    "intercept": [
+      11.902692918979675,
+      -2.7343079676190722,
+      -22.908921819589356
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1087",
+    "parameters": [
+      "closing_M3_peak_to_peak",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.08692564951253387,
+        -1.6610609077689917
+      ],
+      [
+        -0.022633857103766135,
+        0.414857656661488
+      ],
+      [
+        0.1548272208238324,
+        0.41648793778452803
+      ]
+    ],
+    "intercept": [
+      11.545016948032693,
+      -0.11411963218335264,
+      -32.41849046860756
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F1785",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -1.1568697414423252,
+        -0.10685908342721646
+      ],
+      [
+        0.06703435601271585,
+        0.10404115759125623
+      ],
+      [
+        0.955766673404176,
+        -0.20526438934655183
+      ]
+    ],
+    "intercept": [
+      4.07410835379861,
+      -5.75755781226821,
+      1.947938000552988
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0714",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.06970203814423306,
+        -0.08475750244751201
+      ],
+      [
+        -0.02024928793555564,
+        0.027877067147952943
+      ],
+      [
+        0.13044990195090017,
+        0.0011263010036530006
+      ]
+    ],
+    "intercept": [
+      7.512872033754751,
+      -0.45062740450850636,
+      -22.31607415255684
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0717",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -0.07625199838784691,
+        -0.28231173550662236
+      ],
+      [
+        -0.017725262380954242,
+        0.10878875722602012
+      ],
+      [
+        0.1294277855307098,
+        -0.04405453617143776
+      ]
+    ],
+    "intercept": [
+      13.240208630834054,
+      -3.8068578308553995,
+      -20.561333165964687
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0719",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_rms"
+    ],
+    "coefficients": [
+      [
+        -0.07103562521939101,
+        -0.551030884805963
+      ],
+      [
+        -0.019653395274567678,
+        0.246219588019552
+      ],
+      [
+        0.12999581104309418,
+        -0.18762787925269267
+      ]
+    ],
+    "intercept": [
+      9.706542212380526,
+      -2.4278577861704354,
+      -20.161455795579943
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "all",
+    "model": "F0720",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        -0.06970203814423306,
+        -0.5403569959293064
+      ],
+      [
+        -0.02024928793555564,
+        0.2706097850359473
+      ],
+      [
+        0.13044990195090017,
+        -0.27147235917853396
+      ]
+    ],
+    "intercept": [
+      9.258962365777744,
+      -2.447947842849638,
+      -19.61665812388337
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 30
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0186",
+    "parameters": [
+      "closing_M0_abs_max",
+      "cycle_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -0.21692335343026434,
+        -343.1801219850014
+      ],
+      [
+        0.1921760025133921,
+        1.538361903954354
+      ],
+      [
+        -0.3596046541099133,
+        338.5650362731384
+      ]
+    ],
+    "intercept": [
+      18.493815136074,
+      -3.0655288159909864,
+      -39.4071761311571
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0291",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_M0_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -16.474863498218117,
+        -14.149995056276719
+      ],
+      [
+        -6.264996892712922,
+        11.907653167976605
+      ],
+      [
+        35.26985417635689,
+        -21.57296444765309
+      ]
+    ],
+    "intercept": [
+      33.37388766921266,
+      -10.343695958066693,
+      -23.194579596732854
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0561",
+    "parameters": [
+      "closing_M0_peak_to_peak",
+      "cycle_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -0.14036116708208426,
+        -343.4392674435129
+      ],
+      [
+        0.09988066973975482,
+        1.774167694795578
+      ],
+      [
+        -0.15928084213717977,
+        338.11676435912625
+      ]
+    ],
+    "intercept": [
+      17.974480573376066,
+      -2.3730831970296458,
+      -40.911403247619035
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0623",
+    "parameters": [
+      "closing_M0_harmonic1",
+      "cycle_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        54.733678390948604,
+        -3.512916273952653
+      ],
+      [
+        -31.148115871216085,
+        0.3384430719749452
+      ],
+      [
+        38.71066922269967,
+        2.497587058027818
+      ]
+    ],
+    "intercept": [
+      11.388968891155265,
+      -0.4913343285163809,
+      -46.587100912936506
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0625",
+    "parameters": [
+      "closing_M0_harmonic1",
+      "cycle_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        60.477772868336835,
+        -0.39836793387078184
+      ],
+      [
+        -31.059349196653212,
+        0.03604082716255564
+      ],
+      [
+        32.70027472162296,
+        0.2902454523831146
+      ]
+    ],
+    "intercept": [
+      19.69578413339164,
+      -1.1068652979318925,
+      -53.17492368871312
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0657",
+    "parameters": [
+      "closing_M0_harmonic2",
+      "opening_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -74.83495402050333,
+        -1.4506250568639445
+      ],
+      [
+        2.6438985226668628,
+        0.07481561035121823
+      ],
+      [
+        66.90325845250284,
+        1.2261782258102938
+      ]
+    ],
+    "intercept": [
+      36.605894273531135,
+      -3.507830125273543,
+      -51.17831857739247
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0724",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.037157177361181445,
+        66.07524968968099
+      ],
+      [
+        -0.05412069755580531,
+        -32.43661636878116
+      ],
+      [
+        0.19951927002859735,
+        31.234599416662526
+      ]
+    ],
+    "intercept": [
+      10.89578044660641,
+      -3.6737128155184653,
+      -26.94003821825448
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0780",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.037157177361181445,
+        66.07524968968099
+      ],
+      [
+        -0.05412069755580531,
+        -32.43661636878116
+      ],
+      [
+        0.19951927002859735,
+        31.234599416662526
+      ]
+    ],
+    "intercept": [
+      10.89578044660641,
+      -3.6737128155184653,
+      -26.94003821825448
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0825",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.9876527421814811,
+        -1.2436902527537113
+      ],
+      [
+        -0.03901445821829505,
+        0.06283723691241878
+      ],
+      [
+        1.1046961168363674,
+        1.0551785420164586
+      ]
+    ],
+    "intercept": [
+      35.32064782712028,
+      -2.225717056664752,
+      -63.1963016498573
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "first",
+    "model": "F0827",
+    "parameters": [
+      "closing_M3_phase_mean",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -1.1246183042283089,
+        -4.568833314539027
+      ],
+      [
+        -0.04284377737423327,
+        -0.03570658836099128
+      ],
+      [
+        1.2531496363510093,
+        4.675953079622002
+      ]
+    ],
+    "intercept": [
+      14.34635448629449,
+      -0.3048160308077219,
+      -52.23116336835198
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 10
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1087",
+    "parameters": [
+      "closing_M3_peak_to_peak",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.08885058650167668,
+        -2.8876000669511632
+      ],
+      [
+        -0.01993910743941644,
+        1.0429374784829049
+      ],
+      [
+        0.14866790881992603,
+        -0.24121236849755037
+      ]
+    ],
+    "intercept": [
+      14.74878821182062,
+      -4.393881743730748,
+      -28.716097702567485
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1811",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -2.895655585639466,
+        -0.10328868866157488
+      ],
+      [
+        1.0487449989425464,
+        -0.014761035108145725
+      ],
+      [
+        -0.2505794111881721,
+        0.1475717939860119
+      ]
+    ],
+    "intercept": [
+      17.06357317381684,
+      -4.873671665413498,
+      -30.037728051607978
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1790",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -2.5623017147710154,
+        -0.7775263891233971
+      ],
+      [
+        0.9133533741582557,
+        0.4820557443634422
+      ],
+      [
+        -0.17775840770375065,
+        -0.6686408439669297
+      ]
+    ],
+    "intercept": [
+      9.337317030207661,
+      -12.184912461794202,
+      4.399386458293472
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1853",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.46171680901075635,
+        -0.48394349670058845
+      ],
+      [
+        0.16479731922200652,
+        0.377196760564459
+      ],
+      [
+        -0.03267514865526354,
+        -0.6476467849927885
+      ]
+    ],
+    "intercept": [
+      11.19297698776869,
+      -11.873495216412639,
+      4.411049379314606
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1787",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_rms"
+    ],
+    "coefficients": [
+      [
+        -2.4335694096421157,
+        -0.7079320750728141
+      ],
+      [
+        0.8563573436608004,
+        0.3950931928058376
+      ],
+      [
+        -0.1355026213402835,
+        -0.4773475033446992
+      ]
+    ],
+    "intercept": [
+      11.202373271527012,
+      -12.240132041391874,
+      5.058758258449396
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1788",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        -2.6358874434939406,
+        -0.7933439797926366
+      ],
+      [
+        0.9708585204317555,
+        0.435184304402267
+      ],
+      [
+        -0.27668811780132513,
+        -0.512208933414165
+      ]
+    ],
+    "intercept": [
+      12.083877697623114,
+      -13.03800770264591,
+      5.588745881992093
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1791",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -2.576820958752479,
+        -0.8140816243698167
+      ],
+      [
+        0.91526251651255,
+        0.5303362748819266
+      ],
+      [
+        -0.16896659078516985,
+        -0.7769272002759642
+      ]
+    ],
+    "intercept": [
+      7.640124124260927,
+      -10.325844323309276,
+      2.9228094134348366
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1818",
+    "parameters": [
+      "opening_M3_abs_integral",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.18733079583304707,
+        -0.42132290932855976
+      ],
+      [
+        0.12122061837353938,
+        0.15181557401923132
+      ],
+      [
+        -0.1763310592875717,
+        -0.03412381272913411
+      ]
+    ],
+    "intercept": [
+      13.06771525595227,
+      -12.409384636401796,
+      6.236607462835525
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1850",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "opening_M3_rms"
+    ],
+    "coefficients": [
+      [
+        -0.4540073708919313,
+        -0.4219341121051637
+      ],
+      [
+        0.17077429474555078,
+        0.28166067490639063
+      ],
+      [
+        -0.058315513344721494,
+        -0.42304791261400804
+      ]
+    ],
+    "intercept": [
+      12.199052928805846,
+      -11.94626254175212,
+      5.501999021632153
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F1851",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "opening_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        -0.47309171746242873,
+        -0.4168934745071126
+      ],
+      [
+        0.18117489439491952,
+        0.2893707141480076
+      ],
+      [
+        -0.0704329657223301,
+        -0.45121866793691057
+      ]
+    ],
+    "intercept": [
+      12.33171399179928,
+      -12.131225218854084,
+      5.744181122640461
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0717",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -0.07702766602333624,
+        -0.43542900619081737
+      ],
+      [
+        -0.017379961988795857,
+        0.20752471796389751
+      ],
+      [
+        0.1291675519897238,
+        -0.18714514770087573
+      ]
+    ],
+    "intercept": [
+      17.927388289223934,
+      -9.070871148997794,
+      -15.263966568324872
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0718",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.08187017173594302,
+        -0.5799952190718519
+      ],
+      [
+        -0.015515029403405994,
+        0.2387190988338139
+      ],
+      [
+        0.128415259946161,
+        -0.1361620774295901
+      ]
+    ],
+    "intercept": [
+      17.1592614241763,
+      -8.360922555580906,
+      -18.001601803604174
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0722",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.07349290247676998,
+        -0.9219775644170792
+      ],
+      [
+        -0.01923633609189553,
+        0.5407018371769635
+      ],
+      [
+        0.13120191075245652,
+        -0.7001279471138119
+      ]
+    ],
+    "intercept": [
+      10.170160689604216,
+      -5.840541738979564,
+      -17.39679365843972
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0773",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -0.07702766602333624,
+        -0.43542900619081737
+      ],
+      [
+        -0.017379961988795857,
+        0.20752471796389751
+      ],
+      [
+        0.1291675519897238,
+        -0.18714514770087573
+      ]
+    ],
+    "intercept": [
+      17.927388289223934,
+      -9.070871148997794,
+      -15.263966568324872
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0774",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.08187017173594302,
+        -0.5799952190718519
+      ],
+      [
+        -0.015515029403405994,
+        0.2387190988338139
+      ],
+      [
+        0.128415259946161,
+        -0.1361620774295901
+      ]
+    ],
+    "intercept": [
+      17.1592614241763,
+      -8.360922555580906,
+      -18.001601803604174
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three146",
+    "selection": "later",
+    "model": "F0778",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.07349290247676998,
+        -0.9219775644170792
+      ],
+      [
+        -0.01923633609189553,
+        0.5407018371769635
+      ],
+      [
+        0.13120191075245652,
+        -0.7001279471138119
+      ]
+    ],
+    "intercept": [
+      10.170160689604216,
+      -5.840541738979564,
+      -17.39679365843972
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 20
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1877",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.28147214527062603,
+        4.939469975630013
+      ],
+      [
+        0.069446503237924,
+        -0.6749990061479163
+      ],
+      [
+        -0.0657603709189942,
+        -1.5644749448904187
+      ]
+    ],
+    "intercept": [
+      5.455072974328135,
+      -3.71505453496291,
+      0.4980103329892711
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1907",
+    "parameters": [
+      "opening_M3_rms",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.6836023076888135,
+        6.346518277043489
+      ],
+      [
+        0.2038489782306863,
+        -1.037344619616254
+      ],
+      [
+        -0.33564258346461895,
+        -1.1597951789622065
+      ]
+    ],
+    "intercept": [
+      6.364368053554699,
+      -4.3698119013266385,
+      2.513347645586527
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0986",
+    "parameters": [
+      "closing_M3_rms",
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -0.12480471429053043,
+        -1.232562355604025
+      ],
+      [
+        0.00821524525706226,
+        0.25779771020489617
+      ],
+      [
+        0.083728488005219,
+        -0.05642619542045627
+      ]
+    ],
+    "intercept": [
+      4.5031673136382855,
+      -2.7609564482913127,
+      -4.3196196704432275
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1813",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "cycle_M3_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -1.2325623556040244,
+        -0.2532429302094146
+      ],
+      [
+        0.257797710204896,
+        0.03278763674632761
+      ],
+      [
+        -0.05642619542045625,
+        0.08930474647777621
+      ]
+    ],
+    "intercept": [
+      4.143013695490933,
+      -3.0269444747276553,
+      -2.460175783899432
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0660",
+    "parameters": [
+      "closing_M0_harmonic2",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -9.965045526801365,
+        -0.27184793860357515
+      ],
+      [
+        1.5483363292952177,
+        0.07667126379895525
+      ],
+      [
+        2.2233638803252935,
+        -0.11150838039120067
+      ]
+    ],
+    "intercept": [
+      8.57456709809253,
+      -4.880966556495411,
+      2.5275005522927185
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1914",
+    "parameters": [
+      "opening_M3_phase_sd",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.7290301262467663,
+        14.596913565673022
+      ],
+      [
+        0.23207257148472818,
+        -4.342500276674047
+      ],
+      [
+        -0.43133273117687604,
+        7.115587817697218
+      ]
+    ],
+    "intercept": [
+      7.349055207718365,
+      -5.154573807192097,
+      4.527319124256892
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1885",
+    "parameters": [
+      "opening_M3_rms",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.6789409981638012,
+        14.596913565673022
+      ],
+      [
+        0.20308708262981365,
+        -4.342500276674047
+      ],
+      [
+        -0.3364944149852679,
+        7.115587817697218
+      ]
+    ],
+    "intercept": [
+      7.2785922110310235,
+      -4.9917180643697865,
+      3.9330086081132136
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0298",
+    "parameters": [
+      "closing_M0_abs_integral",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -4.832894196852915,
+        -0.2774294791733051
+      ],
+      [
+        0.6203802240474481,
+        0.06896794942045771
+      ],
+      [
+        1.7309930766156822,
+        -0.06741026792898362
+      ]
+    ],
+    "intercept": [
+      10.504801565307101,
+      -4.481609868614954,
+      -1.781224251114967
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1822",
+    "parameters": [
+      "opening_M3_abs_integral",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.2780863397907275,
+        0.018541390672794505
+      ],
+      [
+        0.04917231403907367,
+        0.0817306799119585
+      ],
+      [
+        0.03222476959536073,
+        -0.42719479023259016
+      ]
+    ],
+    "intercept": [
+      7.127881475043376,
+      -4.203495259266324,
+      0.7949680213184309
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0035",
+    "parameters": [
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -0.2718479386035752
+      ],
+      [
+        0.07667126379895527
+      ],
+      [
+        -0.11150838039120071
+      ]
+    ],
+    "intercept": [
+      7.047460312985298,
+      -4.548074230925882,
+      3.0135737337002046
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0722",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.054614848813758866,
+        -0.5873090492495885
+      ],
+      [
+        -0.0010434116365335277,
+        0.18636269369475256
+      ],
+      [
+        0.059831906996426494,
+        -0.3445044192241743
+      ]
+    ],
+    "intercept": [
+      7.401125141757975,
+      -2.999177175562064,
+      -8.874716050400254
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F0778",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.054614848813758866,
+        -0.5873090492495885
+      ],
+      [
+        -0.0010434116365335277,
+        0.18636269369475256
+      ],
+      [
+        0.059831906996426494,
+        -0.3445044192241743
+      ]
+    ],
+    "intercept": [
+      7.401125141757975,
+      -2.999177175562064,
+      -8.874716050400254
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1790",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.9947935917423121,
+        -0.1808905504659641
+      ],
+      [
+        0.026084457497751113,
+        0.1762836175437751
+      ],
+      [
+        0.8643713042535551,
+        -0.700527537252911
+      ]
+    ],
+    "intercept": [
+      2.222420660685767,
+      -3.163290969191424,
+      -0.10893864628771688
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1981",
+    "parameters": [
+      "opening_M3_harmonic1",
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.5825047442231989,
+        -0.0612912614412625
+      ],
+      [
+        0.18653122477781878,
+        -0.0005784880699799766
+      ],
+      [
+        -0.350151379665895,
+        0.0641837017911625
+      ]
+    ],
+    "intercept": [
+      8.074280470565235,
+      -3.0593849089026985,
+      -9.657984119377097
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1982",
+    "parameters": [
+      "opening_M3_harmonic1",
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        -0.5825047442231989,
+        -0.0612912614412625
+      ],
+      [
+        0.18653122477781878,
+        -0.0005784880699799766
+      ],
+      [
+        -0.350151379665895,
+        0.0641837017911625
+      ]
+    ],
+    "intercept": [
+      8.074280470565235,
+      -3.0593849089026985,
+      -9.657984119377097
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1988",
+    "parameters": [
+      "opening_M3_harmonic1",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.5810719523131794,
+        -0.06597334392330972
+      ],
+      [
+        0.18647338677908243,
+        -0.0013462578276777582
+      ],
+      [
+        -0.3512949815822328,
+        0.07270463306169839
+      ]
+    ],
+    "intercept": [
+      10.383538487718631,
+      -2.917049867434371,
+      -13.623824469443718
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1881",
+    "parameters": [
+      "opening_M3_rms",
+      "opening_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        -0.5460779292455024,
+        -0.15498071149524847
+      ],
+      [
+        0.041843254466102285,
+        0.18808600024433236
+      ],
+      [
+        0.33686165691499537,
+        -0.7854492897264189
+      ]
+    ],
+    "intercept": [
+      5.451222430012793,
+      -4.30224191308011,
+      3.17487470973043
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1786",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.4735592093235872,
+        -0.19701705950312215
+      ],
+      [
+        -0.045036677741969545,
+        0.07860776456870523
+      ],
+      [
+        0.6987425980334362,
+        -0.19602176334040447
+      ]
+    ],
+    "intercept": [
+      4.034185410508465,
+      -3.6441243179357885,
+      1.4628270346652947
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1843",
+    "parameters": [
+      "opening_M3_abs_integral",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.2789425295873794,
+        -0.067421679382206
+      ],
+      [
+        0.07656828652747084,
+        -0.000978618865770345
+      ],
+      [
+        -0.10389890304997436,
+        0.07231477371105763
+      ]
+    ],
+    "intercept": [
+      15.58287062754776,
+      -4.384902485758575,
+      -12.245893292579003
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "all",
+    "model": "F1874",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.30281056392152406,
+        -0.0702384020098361
+      ],
+      [
+        0.07001445834159624,
+        -0.00041793106205486154
+      ],
+      [
+        -0.047261727786457396,
+        0.0723280573201103
+      ]
+    ],
+    "intercept": [
+      13.791359746534273,
+      -3.5125643319615563,
+      -14.670499755305745
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 42
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F0994",
+    "parameters": [
+      "closing_M3_rms",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.1728601177802743,
+        32.94473896905349
+      ],
+      [
+        0.01137093087052697,
+        -8.547897534721137
+      ],
+      [
+        0.11600546342763911,
+        9.794748704552223
+      ]
+    ],
+    "intercept": [
+      8.084815296904864,
+      -4.072456792513368,
+      -4.413083555042588
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F1144",
+    "parameters": [
+      "closing_M3_harmonic1",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.1723390243421852,
+        33.88985653571382
+      ],
+      [
+        0.014787305383222458,
+        -8.607194207695807
+      ],
+      [
+        0.0984024974260729,
+        9.146114502765247
+      ]
+    ],
+    "intercept": [
+      7.086667998299414,
+      -4.12107071986625,
+      -2.8671135262903844
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F2038",
+    "parameters": [
+      "opening_joint_wave_corr",
+      "cycle_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        32.84481728289027,
+        -0.2968650265118688
+      ],
+      [
+        -8.538626122093149,
+        0.02020208446767462
+      ],
+      [
+        9.848313327575504,
+        0.19585460417349582
+      ]
+    ],
+    "intercept": [
+      8.780696721869845,
+      -4.1394440855721175,
+      -4.8249696422679165
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F2042",
+    "parameters": [
+      "opening_joint_wave_corr",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        32.75783242949398,
+        19.6080061809945
+      ],
+      [
+        -8.50540584022508,
+        -1.754018701364259
+      ],
+      [
+        9.769196771631451,
+        -10.83791267417322
+      ]
+    ],
+    "intercept": [
+      8.02991871705392,
+      -4.257597983273991,
+      -3.5109745114274435
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F0098",
+    "parameters": [
+      "closing_M0_signed_max",
+      "opening_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -0.1507425322084731,
+        -61.90049380780606
+      ],
+      [
+        0.05738951410401488,
+        20.456152746512295
+      ],
+      [
+        -0.13620503831160144,
+        -40.38026992475543
+      ]
+    ],
+    "intercept": [
+      1.518695113015144,
+      -2.463037839804241,
+      0.8894004264930793
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F0479",
+    "parameters": [
+      "closing_M0_phase_sd",
+      "opening_M0_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -9.655015938182895,
+        -61.87496687511609
+      ],
+      [
+        2.6839357162240747,
+        20.450439664043422
+      ],
+      [
+        -3.7646626429374836,
+        -40.37723144510105
+      ]
+    ],
+    "intercept": [
+      6.327483334161793,
+      -3.948300692795368,
+      2.8097128055422216
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F0724",
+    "parameters": [
+      "closing_M3_signed_max",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.03685617726444733,
+        32.13543288854999
+      ],
+      [
+        -0.002918275167642295,
+        -8.76979291343411
+      ],
+      [
+        0.0514475531026587,
+        11.713531678620583
+      ]
+    ],
+    "intercept": [
+      7.634395357220847,
+      -3.2707812397739016,
+      -7.346886576944199
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F0780",
+    "parameters": [
+      "closing_M3_abs_max",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.03685617726444733,
+        32.13543288854999
+      ],
+      [
+        -0.002918275167642295,
+        -8.76979291343411
+      ],
+      [
+        0.0514475531026587,
+        11.713531678620583
+      ]
+    ],
+    "intercept": [
+      7.634395357220847,
+      -3.2707812397739016,
+      -7.346886576944199
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F1045",
+    "parameters": [
+      "closing_M3_phase_sd",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.2310988121151471,
+        32.579505389186124
+      ],
+      [
+        0.009009190707561553,
+        -8.562832180751437
+      ],
+      [
+        0.18605285857733908,
+        10.234655514571081
+      ]
+    ],
+    "intercept": [
+      8.508999692862727,
+      -3.902738514966412,
+      -5.907947140015212
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "first",
+    "model": "F1095",
+    "parameters": [
+      "closing_M3_peak_to_peak",
+      "opening_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.047582856050142744,
+        33.07986814856377
+      ],
+      [
+        -0.0034340994165144045,
+        -8.688328968589708
+      ],
+      [
+        0.06475335313271492,
+        10.361776694384796
+      ]
+    ],
+    "intercept": [
+      9.921447632592846,
+      -3.1118001859460325,
+      -11.431309071090599
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 14
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1787",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_rms"
+    ],
+    "coefficients": [
+      [
+        -1.8249066820199407,
+        -0.68989468386115
+      ],
+      [
+        0.3781123053496723,
+        0.2727504992304267
+      ],
+      [
+        -0.06565484472842335,
+        -0.6738578122909813
+      ]
+    ],
+    "intercept": [
+      11.12038865807876,
+      -8.191721787878514,
+      7.5989303890886895
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1788",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_phase_sd"
+    ],
+    "coefficients": [
+      [
+        -1.9497653730084257,
+        -0.7518077488540329
+      ],
+      [
+        0.42982304865219045,
+        0.29398836797585465
+      ],
+      [
+        -0.19934987025253084,
+        -0.7181340910252361
+      ]
+    ],
+    "intercept": [
+      11.631623388691791,
+      -8.481479715974846,
+      8.01403905223155
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1790",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -2.0558721873802654,
+        -0.4127673479436372
+      ],
+      [
+        0.40883630518210806,
+        0.22018919356281103
+      ],
+      [
+        0.011690661469723267,
+        -0.6881786198704172
+      ]
+    ],
+    "intercept": [
+      7.362688182121378,
+      -6.63080859636064,
+      4.184648112481046
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1853",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "opening_M3_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -0.4266271430828174,
+        -0.22525233378701226
+      ],
+      [
+        0.08405137725050651,
+        0.18413453866753662
+      ],
+      [
+        0.006370256830283826,
+        -0.6954203595506685
+      ]
+    ],
+    "intercept": [
+      10.03616986498112,
+      -6.902391845658194,
+      4.101646215229582
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1877",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "cycle_joint_wave_corr"
+    ],
+    "coefficients": [
+      [
+        -0.49393958875216876,
+        22.16404122001658
+      ],
+      [
+        0.1390765391279827,
+        -7.3417498238428855
+      ],
+      [
+        -0.20144310688774528,
+        14.544707899197771
+      ]
+    ],
+    "intercept": [
+      12.832589232824267,
+      -7.858494529057616,
+      7.041863125655177
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F0036",
+    "parameters": [
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.49393958875216876
+      ],
+      [
+        0.1390765391279827
+      ],
+      [
+        -0.20144310688774528
+      ]
+    ],
+    "intercept": [
+      10.059010654543055,
+      -6.706579551339389,
+      5.102468033199308
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1785",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_abs_integral"
+    ],
+    "coefficients": [
+      [
+        -1.9239351501458561,
+        -0.17262077094545922
+      ],
+      [
+        0.3960429827397392,
+        0.07466455223588361
+      ],
+      [
+        -0.05627976355284559,
+        -0.20070199023395732
+      ]
+    ],
+    "intercept": [
+      9.724744883015495,
+      -7.341963076225393,
+      6.800349101114927
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1791",
+    "parameters": [
+      "opening_M3_phase_mean",
+      "opening_M3_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -2.192248760998503,
+        -0.37043543806617046
+      ],
+      [
+        0.4442572305907676,
+        0.24333942710677756
+      ],
+      [
+        -0.02903739195533574,
+        -0.8462616974677173
+      ]
+    ],
+    "intercept": [
+      6.525658008054831,
+      -6.0341195264221525,
+      3.0987387837399405
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1818",
+    "parameters": [
+      "opening_M3_abs_integral",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -0.10137017562853334,
+        -0.40505883961191574
+      ],
+      [
+        0.05423151997330328,
+        0.09152667456125856
+      ],
+      [
+        -0.16978742423798018,
+        -0.0525745331943802
+      ]
+    ],
+    "intercept": [
+      11.26548617081993,
+      -7.463085374975581,
+      6.970340207292218
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1854",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "opening_M3_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -0.4609372028259747,
+        -0.15555736215629554
+      ],
+      [
+        0.09912404325062912,
+        0.1883168351567151
+      ],
+      [
+        -0.03468301342717166,
+        -0.7860268136272786
+      ]
+    ],
+    "intercept": [
+      9.95525528238899,
+      -6.69097844137254,
+      3.736367340524149
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three_all",
+    "selection": "later",
+    "model": "F1874",
+    "parameters": [
+      "opening_M3_positive_integral",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.49186882959787565,
+        -0.08164609202899625
+      ],
+      [
+        0.13913305394910408,
+        -0.0022282718280922367
+      ],
+      [
+        -0.2037964401476452,
+        0.0927874511694574
+      ]
+    ],
+    "intercept": [
+      19.737394152093835,
+      -6.350148213068703,
+      -14.337543845452636
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (1,2,3,4,6)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 28
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.2791543113424173
+      ],
+      [
+        -0.06386991677599152
+      ],
+      [
+        0.34302422811840894
+      ]
+    ],
+    "intercept": [
+      31.914139314703732,
+      8.253413509790928,
+      -69.58416604109213
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.22872703822531265
+      ],
+      [
+        -0.03684242069741756
+      ],
+      [
+        0.26556945892273015
+      ]
+    ],
+    "intercept": [
+      26.959982402502447,
+      4.617893746352484,
+      -55.90221107643943
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0128",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.038497019924312086,
+        -0.2287270382253126
+      ],
+      [
+        0.05662261683946371,
+        -0.036842420697417555
+      ],
+      [
+        -0.018125596915151646,
+        0.26556945892273004
+      ]
+    ],
+    "intercept": [
+      27.369948785793575,
+      3.507486294422902,
+      -55.674399057019386
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0194",
+    "parameters": [
+      "closing_M0_abs_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.04879670566648993,
+        -0.22995939349046454
+      ],
+      [
+        0.06102981684079602,
+        -0.03530111959752245
+      ],
+      [
+        -0.012233111174306045,
+        0.2652605130879869
+      ]
+    ],
+    "intercept": [
+      27.83628898634698,
+      3.0485917401053033,
+      -55.650939966775674
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0215",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.3390713214865613,
+        -0.2794861029269742
+      ],
+      [
+        2.359311587051489,
+        -0.06156125874351899
+      ],
+      [
+        -2.0202402655649294,
+        0.3410473616704932
+      ]
+    ],
+    "intercept": [
+      31.944429582364474,
+      8.00697671958215,
+      -69.42272266641959
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0259",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.1298131438042945,
+        -0.2288428889753373
+      ],
+      [
+        2.8297862383066614,
+        -0.034316999553534705
+      ],
+      [
+        -2.6999730945023708,
+        0.2631598885288719
+      ]
+    ],
+    "intercept": [
+      26.970768653805873,
+      4.335917709135657,
+      -55.71668541214953
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0342",
+    "parameters": [
+      "closing_M0_positive_integral",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.74491145744235,
+        -0.2796233995670104
+      ],
+      [
+        1.4380145367477264,
+        -0.06296436527823633
+      ],
+      [
+        -0.6931030793053753,
+        0.3425877648452467
+      ]
+    ],
+    "intercept": [
+      32.35428930422656,
+      7.243052392713006,
+      -69.17279038189267
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0386",
+    "parameters": [
+      "closing_M0_positive_integral",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.41964818683876803,
+        -0.228796042413332
+      ],
+      [
+        1.519366558820025,
+        -0.036592586052628176
+      ],
+      [
+        -1.0997183719812553,
+        0.2653886284659601
+      ]
+    ],
+    "intercept": [
+      27.185155582262496,
+      3.65170415198115,
+      -55.350444324740884
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0448",
+    "parameters": [
+      "closing_M0_rms",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.7305652342529214,
+        -0.22872703822531265
+      ],
+      [
+        1.1218129167444264,
+        -0.03684242069741756
+      ],
+      [
+        -0.39124768249150405,
+        0.26556945892273015
+      ]
+    ],
+    "intercept": [
+      27.62772259369281,
+      3.183523632128134,
+      -55.51847750551845
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "all",
+    "model": "F0509",
+    "parameters": [
+      "closing_M0_phase_sd",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.7908284549888364,
+        -0.22918731388943253
+      ],
+      [
+        1.1057379271379886,
+        -0.03619886234345925
+      ],
+      [
+        -0.314909472149154,
+        0.26538617623289174
+      ]
+    ],
+    "intercept": [
+      27.731177532291802,
+      3.116381267111434,
+      -55.56487343909517
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 18
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0010",
+    "parameters": [
+      "closing_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.375109113057253
+      ],
+      [
+        -0.04008765179880364
+      ],
+      [
+        0.4151967648560566
+      ]
+    ],
+    "intercept": [
+      39.3559861620183,
+      4.352526390856136,
+      -73.43101502646411
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0011",
+    "parameters": [
+      "closing_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        -0.375109113057253
+      ],
+      [
+        -0.04008765179880364
+      ],
+      [
+        0.4151967648560566
+      ]
+    ],
+    "intercept": [
+      39.3559861620183,
+      4.352526390856136,
+      -73.43101502646411
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.7965499081914205
+      ],
+      [
+        -0.12480241796515121
+      ],
+      [
+        0.9213523261565715
+      ]
+    ],
+    "intercept": [
+      102.51004264838232,
+      18.451026426241153,
+      -183.552568548783
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0019",
+    "parameters": [
+      "closing_M3_harmonic2"
+    ],
+    "coefficients": [
+      [
+        -2.115359787464579
+      ],
+      [
+        -0.7812253760840061
+      ],
+      [
+        2.8965851635485866
+      ]
+    ],
+    "intercept": [
+      17.34495732143361,
+      8.67882198655479,
+      -67.66702178589736
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0030",
+    "parameters": [
+      "opening_M0_harmonic1"
+    ],
+    "coefficients": [
+      [
+        -381.64460138724866
+      ],
+      [
+        320.18993017756475
+      ],
+      [
+        61.45467120968372
+      ]
+    ],
+    "intercept": [
+      18.964979813740094,
+      -30.804584659058015,
+      -5.889274950470881
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0032",
+    "parameters": [
+      "opening_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -2.5201123383551467
+      ],
+      [
+        0.41695110956786946
+      ],
+      [
+        2.1031612287872776
+      ]
+    ],
+    "intercept": [
+      54.46757133838049,
+      -13.0601223863649,
+      -69.45041863922305
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0034",
+    "parameters": [
+      "opening_M3_phase_mean"
+    ],
+    "coefficients": [
+      [
+        -17.993650927575295
+      ],
+      [
+        2.781677648325123
+      ],
+      [
+        15.211973279250167
+      ]
+    ],
+    "intercept": [
+      21.712932007174974,
+      -9.9358605682369,
+      -66.80305086195526
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0036",
+    "parameters": [
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -8.213235592423654
+      ],
+      [
+        2.5020661925059646
+      ],
+      [
+        5.711169399917691
+      ]
+    ],
+    "intercept": [
+      121.79057559755748,
+      -60.634444578437524,
+      -152.10103779708993
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0054",
+    "parameters": [
+      "cycle_M3_signed_max"
+    ],
+    "coefficients": [
+      [
+        -0.375109113057253
+      ],
+      [
+        -0.04008765179880364
+      ],
+      [
+        0.4151967648560566
+      ]
+    ],
+    "intercept": [
+      39.3559861620183,
+      4.352526390856136,
+      -73.43101502646411
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "first",
+    "model": "F0055",
+    "parameters": [
+      "cycle_M3_abs_max"
+    ],
+    "coefficients": [
+      [
+        -0.375109113057253
+      ],
+      [
+        -0.04008765179880364
+      ],
+      [
+        0.4151967648560566
+      ]
+    ],
+    "intercept": [
+      39.3559861620183,
+      4.352526390856136,
+      -73.43101502646411
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 6
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0017",
+    "parameters": [
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.3709460697221544
+      ],
+      [
+        -0.09567256365675045
+      ],
+      [
+        0.4666186333789046
+      ]
+    ],
+    "intercept": [
+      40.578631180604944,
+      12.421085032862685,
+      -94.63891365332933
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0061",
+    "parameters": [
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.23957388698310672
+      ],
+      [
+        -0.041542308045081924
+      ],
+      [
+        0.28111619502818863
+      ]
+    ],
+    "intercept": [
+      27.203335029552896,
+      5.249549109014859,
+      -59.93985470785855
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0128",
+    "parameters": [
+      "closing_M0_signed_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.16020395610226476,
+        -0.26963329544180104
+      ],
+      [
+        0.06702411122402903,
+        -0.028966431737895256
+      ],
+      [
+        0.09317984487823579,
+        0.2985997271796963
+      ]
+    ],
+    "intercept": [
+      33.15705236247956,
+      1.5591515539358793,
+      -65.26236901665824
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0194",
+    "parameters": [
+      "closing_M0_abs_max",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.1938472644922621,
+        -0.28396839399980894
+      ],
+      [
+        0.06394889842827094,
+        -0.026896861139136145
+      ],
+      [
+        0.12989836606399122,
+        0.31086525513894514
+      ]
+    ],
+    "intercept": [
+      35.89462988009127,
+      1.2793235708829975,
+      -68.57769021105717
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0215",
+    "parameters": [
+      "closing_M0_phase_mean",
+      "closing_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -22.05330564860713,
+        -0.43693302890456753
+      ],
+      [
+        0.4015463393742715,
+        -0.09447107385162408
+      ],
+      [
+        21.651759309232837,
+        0.5314041027561913
+      ]
+    ],
+    "intercept": [
+      48.10678415575141,
+      12.245838637964487,
+      -106.03631094337537
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0448",
+    "parameters": [
+      "closing_M0_rms",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -2.6982286062062677,
+        -0.2620756683306779
+      ],
+      [
+        1.1265529952961557,
+        -0.03214745946987273
+      ],
+      [
+        1.5716756109101113,
+        0.29422312780055065
+      ]
+    ],
+    "intercept": [
+      32.829622179275056,
+      2.0655675278409102,
+      -64.51744717812305
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0509",
+    "parameters": [
+      "closing_M0_phase_sd",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -2.864269486196021,
+        -0.2663859110619663
+      ],
+      [
+        1.1057302899558155,
+        -0.03119172221441934
+      ],
+      [
+        1.7585391962402068,
+        0.29757763327638564
+      ]
+    ],
+    "intercept": [
+      33.49691927127935,
+      1.9601601051578579,
+      -65.39610728297723
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0569",
+    "parameters": [
+      "closing_M0_peak_to_peak",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.2516810181789063,
+        -0.3140541662236313
+      ],
+      [
+        0.05117073228809967,
+        -0.02639928908665331
+      ],
+      [
+        0.20051028589080647,
+        0.3404534553102846
+      ]
+    ],
+    "intercept": [
+      41.22620829572298,
+      1.4379028513687195,
+      -76.7316791592266
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0603",
+    "parameters": [
+      "closing_M0_harmonic1",
+      "opening_M3_positive_integral"
+    ],
+    "coefficients": [
+      [
+        -18.00576820041837,
+        -1.4153438949472368
+      ],
+      [
+        13.340451230281321,
+        1.4514958757556427
+      ],
+      [
+        4.665316970137052,
+        -0.03615198080840587
+      ]
+    ],
+    "intercept": [
+      26.329912486409956,
+      -54.931406287479305,
+      -1.3301196169706224
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  },
+  {
+    "scenario": "three4",
+    "selection": "later",
+    "model": "F0628",
+    "parameters": [
+      "closing_M0_harmonic1",
+      "cycle_M3_peak_to_peak"
+    ],
+    "coefficients": [
+      [
+        -0.19587072929111868,
+        -0.2393075731069589
+      ],
+      [
+        8.402326269603336,
+        -0.052966455418276034
+      ],
+      [
+        -8.206455540312213,
+        0.292274028525235
+      ]
+    ],
+    "intercept": [
+      27.203866148884046,
+      4.86502799123531,
+      -60.246761804903144
+    ],
+    "class_labels": [
+      "Healthy (0)",
+      "Medium (4)",
+      "Blunt (8)"
+    ],
+    "positive_rule": "argmax of three discriminant scores",
+    "fit_type": "descriptive full-data fit; not independent validation",
+    "n_train": 12
+  }
+]

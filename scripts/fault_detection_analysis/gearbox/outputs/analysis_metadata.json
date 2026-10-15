@@ -35,11 +35,11 @@
     ]
   },
   "versions": {
-    "python": "3.12.3",
+    "python": "3.12.14",
     "numpy": "2.3.5",
-    "pandas": "2.2.3",
-    "scipy": "1.17.0",
-    "scikit_learn": "1.8.0",
+    "pandas": "3.0.1",
+    "scipy": "1.18.1",
+    "scikit_learn": "1.9.1",
     "joblib": "1.6.0"
   },
   "RC": "OLS slope of current residual against phase with intercept, using unique phase points; mA/rad. This coefficient depends on the phase origin.",

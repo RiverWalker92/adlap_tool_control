@@ -1,0 +1,15 @@
+{
+  "n_features": 24,
+  "n_single_candidates": 24,
+  "n_pair_candidates": 276,
+  "n_candidates": 300,
+  "original_predictions_matched": 5670,
+  "full_data_reference_fits": 600,
+  "new_fold_predictions_checked": 1980,
+  "training_only_standardisation": true,
+  "pair_specific_shrinkage": true,
+  "same_original_folds": true,
+  "standard_threshold": 0,
+  "selection_is_exploratory": true,
+  "limitation": "One degraded run; repeated dependent test decisions. No nested feature selection. Thirty-rotation counts are descriptive."
+}

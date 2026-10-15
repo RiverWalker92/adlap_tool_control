@@ -12,7 +12,7 @@
   "no_measured_current_features": true,
   "best_model_selection_is_exploratory": true,
   "new_pair_predictions_checked_against_sklearn": 2520,
-  "max_reference_coefficient_error": 1.0970779840135947e-11,
-  "max_reference_intercept_error": 5.1386450650170445e-11,
+  "max_reference_coefficient_error": 2.9558577807620168e-12,
+  "max_reference_intercept_error": 1.546140993013978e-11,
   "new_candidate_reference_check_passed": true
 }

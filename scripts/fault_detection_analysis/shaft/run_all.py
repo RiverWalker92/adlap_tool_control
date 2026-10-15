@@ -1,17 +1,30 @@
+"""Run the current shaft analysis, PNG plots and numerical checks."""
 from pathlib import Path
-import argparse,subprocess,sys
+import argparse, os, subprocess, sys
+sys.dont_write_bytecode=True
 root=Path(__file__).resolve().parent
-p=argparse.ArgumentParser();p.add_argument('--data-dir',type=Path);p.add_argument('--manifest',type=Path,default=root/'runs.json');p.add_argument('--output-dir',type=Path,default=root/'outputs');a=p.parse_args()
-out=a.output_dir.resolve();args=['--manifest',str(a.manifest.resolve()),'--output-dir',str(out)]
-if a.data_dir:args+=['--data-dir',str(a.data_dir.resolve())]
-subprocess.run([sys.executable,str(root/'code/shaft_analysis.py'),*args],cwd=root,check=True)
-for script in ['plot_additional_lda.py','verify_results.py']:
- subprocess.run([sys.executable,str(root/'code'/script),'--output-dir',str(out)],cwd=root,check=True)
-print('Finished. Results:',out)
-print('PNG figures:',out/'figures')
+common=root.parent/'common'
+sys.path[:0]=[str(root/'code'),str(common)]
+os.environ['PYTHONPATH']=os.pathsep.join([str(common),str(root/'code'),os.environ.get('PYTHONPATH','')])
+os.environ['MPLBACKEND']='Agg'
+os.environ['PYTHONDONTWRITEBYTECODE']='1'
+for name in ['OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS']:os.environ.setdefault(name,'1')
+p=argparse.ArgumentParser(description=__doc__)
+mode=p.add_mutually_exclusive_group()
+mode.add_argument('--plots-only',action='store_true',help='Regenerate PNG figures and compact CSV tables from existing results.')
+mode.add_argument('--verify-only',action='store_true',help='Check the saved analysis results.')
+mode.add_argument('--combinations-only',action='store_true',help='Reuse features and rerun the parameter-combination analysis (gearbox/scissors).')
+a=p.parse_args()
+out=root/'outputs';out.mkdir(exist_ok=True)
+def command(script,*args):
+    subprocess.run([sys.executable,str(root/'code'/script),*map(str,args)],cwd=root,check=True)
 
-# Extra waveform and motor tracking figures, using the same inputs as the analysis.
-if __name__ == '__main__':
-    waveform_command=[sys.executable,str(root/'code/plot_waveforms.py'),'--manifest',str(a.manifest.resolve()),'--output-dir',str(a.output_dir.resolve())]
-    if a.data_dir:waveform_command+=['--data-dir',str(a.data_dir.resolve())]
-    subprocess.run(waveform_command,cwd=root,check=True)
+if a.combinations_only:p.error('--combinations-only applies to gearbox and scissors.')
+if not a.plots_only and not a.verify_only:
+    command('shaft_analysis.py','--manifest',root/'runs.json','--output-dir',out,'--skip-figures')
+if not a.verify_only:
+    import plots
+    plots.run(out)
+    command('waveforms.py','--manifest',root/'runs.json','--output-dir',out)
+if not a.plots_only:command('verify.py','--output-dir',out)
+print('Results:',out)

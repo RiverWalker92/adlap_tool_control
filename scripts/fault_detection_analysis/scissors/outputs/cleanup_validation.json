@@ -1,9 +1,0 @@
-{
-  "source_files_unchanged": 43,
-  "previous_outputs_preserved": true,
-  "complete_pipeline_passed": true,
-  "test_predictions_identical_to_supplied_residual_results": 71148,
-  "metrics_rows": 3993,
-  "current_output_directory": "outputs",
-  "archived_outputs_not_used_for_training": true
-}

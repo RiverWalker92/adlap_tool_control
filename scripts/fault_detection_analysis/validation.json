@@ -1,0 +1,80 @@
+{
+  "status": "PASS",
+  "source_data_files_unchanged": 59,
+  "figures": 49,
+  "python_files": 21,
+  "forbidden_output_files": 0,
+  "numerical_regressions": [
+    {
+      "experiment": "gearbox",
+      "file": "features.csv",
+      "rows": 48,
+      "status": "PASS"
+    },
+    {
+      "experiment": "gearbox",
+      "file": "cv_predictions.csv",
+      "rows": 5670,
+      "status": "PASS"
+    },
+    {
+      "experiment": "gearbox",
+      "file": "combinations/cv_metrics.csv",
+      "rows": 600,
+      "status": "PASS"
+    },
+    {
+      "experiment": "shaft",
+      "file": "cycle_features.csv",
+      "rows": 216,
+      "status": "PASS"
+    },
+    {
+      "experiment": "shaft",
+      "file": "loocv_metrics.csv",
+      "rows": 3164,
+      "status": "PASS"
+    },
+    {
+      "experiment": "shaft",
+      "file": "loocv_predictions.csv",
+      "rows": 65088,
+      "status": "PASS"
+    },
+    {
+      "experiment": "scissors",
+      "file": "cut_features.csv",
+      "rows": 42,
+      "status": "PASS"
+    },
+    {
+      "experiment": "scissors",
+      "file": "loocv_metrics.csv",
+      "rows": 3993,
+      "status": "PASS"
+    },
+    {
+      "experiment": "scissors",
+      "file": "loocv_predictions.csv",
+      "rows": 71148,
+      "status": "PASS"
+    },
+    {
+      "experiment": "scissors",
+      "file": "combinations/cv_metrics.csv",
+      "rows": 49266,
+      "status": "PASS"
+    },
+    {
+      "experiment": "scissors",
+      "file": "combinations/nested_metrics.csv",
+      "rows": 3,
+      "status": "PASS"
+    }
+  ],
+  "full_runs_tested": [
+    "gearbox",
+    "shaft",
+    "scissors"
+  ]
+}

@@ -89,12 +89,8 @@ def evaluate(cycles,conditions,out):
         for rg,g in subgroups:
             for threshold,offset in [('standard',0.),('sensitivity_oriented',float(np.log(3)))]:
                 metrics.append(dict(**meta,evaluated_range=rg,threshold=threshold,score_offset=offset,**counts(g.true_class,g.score,offset)))
-    run_scores=p.groupby(keys+['run','true_class'],sort=False).score.mean().reset_index();run_metrics=[]
-    for values,g in run_scores.groupby(keys,sort=False):
-        for threshold,offset in [('standard',0.),('sensitivity_oriented',float(np.log(3)))]:
-            run_metrics.append(dict(zip(keys,values))|dict(threshold=threshold,score_offset=offset,**counts(g.true_class,g.score,offset)))
     for name,frame in [('loocv_predictions',p),('loocv_metrics',pd.DataFrame(metrics)),('fold_inventory',pd.DataFrame(folds)),
-                       ('lda_coefficients',pd.DataFrame(coefficients)),('run_scores',run_scores),('run_metrics',pd.DataFrame(run_metrics))]:
+                       ('lda_coefficients',pd.DataFrame(coefficients))]:
         frame.to_csv(out/(name+'.csv'),index=False)
     return p,pd.DataFrame(metrics)
 
@@ -128,7 +124,7 @@ def main():
     (out/'analysis_metadata.json').write_text(json.dumps(meta,indent=2))
     print(metrics[(metrics.window_cycles==3)&(metrics.strategy=='pooled')&(metrics.evaluated_range=='all')&(metrics.threshold=='standard')&metrics.model.isin(MAIN)][['model','tp','fn','fp','tn']].to_string(index=False),flush=True)
     if not a.skip_figures:
-        import shaft_plots
-        shaft_plots.create(conditions,out)
+        import plots
+        plots.run(out)
 
 if __name__=='__main__':main()

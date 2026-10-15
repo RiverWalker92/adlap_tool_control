@@ -1,21 +1,32 @@
-"""Base analysis and exhaustive two-parameter comparisons in one project."""
+"""Run the current scissors analysis, PNG plots and numerical checks."""
 from pathlib import Path
-import argparse,subprocess,sys
-
+import argparse, os, subprocess, sys
+sys.dont_write_bytecode=True
 root=Path(__file__).resolve().parent
-parser=argparse.ArgumentParser()
-parser.add_argument('--combinations-only',action='store_true',help='Reuse existing extracted features and baseline results.')
-parser.add_argument('--skip-combinations',action='store_true',help='Run only the original 121-model analysis.')
-args=parser.parse_args()
-if args.combinations_only and args.skip_combinations:parser.error('Choose only one mode.')
-if not args.combinations_only:
-    for script in ['extract_features.py','classify_cuts.py','plot_results.py','verify_results.py']:
-        print('Running',script,flush=True)
-        subprocess.run([sys.executable,str(root/'code'/script)],cwd=root,check=True)
-if not args.skip_combinations:
-    for script,extra in [('search_feature_combinations.py',['--nested']),
-                         ('verify_feature_combinations.py',[]),('export_combination_models.py',[]),('plot_feature_combinations.py',[])]:
-        print('Running',script,flush=True)
-        subprocess.run([sys.executable,str(root/'code'/script),*extra],cwd=root,check=True)
-print('Finished. Original results:',root/'outputs')
-print('Parameter combinations:',root/'outputs/combinations')
+common=root.parent/'common'
+sys.path[:0]=[str(root/'code'),str(common)]
+os.environ['PYTHONPATH']=os.pathsep.join([str(common),str(root/'code'),os.environ.get('PYTHONPATH','')])
+os.environ['MPLBACKEND']='Agg'
+os.environ['PYTHONDONTWRITEBYTECODE']='1'
+for name in ['OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS']:os.environ.setdefault(name,'1')
+p=argparse.ArgumentParser(description=__doc__)
+mode=p.add_mutually_exclusive_group()
+mode.add_argument('--plots-only',action='store_true',help='Regenerate PNG figures and compact CSV tables from existing results.')
+mode.add_argument('--verify-only',action='store_true',help='Check the saved analysis results.')
+mode.add_argument('--combinations-only',action='store_true',help='Reuse features and rerun the parameter-combination analysis (gearbox/scissors).')
+a=p.parse_args()
+out=root/'outputs';out.mkdir(exist_ok=True)
+def command(script,*args):
+    subprocess.run([sys.executable,str(root/'code'/script),*map(str,args)],cwd=root,check=True)
+
+if not a.plots_only and not a.verify_only:
+    if not a.combinations_only:
+        command('extract_features.py')
+        command('classify_cuts.py')
+    import combinations
+    combinations.run(root,nested=True)
+if not a.verify_only:
+    import plots
+    plots.run(root)
+if not a.plots_only:command('verify.py')
+print('Results:',out)

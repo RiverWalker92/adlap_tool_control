@@ -1,11 +1,20 @@
-# Shaft analysis
+# Instrument shaft
 
-Run from any folder:
-`python /path/to/shaft/run_all.py`
+From this directory, run `python run_all.py`. Use `--plots-only` to redraw
+figures or `--verify-only` to check saved results. Install dependencies from
+the parent `requirements.txt`.
 
-- `code/`: feature extraction, classification, plotting and verification.
-- `data/`: input recordings and reference data.
-- `outputs/`: numerical results; `outputs/figures/`: PNG figures.
-- `outputs/models/` or `outputs/descriptive_models/`: fitted models when exported.
+`code/shaft_features.py` extracts native-cycle current and video features.
+`code/shaft_analysis.py` fits the original 113 candidate feature sets.
+`code/plots.py` contains distributions, correlations and all LDA plots.
+`code/waveforms.py` makes the full-amplitude waveform and tracking overview.
+`code/verify.py` reconstructs all saved scores and counts.
 
-No PDF, SVG or Overleaf output is generated. Existing datasets and processing definitions are preserved.
+The primary analysis contains 216 individual cycles. Supplementary plots
+use 72 three-cycle feature means; their filenames and titles distinguish them.
+Training and testing are separated by complete run. Outputs do not aggregate
+the individual classifications into a whole-run diagnosis.
+
+PNG files are in `outputs/figures/`; compact CSV tables are in `outputs/tables/`.
+All fold predictions, model coefficients and observation metadata remain in
+`outputs/`. The model registry is retained in `analysis_metadata.json`.

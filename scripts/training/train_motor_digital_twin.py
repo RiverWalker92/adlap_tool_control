@@ -1887,7 +1887,7 @@ def build_coupled_samples_from_segment(segment, motor_index, coupling_mode):
     )
 
     match = re.fullmatch(
-        r"dof_(\d+)",
+        r"dof_(\d+)(?:_resistance)?",
         protocol,
     )
 
@@ -2357,6 +2357,10 @@ def get_split_group(segment, coupling_mode, input_source):
         source_file.stem,
         *source_file.parts,
     ]).lower()
+
+    # Keep continuous resistance trials separate from ordinary DOF3 sequences.
+    if re.search(r"dof[\s_-]*3[\s_-]+resistance(?:[^a-z0-9]|$)", description):
+        return "dof_3_resistance"
 
     dof_match = re.search(r"dof[\s_-]*([1-4])", description)
     if dof_match:

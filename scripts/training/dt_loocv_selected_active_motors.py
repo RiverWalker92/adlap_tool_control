@@ -196,9 +196,15 @@ def load_hybrid_data(module, native, root, csv_path, raw_dir):
     if required - set(df.columns):
         raise ValueError(f'Hybrid dataset missing: {sorted(required-set(df.columns))}')
     # Authoritative schema from instrument_digital_twin, as imported by trainer.
-    feature_columns = list(module.select_feature_columns(df))
-    if len(feature_columns) != 7:
-        raise ValueError(f'Expected the supplied seven-input Hybrid Bend schema; got {feature_columns}')
+    # Deliberately use gearbox-only correction inputs for this evaluation.
+    # Do not change the shared training/runtime schema, which may support
+    # command-aware models elsewhere.
+    feature_columns = [f'gearbox_{i}' for i in range(6)]
+    missing_features = [name for name in feature_columns if name not in df.columns]
+    if missing_features:
+        raise ValueError(f'Missing required gearbox-only Hybrid Bend features: {missing_features}')
+    if len(feature_columns) != 6:
+        raise ValueError(f'Expected the supplied six-input Hybrid Bend schema; got {feature_columns}')
     if df['trial_id'].isna().any():
         raise ValueError('Missing trial_id values.')
     df = df.copy()
@@ -444,8 +450,8 @@ def load_hybrid_package(path,features):
     family=str(package['model_name'])
     if selected and family!=selected:raise ValueError('Selected hybrid metadata disagrees with saved model_name.')
     if list(package.get('feature_columns',[]))!=list(features):
-        raise ValueError(f'Hybrid saved inputs differ from current seven-input schema: {package.get("feature_columns")} != {features}')
-    if package.get('residual_unit')!='degrees':raise ValueError('Saved hybrid residual_unit must be degrees.')
+        raise ValueError(f'Hybrid saved inputs differ from selected six-gearbox-state schema: {package.get("feature_columns")} != {features}')
+    if package.get('residual_unit', 'degrees')!='degrees':raise ValueError('Saved hybrid residual_unit must be degrees.')
     estimator=package['model']
     if hasattr(estimator,'n_features_in_') and int(estimator.n_features_in_)!=len(features):
         raise ValueError('Saved hybrid estimator feature count mismatch.')

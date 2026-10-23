@@ -14,6 +14,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "common"))
 try:
     from shaft_features import load_rows, column, interpolate
 except ImportError:
@@ -144,13 +148,16 @@ def select_event(run, healthy, name):
     return (q, hy, reference, float(event), float(delta[peak]))
 
 def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
-    fig = plt.figure(figsize=(14, 13))
-    grid = fig.add_gridspec(6, 6, height_ratios=[1, 1, 1, 1, 1, 1.1], hspace=0.6, wspace=0.9)
+    fig = plt.figure(figsize=(14, 16))
+    # Five full-width overview panels followed by two vertically stacked zoom panels.
+    # The zoom panels are positioned later so their left/right edges align exactly
+    # with the highlighted time window in subplot 5.
+    grid = fig.add_gridspec(7, 1, height_ratios=[1, 1, 1, 1, 1, 0.9, 0.9], hspace=0.55)
     axes = []
     for row in range(5):
-        axes.append(fig.add_subplot(grid[row, :], sharex=axes[0] if axes else None))
-    inset_angle = fig.add_subplot(grid[5, 1:3])
-    inset_motor = fig.add_subplot(grid[5, 3:5], sharex=inset_angle)
+        axes.append(fig.add_subplot(grid[row, 0], sharex=axes[0] if axes else None))
+    inset_angle = fig.add_subplot(grid[5, 0])
+    inset_motor = fig.add_subplot(grid[6, 0], sharex=inset_angle)
     for ax in axes[:-1]:
         ax.tick_params(labelbottom=False)
     for ax in [inset_angle, inset_motor]:
@@ -253,9 +260,26 @@ def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
     left = segment['concatenated_start_s'] + start
     right = segment['concatenated_start_s'] + end
     axes[4].axvspan(left, right, facecolor='#8b6aaf', alpha=0.12, edgecolor='#6f5688', lw=0.7)
-    fig.text(0.075, 0.035, 'Main plots and zooms: class means; bands: run min–max. Video offset corrected per cycle; pauses removed.', fontsize=8)
-    fig.text(0.075, 0.02, 'Healthy hybrid in zoom: constant offset per cycle aligns its mean to the faulty hybrid mean. Motor-DT position residuals: no offset correction.', fontsize=8)
-    fig.subplots_adjust(left=0.075, right=0.985, bottom=0.1, top=0.94)
+
+    # Final overall margins first; then place the zoom panels relative to subplot 5.
+    fig.subplots_adjust(left=0.075, right=0.985, bottom=0.055, top=0.94)
+
+    # Align both zoom panels horizontally with the highlighted window in subplot 5.
+    # This makes the correspondence between the shaded region and the zooms explicit.
+    fig.canvas.draw()
+    main_box = axes[4].get_position()
+    x0_main, x1_main = axes[4].get_xlim()
+    frac_left = (left - x0_main) / (x1_main - x0_main)
+    frac_right = (right - x0_main) / (x1_main - x0_main)
+    zoom_left = main_box.x0 + frac_left * main_box.width
+    zoom_right = main_box.x0 + frac_right * main_box.width
+    zoom_width = zoom_right - zoom_left
+
+    angle_box = inset_angle.get_position()
+    motor_box = inset_motor.get_position()
+    inset_angle.set_position([zoom_left, angle_box.y0, zoom_width, angle_box.height])
+    inset_motor.set_position([zoom_left, motor_box.y0, zoom_width, motor_box.height])
+
     save_figure(fig, figures / 'full_amplitude_waveforms')
     return (segments, dict(runs=[r['run'] for r in faulty], aggregation='mean of both faulty runs', condition=zoom_condition, event_log_s_by_run={r['run']: r['conditions'][zoom_condition]['start'] + event for r in faulty}, condition_time_s=event, hybrid_deficit_deg=deficit, inset_start_s=start, inset_end_s=end))
 

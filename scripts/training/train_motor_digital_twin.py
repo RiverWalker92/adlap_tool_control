@@ -4168,6 +4168,8 @@ def plot_dof_pattern_predictions(
                     13 if motor_is_commanded else 10.5,
                 ),
                 squeeze=False,
+                sharex=True,
+                sharey="row",
             )
 
             command_status = (
@@ -4182,7 +4184,7 @@ def plot_dof_pattern_predictions(
                     f"frequency x{frequency:g} - range x{range_factor:g}"
                     f"{command_status}"
                 ),
-                fontsize=14,
+                fontsize=18,
             )
 
             waveform_samples = [
@@ -4258,7 +4260,7 @@ def plot_dof_pattern_predictions(
                         "Command [rad]"
                     )
                     axes[0, column_index].grid(True)
-                    axes[0, column_index].legend(fontsize=8)
+                    axes[0, column_index].legend(fontsize=11)
 
                 # --------------------------------------------------
                 # 2. ENCODER POSITION
@@ -4294,7 +4296,7 @@ def plot_dof_pattern_predictions(
                     "Relative position [pulses]"
                 )
                 axes[encoder_row, column_index].grid(True)
-                axes[encoder_row, column_index].legend(fontsize=8)
+                axes[encoder_row, column_index].legend(fontsize=11)
 
                 # --------------------------------------------------
                 # 3. MOTOR CURRENT
@@ -4332,7 +4334,7 @@ def plot_dof_pattern_predictions(
                     "Current [mA]"
                 )
                 axes[current_row, column_index].grid(True)
-                axes[current_row, column_index].legend(fontsize=8)
+                axes[current_row, column_index].legend(fontsize=11)
 
                 # --------------------------------------------------
                 # 4. POSITION RESIDUAL
@@ -4358,7 +4360,7 @@ def plot_dof_pattern_predictions(
                     "Residual [pulses]"
                 )
                 axes[position_residual_row, column_index].grid(True)
-                axes[position_residual_row, column_index].legend(fontsize=8)
+                axes[position_residual_row, column_index].legend(fontsize=11)
 
                 # --------------------------------------------------
                 # 5. CURRENT RESIDUAL
@@ -4387,68 +4389,34 @@ def plot_dof_pattern_predictions(
                     "Time [s]"
                 )
                 axes[current_residual_row, column_index].grid(True)
-                axes[current_residual_row, column_index].legend(fontsize=8)
+                axes[current_residual_row, column_index].legend(fontsize=11)
 
-            # Row labels / titles only once conceptually
+            # Report formatting only; plotted values are unchanged.
+            row_labels = {
+                encoder_row: "Encoder position [pulses]",
+                current_row: "Motor current [mA]",
+                position_residual_row: "Position residual [pulses]",
+                current_residual_row: "Current residual [mA]",
+            }
             if motor_is_commanded:
-                axes[0, 0].text(
-                    -0.14,
-                    0.5,
-                    "DOF command",
-                    transform=axes[0, 0].transAxes,
-                    rotation=90,
-                    va="center",
-                    fontweight="bold",
-                )
-
-            axes[encoder_row, 0].text(
-                -0.14,
-                0.5,
-                "Encoder position",
-                transform=axes[encoder_row, 0].transAxes,
-                rotation=90,
-                va="center",
-                fontweight="bold",
-            )
-
-            axes[current_row, 0].text(
-                -0.14,
-                0.5,
-                "Motor current",
-                transform=axes[current_row, 0].transAxes,
-                rotation=90,
-                va="center",
-                fontweight="bold",
-            )
-
-            axes[position_residual_row, 0].text(
-                -0.14,
-                0.5,
-                "Position residual",
-                transform=axes[
-                    position_residual_row,
-                    0,
-                ].transAxes,
-                rotation=90,
-                va="center",
-                fontweight="bold",
-            )
-
-            axes[current_residual_row, 0].text(
-                -0.14,
-                0.5,
-                "Current residual",
-                transform=axes[
-                    current_residual_row,
-                    0,
-                ].transAxes,
-                rotation=90,
-                va="center",
-                fontweight="bold",
-            )
+                row_labels[0] = f"DOF{dof_number} command [rad]"
+            for row_index in range(number_of_rows):
+                for column_index in range(2):
+                    ax = axes[row_index, column_index]
+                    ax.tick_params(axis="both", labelsize=12)
+                    ax.tick_params(axis="x", labelbottom=(row_index == number_of_rows - 1))
+                    ax.xaxis.label.set_size(14)
+                    ax.yaxis.label.set_size(14)
+                    ax.title.set_size(16)
+                    ax.grid(True, alpha=0.25)
+                    ax.set_ylabel(row_labels[row_index] if column_index == 0 else "")
+            for row_index in (position_residual_row, current_residual_row):
+                low, high = axes[row_index, 0].get_ylim()
+                extent = max(abs(low), abs(high))
+                axes[row_index, 0].set_ylim(-extent, extent)
 
             plt.tight_layout(
-                rect=[0.03, 0, 1, 0.96]
+                rect=[0, 0, 1, 0.95]
             )
 
             dof_dir = plot_dir / f"dof_{dof_number}"
@@ -4469,7 +4437,7 @@ def plot_dof_pattern_predictions(
 
             fig.savefig(
                 plot_path,
-                dpi=200,
+                dpi=300,
             )
 
             plt.close(fig)

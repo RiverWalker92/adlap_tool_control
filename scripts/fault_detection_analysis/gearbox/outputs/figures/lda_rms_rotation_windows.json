@@ -1,0 +1,78 @@
+{
+  "model": "M0_M3_rms",
+  "features": [
+    "M0_rms",
+    "M3_rms"
+  ],
+  "fit_scope": "All six non-overlapping five-rotation blocks of every run; descriptive fit.",
+  "score": "Raw LDA decision_function; no true-label sign reversal or normalization.",
+  "decision_boundary": 0,
+  "y_axis_limits": [
+    -28.538544252068363,
+    29.792614677707782
+  ],
+  "windows": [
+    {
+      "window": "all30",
+      "first_rotation": 1,
+      "last_rotation": 30
+    },
+    {
+      "window": "first20",
+      "first_rotation": 1,
+      "last_rotation": 20
+    },
+    {
+      "window": "last20",
+      "first_rotation": 11,
+      "last_rotation": 30
+    },
+    {
+      "window": "first10",
+      "first_rotation": 1,
+      "last_rotation": 10
+    },
+    {
+      "window": "middle10",
+      "first_rotation": 11,
+      "last_rotation": 20
+    },
+    {
+      "window": "last10",
+      "first_rotation": 21,
+      "last_rotation": 30
+    },
+    {
+      "window": "block5_1",
+      "first_rotation": 1,
+      "last_rotation": 5
+    },
+    {
+      "window": "block5_4",
+      "first_rotation": 16,
+      "last_rotation": 20
+    },
+    {
+      "window": "block5_6",
+      "first_rotation": 26,
+      "last_rotation": 30
+    }
+  ],
+  "positive_region": "Predicted degraded",
+  "negative_region": "Predicted healthy",
+  "feature_extraction": "RMS of the averaged residual profile, as stored in features.csv.",
+  "run_labels": {
+    "Healthy run 1": "auto_dof3_resistance_20261007_101649",
+    "Healthy run 2": "auto_dof3_resistance_20261007_101805",
+    "Healthy run 3": "auto_dof3_resistance_20261007_102015"
+  },
+  "degraded_runs": [
+    "auto_dof3_resistance_20260921_121136"
+  ],
+  "raw_feature_weights": [
+    5.083037595561369,
+    2.9720677086080944
+  ],
+  "raw_feature_intercept": -63.407593138539035,
+  "interpretation": "Descriptive window comparison, not independent cross-validation. Model training includes these measurements. The overview includes overlapping windows; five-rotation blocks are disjoint within each run but are not independent runs."
+}

@@ -1,4 +1,4 @@
-"""Gearbox parameter, validation and LDA figures (PNG only)."""
+"""Gearbox figures; RMS rotation-window comparison exports PNG and SVG."""
 from pathlib import Path
 import argparse,json
 import numpy as np
@@ -6,7 +6,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from analyse import PARAMETERS,NAMES,COLUMNS,fit_classifier
-from plot_style import *
+try:
+    from plot_style import *
+    _PLOT_STYLE_AVAILABLE = True
+except ModuleNotFoundError as error:
+    if error.name != 'plot_style':
+        raise
+    # The standalone rotation-window figure does not need this external helper.
+    _PLOT_STYLE_AVAILABLE = False
+    BLUE, ORANGE = '#3976A8', '#C75B3E'
 COLOURS=[BLUE]*3
 DEGRADED=ORANGE
 
@@ -215,9 +223,198 @@ def final_block_validation(five,figures):
     handles += [marker_handle('Degraded blocks',ORANGE,'D'),marker_handle('Final degraded block',ORANGE,'*'),boundary_handle()]
     figure_legend(fig,handles,3);save(fig,figures,'last_five_validation')
 
+
+ROTATION_WINDOWS = [
+    ('all30', 'All 30\n1–30', 0, 30),
+    ('first20', 'First 20\n1–20', 0, 20),
+    ('last20', 'Last 20\n11–30', 10, 30),
+    ('first10', 'First 10\n1–10', 0, 10),
+    ('middle10', 'Middle 10\n11–20', 10, 20),
+    ('last10', 'Last 10\n21–30', 20, 30),
+] + [
+    (f'block5_{i+1}',
+     ('First 5 rotations' if i == 0 else 'Last 5 rotations' if i == 5 else '5 rotations')
+     + f'\n{5*i+1}–{5*i+5}', 5*i, 5*i+5)
+    for i in (0, 3, 5)
+]
+
+FIVE_ROTATION_BLOCKS = [
+    (f'block5_{i+1}', f'Block {i+1}\n{5*i+1}–{5*i+5}', 5*i, 5*i+5)
+    for i in range(6)
+]
+
+
+def rotation_window_scores(features, windows=None, estimator=None):
+    """Apply one fixed, descriptive RMS model to the selected windows.
+
+    Fit on all non-overlapping five-rotation blocks, exactly as the
+    M0_M3_rms descriptive model in analyse.py. No window-specific refitting,
+    CV-fold averaging, peak parameters, or true-label sign reversal.
+    """
+    windows = ROTATION_WINDOWS if windows is None else windows
+    columns = ['M0_rms', 'M3_rms']
+    required = ['run', 'label', 'window', 'n', 'start', 'end'] + columns
+    missing = sorted(set(required) - set(features.columns))
+    if missing:
+        raise ValueError('features.csv is missing columns: ' + ', '.join(missing))
+    if features.duplicated(['run', 'window']).any():
+        raise ValueError('features.csv contains duplicate run/window observations.')
+    if set(features.label) != {0, 1} or (features.groupby('run').label.nunique() != 1).any():
+        raise ValueError('Each run must have one consistent label: healthy=0 or degraded=1.')
+    if not np.isfinite(features[columns].to_numpy()).all():
+        raise ValueError('RMS features must be finite.')
+    runs = sorted(features.run.unique())
+    # Require a complete common basis: six disjoint five-rotation blocks/run.
+    train = features[features.n == 5]
+    for run in runs:
+        group = train[train.run == run].sort_values('start')
+        if (list(group.window) != [f'block5_{i+1}' for i in range(6)] or
+                list(group.start) != list(range(0, 30, 5)) or
+                list(group.end) != list(range(5, 31, 5))):
+            raise ValueError(f'Run {run} needs six complete five-rotation training blocks.')
+    selected = []
+    for order, (window, label, start, end) in enumerate(windows):
+        group = features[features.window == window].copy()
+        if set(group.run) != set(runs):
+            raise ValueError(f'Missing {window} observations for one or more runs.')
+        if not ((group.start == start) & (group.end == end) & (group.n == end-start)).all():
+            raise ValueError(f'Incorrect rotation bounds for window {window}.')
+        group['window_order'] = order
+        group['window_label'] = label.replace('\n', ': rotations ')
+        selected.append(group)
+    scores = pd.concat(selected, ignore_index=True)
+    if estimator is None:
+        estimator = fit_classifier(train, {'features': columns})
+    scores['score'] = estimator.decision_function(scores[columns])
+    scores['predicted'] = (scores.score > 0).astype(int)
+    return scores, estimator
+
+
+def _draw_rms_window_figure(scores, estimator, windows, directory, filename,
+                            heading, y_limits, section_breaks=()):
+    """Shared layout and score scale for the overview and complete block plot."""
+    healthy_runs = sorted(scores.loc[scores.label == 0, 'run'].unique())
+    degraded_runs = sorted(scores.loc[scores.label == 1, 'run'].unique())
+    blue, orange, grey = '#326F9F', '#BC5036', '#53616B'
+    wide = len(windows) > 8
+    scale = 1.25 if wide else 1.
+    style = {
+        'font.family': 'serif', 'font.serif': ['STIXGeneral', 'DejaVu Serif'],
+        'font.size': 10.5*scale, 'font.weight': 'normal',
+        'mathtext.fontset': 'stix', 'axes.titleweight': 'normal',
+        'axes.labelweight': 'normal',
+        'axes.labelsize': 11*scale, 'axes.titlesize': 14*scale,
+        'xtick.labelsize': 10*scale, 'ytick.labelsize': 10*scale,
+        'axes.grid': False, 'axes.linewidth': .8,
+        'figure.facecolor': 'white', 'savefig.facecolor': 'white',
+        'svg.fonttype': 'none', 'axes.unicode_minus': True,
+    }
+    with plt.rc_context(style):
+        fig, ax = plt.subplots(figsize=(12.8, 5.6) if wide else (9.2, 4.9))
+        fig.subplots_adjust(left=.10, right=.985, bottom=.20, top=.73)
+        fig.text(.5, .95, heading,
+                 fontsize=14*scale, weight='normal', ha='center', va='top')
+        fig.text(.5, .89, 'LDA using the residual RMS of M0 and M3',
+                 fontsize=11*scale, weight='normal',
+                 ha='center', va='top')
+        low, high = y_limits
+        ax.set_ylim(low, high)
+        ax.set_xlim(-.55, len(windows)-.45)
+        ax.axhspan(low, 0, color='#EAF2F8', zorder=0)
+        ax.axhspan(0, high, color='#FBEDE9', zorder=0)
+        ax.axhline(0, color=grey, lw=1.3, zorder=2)
+        for cut in section_breaks:
+            ax.axvline(cut, color='white', lw=2, zorder=1)
+        ax.grid(axis='y', color='#87929A', alpha=.15, lw=.7, zorder=1)
+        markers = ['o', 's', '^', 'v', 'P', 'X']
+        offsets = np.linspace(-.14, .14, len(healthy_runs)) if len(healthy_runs) > 1 else [0.]
+        handles = []
+        for index, (run, offset) in enumerate(zip(healthy_runs, offsets)):
+            group = scores[scores.run == run].sort_values('window_order')
+            marker = markers[index % len(markers)]
+            ax.scatter(group.window_order+offset, group.score, color=blue,
+                       marker=marker, s=31*scale**2, edgecolors='white', linewidths=.6, zorder=4)
+            handles.append(Line2D([], [], marker=marker, linestyle='', color=blue,
+                                  markersize=5*scale, label=f'Healthy run {index+1}'))
+        for index, run in enumerate(degraded_runs):
+            group = scores[scores.run == run].sort_values('window_order')
+            offset = (index-(len(degraded_runs)-1)/2)*.12
+            ax.scatter(group.window_order+offset, group.score, color=orange,
+                       marker='D', s=49*scale**2, edgecolors='white', linewidths=.7, zorder=5)
+            for row in group.itertuples():
+                ax.annotate(f'{row.score:+.2f}', (row.window_order+offset, row.score),
+                            xytext=(0, (9 if row.score >= 0 else -14)*scale),
+                            textcoords='offset points', ha='center', va='bottom',
+                            fontsize=9*scale, color=orange, weight='normal', zorder=6)
+            label = 'Degraded run' if len(degraded_runs) == 1 else f'Degraded run {index+1}'
+            handles.append(Line2D([], [], marker='D', linestyle='', color=orange,
+                                  markersize=5.5*scale, label=label))
+        handles.append(Line2D([], [], color=grey, lw=1.3, label='Decision boundary'))
+        fig.legend(handles=handles, loc='upper left', bbox_to_anchor=(.095, .835),
+                   ncol=min(5, len(handles)), frameon=False, fontsize=9*scale,
+                   handletextpad=.45, columnspacing=1.1, borderaxespad=0)
+        ax.set_xticks(range(len(windows)), [item[1] for item in windows])
+        ax.set_xlabel('Rotation windows', labelpad=10)
+        ax.set_ylabel('LDA decision score', labelpad=8)
+        ax.tick_params(axis='both', length=3, color='#7F8991')
+        ax.spines[['top', 'right']].set_visible(False)
+        for spine in ['left', 'bottom']:
+            ax.spines[spine].set_color('#7F8991')
+        stem = directory/filename
+        for extension in ['png', 'svg']:
+            fig.savefig(stem.with_suffix('.'+extension), dpi=600, bbox_inches='tight', pad_inches=.08)
+        plt.close(fig)
+    export = ['run', 'label', 'window', 'window_order', 'window_label',
+              'n', 'start', 'end', 'M0_rms', 'M3_rms', 'score', 'predicted']
+    scores[export].to_csv(stem.with_suffix('.csv'), index=False)
+    weights = estimator['lda'].coef_[0] / estimator['scale'].scale_
+    metadata = {
+        'model': 'M0_M3_rms', 'features': ['M0_rms', 'M3_rms'],
+        'fit_scope': 'All six non-overlapping five-rotation blocks of every run; descriptive fit.',
+        'score': 'Raw LDA decision_function; no true-label sign reversal or normalization.',
+        'decision_boundary': 0,
+        'y_axis_limits': [float(low), float(high)],
+        'windows': [{'window': item[0], 'first_rotation': item[2]+1,
+                     'last_rotation': item[3]} for item in windows],
+        'positive_region': 'Predicted degraded', 'negative_region': 'Predicted healthy',
+        'feature_extraction': 'RMS of the averaged residual profile, as stored in features.csv.',
+        'run_labels': {f'Healthy run {i+1}': str(run) for i, run in enumerate(healthy_runs)},
+        'degraded_runs': [str(run) for run in degraded_runs],
+        'raw_feature_weights': weights.tolist(),
+        'raw_feature_intercept': float(estimator['lda'].intercept_[0] - weights @ estimator['scale'].mean_),
+        'interpretation': 'Descriptive window comparison, not independent cross-validation. Model training includes these measurements. The overview includes overlapping windows; five-rotation blocks are disjoint within each run but are not independent runs.'}
+    stem.with_suffix('.json').write_text(json.dumps(metadata, indent=2))
+    print(f'RMS rotation-window figure: {stem.with_suffix(".png")}')
+    print(f'Vector export: {stem.with_suffix(".svg")}')
+
+
+def rms_rotation_windows(output, directory=None):
+    """Create BOTH RMS figures with one fitted model and identical y limits."""
+    output = Path(output)
+    directory = Path(directory) if directory is not None else output/'figures'
+    directory.mkdir(parents=True, exist_ok=True)
+    features = pd.read_csv(output/'features.csv')
+    scores, estimator = rotation_window_scores(features)
+    five, _ = rotation_window_scores(features, FIVE_ROTATION_BLOCKS, estimator)
+    values = np.r_[scores.score.to_numpy(), five.score.to_numpy(), 0.]
+    span = max(float(np.ptp(values)), 1.)
+    limits = (min(float(values.min())-.16*span, -.10*span),
+              max(float(values.max())+.20*span, .12*span))
+    _draw_rms_window_figure(
+        scores, estimator, ROTATION_WINDOWS, directory, 'lda_rms_rotation_windows',
+        'Gearbox fault detection across rotation windows', limits, [.5, 2.5, 5.5])
+    _draw_rms_window_figure(
+        five, estimator, FIVE_ROTATION_BLOCKS, directory, 'lda_rms_five_rotation_blocks',
+        'Gearbox fault detection in five-rotation blocks', limits)
+    return scores
+
+
 def run(output):
+    if not _PLOT_STYLE_AVAILABLE:
+        raise ModuleNotFoundError('The full figure set needs plot_style.py. Use --rotation-windows-only for the standalone RMS window figure.')
     output=Path(output);figures=output/'figures';figures.mkdir(exist_ok=True)
     apply_style();features=pd.read_csv(output/'features.csv');five=features[features.n==5]
+    rms_rotation_windows(output, figures)
     draw(five,['M0_'+p for p in PARAMETERS],figures,'boxplots_M0',3)
     draw(five,['M3_'+p for p in PARAMETERS]+['shape_corr','ellipse_area'],figures,'boxplots_M3_joint',4)
     correlations(five,figures)
@@ -240,4 +437,12 @@ def run(output):
     rc_fit_figure(output,figures);existing_report_figures(output,figures);final_block_validation(five,figures)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--output',type=Path,default=Path(__file__).resolve().parents[1]/'outputs');run(p.parse_args().output)
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--output',type=Path,default=Path(__file__).resolve().parents[1]/'outputs')
+    p.add_argument('--rotation-windows-only',action='store_true',
+                   help='Create both RMS figures (window overview and all five-rotation blocks) from features.csv.')
+    args=p.parse_args()
+    if args.rotation_windows_only:
+        rms_rotation_windows(args.output)
+    else:
+        run(args.output)

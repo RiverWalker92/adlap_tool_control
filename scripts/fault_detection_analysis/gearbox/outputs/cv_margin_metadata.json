@@ -1,0 +1,18 @@
+{
+  "formula": "(2*true_label-1)*decision_function(X)/sqrt(w.T @ Sigma @ w)",
+  "coordinates": "w and Sigma from fitted pipeline lda step, after training-only StandardScaler",
+  "Sigma": "Training-only prior-weighted within-class covariance with automatic shrinkage",
+  "threshold": 0,
+  "ranking": "Perfect classification first; then balanced accuracy, valid margins, largest worst margin, weaker-class median, fewer features, model name. rank_perfect only numbers perfect models with valid margins.",
+  "repeated_predictions": "Per block: minimum across held-out folds for worst margin; median across held-out folds for typical margin. Class medians weight each unique block once.",
+  "both_lengths": "Only candidates perfect with valid margins at both n=5 and n=10; largest worst margin across both lengths first.",
+  "zero_variance": "Undefined normalized margins are NaN; candidate excluded from margin ranking.",
+  "scope": "300 classifiers; see cv_margin_model_registry.csv for candidate features and aliases.",
+  "n_candidates": 300,
+  "reference_checks": {
+    "registry_candidates_matched": 300,
+    "held_out_predictions_matched": 48600,
+    "candidate_length_metrics_matched": 600
+  },
+  "limitations": "Exploratory selection, not nested validation. One degraded run; folds and blocks are dependent. No independent evidence of general superiority. Margins are model-based SD units, not calibrated probabilities or measured noise tolerance."
+}

@@ -12,7 +12,7 @@ import argparse,json
 import numpy as np
 import pandas as pd
 from analyse import COLUMNS,NAMES,model_definitions,fit_classifier
-from pairwise_lda import PairwiseLDA
+from pairwiseimport PairwiseLDA
 
 def rank(frame):
     return frame.sort_values(['FN','FP','balanced_accuracy','n_features','model'],ascending=[True,True,False,True,True],kind='stable')

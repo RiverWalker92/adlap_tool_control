@@ -60,7 +60,7 @@ def figure_legend(fig,handles,ncol=3):
                bbox_to_anchor=(.5,.99),ncol=ncol,frameon=False,
                columnspacing=1.2,handletextpad=.4,handlelength=1.7)
 
-def class_legend(fig,binary=False,positive='After filing'):
+def class_legend(fig,binary=False,positive='After abrasion'):
     entries=[('Healthy',BLUE),(positive,ORANGE)] if binary else [('Healthy',BLUE),('Intermediate',YELLOW),('Blunt',ORANGE)]
     handles=[marker_handle(entries[0][0],entries[0][1]),marker_handle('Run 1',GREY,'o'),
              marker_handle(entries[1][0],entries[1][1]),marker_handle('Run 2',GREY,'s')]

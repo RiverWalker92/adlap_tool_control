@@ -4179,12 +4179,21 @@ def plot_dof_pattern_predictions(
             )
 
             fig.suptitle(
+                "Motor DT predictions vs measured motor signals",
+                fontsize=18,
+                y=0.985,
+            )
+            fig.text(
+                0.5,
+                0.95,
                 (
-                    f"Motor DT - DOF{dof_number} - M{motor_index} - "
+                    f"DOF{dof_number} – M{motor_index} – "
                     f"frequency x{frequency:g} - range x{range_factor:g}"
                     f"{command_status}"
                 ),
-                fontsize=18,
+                ha="center",
+                va="top",
+                fontsize=14,
             )
 
             waveform_samples = [
@@ -4393,13 +4402,13 @@ def plot_dof_pattern_predictions(
 
             # Report formatting only; plotted values are unchanged.
             row_labels = {
-                encoder_row: "Encoder position [pulses]",
-                current_row: "Motor current [mA]",
-                position_residual_row: "Position residual [pulses]",
-                current_residual_row: "Current residual [mA]",
+                encoder_row: "Encoder position\n[pulses]",
+                current_row: "Motor current\n[mA]",
+                position_residual_row: "Position residual\n[pulses]",
+                current_residual_row: "Current residual\n[mA]",
             }
             if motor_is_commanded:
-                row_labels[0] = f"DOF{dof_number} command [rad]"
+                row_labels[0] = f"DOF{dof_number} command\n[rad]"
             for row_index in range(number_of_rows):
                 for column_index in range(2):
                     ax = axes[row_index, column_index]
@@ -4410,13 +4419,15 @@ def plot_dof_pattern_predictions(
                     ax.title.set_size(16)
                     ax.grid(True, alpha=0.25)
                     ax.set_ylabel(row_labels[row_index] if column_index == 0 else "")
+            fig.align_ylabels(axes[:, 0])
             for row_index in (position_residual_row, current_residual_row):
                 low, high = axes[row_index, 0].get_ylim()
                 extent = max(abs(low), abs(high))
                 axes[row_index, 0].set_ylim(-extent, extent)
 
             plt.tight_layout(
-                rect=[0, 0, 1, 0.95]
+                rect=[0, 0, 1, 0.91],
+                h_pad=1.2,
             )
 
             dof_dir = plot_dir / f"dof_{dof_number}"

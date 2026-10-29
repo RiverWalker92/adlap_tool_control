@@ -24,6 +24,18 @@ except ImportError:
     from dof2_features import load_rows, column, interpolate
 from plot_style import save_png as save_figure, apply_style, BLUE, ORANGE, YELLOW, GREY
 apply_style()
+# Larger report text; all signal processing and source data remain unchanged.
+plt.rcParams.update({
+    'font.size': 12,
+    'axes.labelsize': 14,
+    'axes.titlesize': 16,
+    'axes.titleweight': 'normal',
+    'xtick.labelsize': 11,
+    'ytick.labelsize': 11,
+    'legend.fontsize': 11,
+    'figure.titlesize': 18,
+    'figure.titleweight': 'normal',
+})
 ROOT = Path(__file__).resolve().parents[1] if Path(__file__).parent.name == 'code' else Path(__file__).resolve().parent
 COLORS = {'healthy': BLUE, 'faulty': ORANGE, 'video': YELLOW, 'hybrid': GREY}
 CONDITIONS = [f'{wave}_f{frequency}_r1p0' for frequency in ['0p5', '1p0', '2p0'] for wave in ['sinusoid', 'triangle']]
@@ -123,7 +135,8 @@ def style(axes):
     for ax in axes:
         ax.spines[['top', 'right']].set_visible(False)
         ax.grid(alpha=0.18)
-        ax.legend(loc='upper right', fontsize=7, ncol=2)
+        ax.tick_params(labelsize=11)
+        ax.legend(loc='upper right', fontsize=11, ncol=2)
 
 def select_event(run, healthy, name):
     record = run['conditions'][name]
@@ -148,16 +161,16 @@ def select_event(run, healthy, name):
     return (q, hy, reference, float(event), float(delta[peak]))
 
 def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
-    fig = plt.figure(figsize=(14, 16))
-    # Five full-width overview panels followed by two vertically stacked zoom panels.
-    # The zoom panels are positioned later so their left/right edges align exactly
-    # with the highlighted time window in subplot 5.
-    grid = fig.add_gridspec(7, 1, height_ratios=[1, 1, 1, 1, 1, 0.9, 0.9], hspace=0.55)
+    fig = plt.figure(figsize=(14, 18))
+    # Separate layout groups keep the overview x-axis clear of the detail titles.
+    grid = fig.add_gridspec(2, 1, height_ratios=[5.8, 2.6], hspace=0.14)
+    overview_grid = grid[0, 0].subgridspec(5, 1, hspace=0.5)
+    zoom_grid = grid[1, 0].subgridspec(2, 1, hspace=0.4)
     axes = []
     for row in range(5):
-        axes.append(fig.add_subplot(grid[row, 0], sharex=axes[0] if axes else None))
-    inset_angle = fig.add_subplot(grid[5, 0])
-    inset_motor = fig.add_subplot(grid[6, 0], sharex=inset_angle)
+        axes.append(fig.add_subplot(overview_grid[row, 0], sharex=axes[0] if axes else None))
+    inset_angle = fig.add_subplot(zoom_grid[0, 0])
+    inset_motor = fig.add_subplot(zoom_grid[1, 0], sharex=inset_angle)
     for ax in axes[:-1]:
         ax.tick_params(labelbottom=False)
     for ax in [inset_angle, inset_motor]:
@@ -184,18 +197,18 @@ def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
                 axes[panel].plot(x, mean, color=color, label=label if cursor == 0 else None)
                 axes[panel].fill_between(x, low, high, color=color, alpha=0.16)
         label = ('Sine' if name.startswith('sinusoid') else 'Triangle') + '\n' + name.split('_')[1][1:].replace('p', '.') + ' Hz'
-        axes[0].text(cursor + duration / 2, 1.02, label, transform=axes[0].get_xaxis_transform(), ha='center', fontsize=8)
+        axes[0].text(cursor + duration / 2, 1.02, label, transform=axes[0].get_xaxis_transform(), ha='center', fontsize=11)
         segments.append(dict(condition=name, concatenated_start_s=cursor, concatenated_end_s=cursor + duration))
         cursor += duration
         for ax in axes:
             ax.axvline(cursor, color='#777777', lw=0.7, ls=':', alpha=0.5)
-    axes[0].set_ylabel('Command [deg]')
-    axes[1].set_ylabel('M1 residual [mA]')
-    axes[2].set_ylabel('M2 residual [mA]')
-    axes[3].set_ylabel('Healthy angle [deg]')
-    axes[4].set_ylabel('Faulty angle [deg]')
-    axes[4].set_xlabel('Concatenated active time [s]; pauses removed')
-    axes[0].set_title('Shaft bending — full amplitude (0.40 rad)', pad=36)
+    axes[0].set_ylabel('Command\n[deg]')
+    axes[1].set_ylabel('M1 residual\n[mA]')
+    axes[2].set_ylabel('M2 residual\n[mA]')
+    axes[3].set_ylabel('Healthy angle\n[deg]')
+    axes[4].set_ylabel('Faulty angle\n[deg]')
+    axes[4].set_xlabel('Active time [s] (pauses removed)', labelpad=10)
+    fig.suptitle('Shaft bending — full amplitude (0.40 rad)', y=0.985, fontsize=18)
     style(axes)
     healthy = [r for r in runs if r['true_class'] == 0]
     faulty = [r for r in runs if r['true_class'] == 1]
@@ -236,21 +249,21 @@ def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
         inset_motor.plot(q[shown], mean[shown], color=color, ls=linestyle, lw=1.4, label=label)
         inset_motor.fill_between(q[shown], low[shown], high[shown], color=color, alpha=0.15)
     inset_motor.axhline(0, color='#555555', lw=0.7)
-    inset_angle.set_ylabel('Angle [deg]', fontsize=8)
-    inset_motor.set_ylabel('M2 position residual [pulses]', fontsize=8)
-    inset_motor.set_xlabel('Condition time [s]', fontsize=8)
-    inset_angle.set_title('Angle response', fontsize=9, pad=8)
-    inset_motor.set_title('Motor-DT position residual', fontsize=9, pad=8)
+    inset_angle.set_ylabel('Angle [deg]', fontsize=12)
+    inset_motor.set_ylabel('M2 position residual\n[pulses]', fontsize=12)
+    inset_motor.set_xlabel('Condition time [s]', fontsize=12)
+    inset_angle.set_title('Angle response', fontsize=14, pad=10)
+    inset_motor.set_title('Motor-DT position residual', fontsize=14, pad=10)
     for ax in [inset_angle, inset_motor]:
         ax.set_xlim(start, end)
         ax.grid(alpha=0.2)
-        ax.tick_params(labelsize=7)
+        ax.tick_params(labelsize=10)
         ax.axvline(event, color='#777777', ls=':', lw=0.7)
-        ax.legend(fontsize=6, loc='upper left', framealpha=0.85)
+        ax.legend(fontsize=10, loc='upper left', bbox_to_anchor=(1.04, 1.0), borderaxespad=0, framealpha=0.85)
         ax.spines[['top', 'right']].set_visible(False)
         ax.locator_params(axis='x', nbins=3)
-    inset_angle.tick_params(labelbottom=True)
-    inset_angle.set_xlabel('Condition time [s]', fontsize=8)
+    inset_angle.tick_params(labelbottom=False)
+    inset_angle.set_xlabel('')
     shown = (q >= start) & (q <= end)
     all_angles = np.concatenate(angle_bounds + [reference[shown]])
     lo, hi = (np.nanmin(all_angles), np.nanmax(all_angles))
@@ -261,11 +274,12 @@ def overview(runs, figures, zoom_condition, inset_window, forced_run=None):
     right = segment['concatenated_start_s'] + end
     axes[4].axvspan(left, right, facecolor='#8b6aaf', alpha=0.12, edgecolor='#6f5688', lw=0.7)
 
-    # Final overall margins first; then place the zoom panels relative to subplot 5.
-    fig.subplots_adjust(left=0.075, right=0.985, bottom=0.055, top=0.94)
+    fig.align_ylabels(axes)
 
-    # Align both zoom panels horizontally with the highlighted window in subplot 5.
-    # This makes the correspondence between the shaded region and the zooms explicit.
+    # Final overall margins first; then position the aligned detail panels.
+    fig.subplots_adjust(left=0.11, right=0.985, bottom=0.055, top=0.92)
+
+    # Match both detail panels exactly to the highlighted interval above.
     fig.canvas.draw()
     main_box = axes[4].get_position()
     x0_main, x1_main = axes[4].get_xlim()
@@ -302,7 +316,7 @@ def zoom(runs, name, figures, out, window, forced_run=None, render=False):
         native = (record['rt'] >= start) & (record['rt'] <= end)
         if native.sum() < 8:
             raise ValueError('Insufficient zoom samples')
-        fig, axes = plt.subplots(6, 1, figsize=(11, 11), sharex=True)
+        fig, axes = plt.subplots(6, 1, figsize=(12, 14), sharex=True)
         t = record['rt'][native]
         c = curve(record, 'rt', 'command', t)
         hp = record['hybrid'][native]
@@ -343,9 +357,10 @@ def zoom(runs, name, figures, out, window, forced_run=None, render=False):
             ax.axvline(event, color='#777777', ls=':', lw=1)
             ax.set_xlim(start, end)
         style(axes)
-        axes[0].set_title(name.replace('_', ' ') + ' — ' + run['run'] + '\nZoom selected by largest positive-peak hybrid deficit versus healthy phase reference', fontsize=10)
-        fig.text(0.08, 0.012, 'Motor positions subtract a fixed initial target for each run and motor; healthy M2 is aligned the same way. Vertical line: selected event. Logged snapshots; no lag correction.', fontsize=8)
-        fig.tight_layout(rect=(0, 0.035, 1, 0.98))
+        axes[0].set_title(name.replace('_', ' ') + ' — ' + run['run'] + '\nZoom selected by largest positive-peak hybrid deficit versus healthy phase reference', fontsize=14)
+        fig.text(0.5, 0.012, 'Motor positions subtract a fixed initial target for each run and motor; healthy M2 is aligned the same way.\nVertical line: selected event. Logged snapshots; no lag correction.', ha='center', fontsize=10)
+        fig.align_ylabels(axes)
+        fig.tight_layout(rect=(0, 0.055, 1, 0.98), h_pad=1.2)
         if render:
             save_figure(fig, figures / ('motor_tracking_zoom_' + run['run']))
         else:

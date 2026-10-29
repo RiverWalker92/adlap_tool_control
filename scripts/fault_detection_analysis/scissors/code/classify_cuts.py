@@ -16,13 +16,13 @@ from extract_features import METRICS,NAMES
 ROOT=Path(__file__).resolve().parents[1]
 SELECTIONS={'all':[1,2,3],'first':[1],'later':[2,3]}
 SCENARIOS={
- 'healthy_all':([0,1,2,3,4,6,8],2,['Healthy (0)','After filing (1,2,3,4,6,8)']),
- 'healthy_blunt':([0,8],2,['Healthy (0)','Blunt (8)']),
- 'healthy_medium146':([0,1,4,6],2,['Healthy (0)','Medium (1,4,6)']),
- 'medium146_blunt':([1,4,6,8],2,['Medium (1,4,6)','Blunt (8)']),
- 'three146':([0,1,4,6,8],3,['Healthy (0)','Medium (1,4,6)','Blunt (8)']),
- 'three_all':([0,1,2,3,4,6,8],3,['Healthy (0)','Medium (1,2,3,4,6)','Blunt (8)']),
- 'three4':([0,4,8],3,['Healthy (0)','Medium (4)','Blunt (8)'])}
+ 'healthy_all':([0,1,2,3,4,6,8],2,['Healthy (0)','After abrasion (2,4,6,8,12,16)']),
+ 'healthy_blunt':([0,8],2,['Healthy (0)','Blunt (16)']),
+ 'healthy_medium146':([0,1,4,6],2,['Healthy (0)','Medium (2,8,12)']),
+ 'medium146_blunt':([1,4,6,8],2,['Medium (2,8,12)','Blunt (16)']),
+ 'three146':([0,1,4,6,8],3,['Healthy (0)','Medium (2,8,12)','Blunt (16)']),
+ 'three_all':([0,1,2,3,4,6,8],3,['Healthy (0)','Medium (2,4,6,8,12)','Blunt (16)']),
+ 'three4':([0,4,8],3,['Healthy (0)','Medium (8)','Blunt (16)'])}
 
 def registry():
  rows=[]

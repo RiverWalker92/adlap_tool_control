@@ -18,7 +18,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -43,7 +43,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -68,7 +68,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -91,7 +91,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -116,7 +116,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -141,7 +141,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -166,7 +166,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -191,7 +191,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -216,7 +216,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -241,7 +241,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -264,7 +264,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -287,7 +287,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -312,7 +312,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -337,7 +337,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -362,7 +362,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -387,7 +387,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -412,7 +412,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -437,7 +437,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -462,7 +462,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -487,7 +487,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -512,7 +512,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -537,7 +537,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -562,7 +562,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -587,7 +587,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -612,7 +612,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -637,7 +637,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -662,7 +662,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -687,7 +687,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -712,7 +712,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -737,7 +737,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "After filing (1,2,3,4,6,8)"
+      "After abrasion (2,4,6,8,12,16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -760,7 +760,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -783,7 +783,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -806,7 +806,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -829,7 +829,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -852,7 +852,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -875,7 +875,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -898,7 +898,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -921,7 +921,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -944,7 +944,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -967,7 +967,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -990,7 +990,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1013,7 +1013,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1036,7 +1036,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1059,7 +1059,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1082,7 +1082,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1105,7 +1105,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1128,7 +1128,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1151,7 +1151,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1174,7 +1174,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1197,7 +1197,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1220,7 +1220,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1243,7 +1243,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1266,7 +1266,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1289,7 +1289,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1312,7 +1312,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1335,7 +1335,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1358,7 +1358,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1381,7 +1381,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1406,7 +1406,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1431,7 +1431,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Blunt (8)"
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1454,7 +1454,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1479,7 +1479,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1504,7 +1504,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1529,7 +1529,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1554,7 +1554,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1579,7 +1579,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1604,7 +1604,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1629,7 +1629,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1654,7 +1654,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1679,7 +1679,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1702,7 +1702,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1725,7 +1725,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1748,7 +1748,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1771,7 +1771,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1794,7 +1794,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1819,7 +1819,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1844,7 +1844,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1869,7 +1869,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1894,7 +1894,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1919,7 +1919,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1942,7 +1942,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1965,7 +1965,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -1988,7 +1988,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2013,7 +2013,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2038,7 +2038,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2063,7 +2063,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2088,7 +2088,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2113,7 +2113,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2138,7 +2138,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2163,7 +2163,7 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)"
+      "Medium (2,8,12)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2185,8 +2185,8 @@
       -16.927354227251207
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2208,8 +2208,8 @@
       -16.927354227251207
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2231,8 +2231,8 @@
       -23.4597101477596
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2254,8 +2254,8 @@
       -18.707093210551847
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2277,8 +2277,8 @@
       -18.707093210551847
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2300,8 +2300,8 @@
       -23.205866437956576
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2325,8 +2325,8 @@
       -23.288561403848334
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2350,8 +2350,8 @@
       -23.034717694045312
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2375,8 +2375,8 @@
       -23.25433968379786
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2400,8 +2400,8 @@
       -22.938283993440386
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2423,8 +2423,8 @@
       -21.981284647956798
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2446,8 +2446,8 @@
       -21.981284647956798
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2469,8 +2469,8 @@
       -33.734384066161276
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2492,8 +2492,8 @@
       -21.981284647956798
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2515,8 +2515,8 @@
       -21.981284647956798
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2538,8 +2538,8 @@
       -34.79467558041524
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2561,8 +2561,8 @@
       -36.24301388373494
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2584,8 +2584,8 @@
       -32.88713466853336
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2609,8 +2609,8 @@
       -21.68818290478391
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2634,8 +2634,8 @@
       -21.68818290478391
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2659,8 +2659,8 @@
       -23.563319066718147
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2682,8 +2682,8 @@
       -15.447971446010122
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2705,8 +2705,8 @@
       -15.447971446010122
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2728,8 +2728,8 @@
       -21.52317093322743
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2751,8 +2751,8 @@
       -22.69956949265227
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2776,8 +2776,8 @@
       -22.993633246673404
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2801,8 +2801,8 @@
       -24.30751985004671
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2826,8 +2826,8 @@
       -22.760350914374616
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2851,8 +2851,8 @@
       -18.053600028940092
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2876,8 +2876,8 @@
       -22.762449266286694
     ],
     "class_labels": [
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "score>0 (standard)",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2912,8 +2912,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2948,8 +2948,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -2984,8 +2984,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3020,8 +3020,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3056,8 +3056,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3092,8 +3092,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3128,8 +3128,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3164,8 +3164,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3200,8 +3200,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3236,8 +3236,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3272,8 +3272,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3308,8 +3308,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3344,8 +3344,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3380,8 +3380,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3416,8 +3416,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3452,8 +3452,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3488,8 +3488,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3524,8 +3524,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3560,8 +3560,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3596,8 +3596,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3632,8 +3632,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3668,8 +3668,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3704,8 +3704,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3740,8 +3740,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3776,8 +3776,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3812,8 +3812,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3848,8 +3848,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3884,8 +3884,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3920,8 +3920,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3956,8 +3956,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -3992,8 +3992,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4028,8 +4028,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4064,8 +4064,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4100,8 +4100,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4136,8 +4136,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4172,8 +4172,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4208,8 +4208,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4244,8 +4244,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4280,8 +4280,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4316,8 +4316,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4352,8 +4352,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4388,8 +4388,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4424,8 +4424,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4460,8 +4460,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4496,8 +4496,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4532,8 +4532,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4568,8 +4568,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4604,8 +4604,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4640,8 +4640,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4676,8 +4676,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4712,8 +4712,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4748,8 +4748,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4784,8 +4784,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4820,8 +4820,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4856,8 +4856,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4888,8 +4888,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4924,8 +4924,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4960,8 +4960,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -4996,8 +4996,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5032,8 +5032,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5068,8 +5068,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5104,8 +5104,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5140,8 +5140,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5176,8 +5176,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5212,8 +5212,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5248,8 +5248,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5284,8 +5284,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5320,8 +5320,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5356,8 +5356,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5392,8 +5392,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5428,8 +5428,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5464,8 +5464,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5500,8 +5500,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5536,8 +5536,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5572,8 +5572,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5608,8 +5608,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5644,8 +5644,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5680,8 +5680,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5716,8 +5716,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5752,8 +5752,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5788,8 +5788,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5820,8 +5820,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5856,8 +5856,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5892,8 +5892,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5928,8 +5928,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -5964,8 +5964,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6000,8 +6000,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6032,8 +6032,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6064,8 +6064,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6100,8 +6100,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6136,8 +6136,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6172,8 +6172,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6208,8 +6208,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6244,8 +6244,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6280,8 +6280,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6316,8 +6316,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6352,8 +6352,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6384,8 +6384,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6416,8 +6416,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6448,8 +6448,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6480,8 +6480,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6512,8 +6512,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6544,8 +6544,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6576,8 +6576,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6608,8 +6608,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6640,8 +6640,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6672,8 +6672,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6704,8 +6704,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6736,8 +6736,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6772,8 +6772,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6808,8 +6808,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6844,8 +6844,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6880,8 +6880,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6916,8 +6916,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6952,8 +6952,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -6988,8 +6988,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -7024,8 +7024,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -7060,8 +7060,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,2,3,4,6)",
-      "Blunt (8)"
+      "Medium (2,4,6,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -7096,8 +7096,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (1,4,6)",
-      "Blunt (8)"
+      "Medium (2,8,12)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -7132,8 +7132,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",
@@ -7168,8 +7168,8 @@
     ],
     "class_labels": [
       "Healthy (0)",
-      "Medium (4)",
-      "Blunt (8)"
+      "Medium (8)",
+      "Blunt (16)"
     ],
     "positive_rule": "argmax of three discriminant scores",
     "fit_type": "descriptive full-data fit; not independent validation",

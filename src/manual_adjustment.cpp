@@ -199,6 +199,22 @@ void InstrumentController::manual_adjustment()
           ready_for_angles = true;
         }
         break;
+      case KEYCODE_G:
+        RCLCPP_INFO(logger_, "G -> reset joint angles to 0");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
+        set_joint_angles(0.0, 0.0, 0.0, 0.0, true);
+        break;
+      case KEYCODE_H:
+        RCLCPP_INFO(logger_, "H -> Adjust pitch");
+        if (!ready_for_angles) {
+          RCLCPP_WARN(logger_, "Not ready for angle control yet, press 'I' to initialize motors and 'U' to update starting positions");
+          break;
+        }
+        set_joint_angles(0.0, 0.4, 0.0, 0.0, true);
+        break;
       case KEYCODE_ENTER:
         RCLCPP_INFO(logger_, "ENTER");
         if (!ready_for_angles) {

@@ -66,7 +66,7 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   
   // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
   std::array<int, 4> current_positions = gearbox.motor_controller.get_positions();
-  int real_play = calculate_real_play(current_positions); // Calculate the real play based on the current motor positions and the current offset
+  int real_play = calculate_real_play(current_positions, verbose); // Calculate the real play based on the current motor positions and the current offset
   int current_difference = current_positions[2] - current_positions[1] - starting_difference - 2 * real_play; // Current difference between motor 2 and motor 1, compensated for play
 
   int wanted_difference = static_cast<int>(std::round(degrees * gearbox.get_pulses_per_degree(1) * BEND_FACTOR));
@@ -163,7 +163,7 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
 
 // TODO: make this trigger on each recieved message in motor thread, otherwise we cannot reliably use m1_m2_offset_ variable.
 // Now kinda fixed by calling this each time we recieve a new command in the node during motor position calculation.
-int InstrumentController::calculate_real_play(const std::array<int, 4>& current_positions){
+int InstrumentController::calculate_real_play(const std::array<int, 4>& current_positions, bool verbose){
   std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
   int play =  gearbox.get_pulses_lower_motors_play();
   int starting_diff = starting_positions[2] - starting_positions[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
@@ -187,6 +187,7 @@ int InstrumentController::calculate_real_play(const std::array<int, 4>& current_
   }
 
   int real_play = (diff - m1_m2_offset_)/2; // Calculate the real play based on the current offset
+  if (verbose) {RCLCPP_DEBUG(logger_, "Real play: %d diff: %d m1_m2_offset_: %d", real_play, diff, m1_m2_offset_);}
   return real_play;
 }
 

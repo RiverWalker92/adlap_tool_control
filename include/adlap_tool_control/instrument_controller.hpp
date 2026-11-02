@@ -29,7 +29,7 @@ private:
     int get_motor2_value_for_angle(double radians, bool verbose = false);
     std::array<int, 4> calculate_motor_positions_from_euler_angles(double roll, double pitch, double yaw, double articulation, bool verbose);
     std::array<int, 4> calculate_motor_positions_from_joint_angles(double shaft_roll, double bend, double tip_rotation, double articulation, bool verbose);
-    int calculate_real_play(const std::array<int, 4>& current_positions);
+    int calculate_real_play(const std::array<int, 4>& current_positions, bool verbose = false);
 
     /// Push a new sample, cap history to smoothing_factor_, and return the mean.
     static double update_history_and_get_mean(std::deque<double>& history, double sample, std::size_t max_size,

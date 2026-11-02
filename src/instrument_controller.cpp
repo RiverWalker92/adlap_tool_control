@@ -75,28 +75,18 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   int deadband_threshold = static_cast<int>(std::round(gearbox.get_pulses_per_degree(1) * 2.5)); // deadband threshold in pulses
   if (verbose) RCLCPP_DEBUG(logger_, "relative_difference: '%d', real_play: '%d', deadband_threshold: '%d', bend_play_compensation_: '%d', current_difference: '%d', wanted_difference: '%d'", relative_difference, real_play, deadband_threshold, bend_play_compensation_, current_difference, wanted_difference);
 
-
-  if ( bend_play_compensation_ > 0) {
-    if (relative_difference < -deadband_threshold) {
-      // Moving in the opposite direction, so apply deadband compensation
-      bend_play_compensation_ = -gearbox.get_pulses_lower_motors_play();
-    }
-    else if (relative_difference <= 0) { 
-      // In the deadband region
-      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
-      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
-    }
+  if (relative_difference < -deadband_threshold) {
+    // Moving in the opposite direction, so apply deadband compensation
+    bend_play_compensation_ = -gearbox.get_pulses_lower_motors_play();
   }
-  else{
-    if (relative_difference > deadband_threshold) {
-      // Moving in the opposite direction, so apply deadband compensation
-      bend_play_compensation_ = gearbox.get_pulses_lower_motors_play();
-    }
-    else if (relative_difference >= 0) { 
-      // In the deadband region
-      if (verbose) RCLCPP_DEBUG(logger_, "Same angle, no adjustment needed");
-      return wanted_difference; // Keep the commanded bend stable instead of chasing live feedback
-    }
+  else if (relative_difference > deadband_threshold) {
+    // Moving in the opposite direction, so apply deadband compensation
+    bend_play_compensation_ = gearbox.get_pulses_lower_motors_play();
+  }
+  else {
+    // Within deadband, so keep the current compensation and angle;
+    if (verbose) RCLCPP_DEBUG(logger_, "Within deadband, not changing angle and keeping current bend_play_compensation_: '%d'", bend_play_compensation_);
+    return current_difference;
   }
 
   if (verbose) RCLCPP_DEBUG(logger_, "play_compensation_: '%d'", bend_play_compensation_);

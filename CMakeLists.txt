@@ -32,6 +32,9 @@ if(BUILD_TESTING)
     test/motor_controller_stub.cpp
     src/instrument_controller.cpp
     src/keyboard_reader.cpp
+    src/gearbox.cpp
+    src/gearbox_saving.cpp
+    src/saving_utils.cpp
   )
 
   if(TARGET test_angle_conversion)
@@ -45,8 +48,10 @@ if(BUILD_TESTING)
     test/angle_conversion_export.cpp
     test/motor_controller_stub.cpp
     src/instrument_controller.cpp
-    src/adlap_gearbox.cpp
+    src/gearbox.cpp
     src/keyboard_reader.cpp
+    src/gearbox_saving.cpp
+    src/saving_utils.cpp
   )
 
   target_include_directories(angle_conversion_export PRIVATE
@@ -59,8 +64,10 @@ if(BUILD_TESTING)
     test/joint_angle_conversion_export.cpp
     test/motor_controller_stub.cpp
     src/instrument_controller.cpp
-    src/adlap_gearbox.cpp
+    src/gearbox.cpp
     src/keyboard_reader.cpp
+    src/gearbox_saving.cpp
+    src/saving_utils.cpp
   )
 
   target_include_directories(joint_angle_conversion_export PRIVATE
@@ -74,12 +81,14 @@ add_executable(controller
   src/node.cpp
   src/instrument_controller.cpp
   src/manual_adjustment.cpp
-  src/adlap_gearbox.cpp
+  src/gearbox.cpp
   src/serial_port.cpp
   src/keyboard_reader.cpp
   src/motor_controller.cpp
   src/motor_saving.cpp
   src/motor_thread.cpp
+  src/gearbox_saving.cpp
+  src/saving_utils.cpp
 )
 
 add_executable(tool_controller_node src/tool_controller_node.cpp)

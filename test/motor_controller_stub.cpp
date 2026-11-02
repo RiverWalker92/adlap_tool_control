@@ -12,6 +12,11 @@ MotorController::MotorController(std::shared_ptr<SerialPort> serial, rclcpp::Log
 
 MotorController::~MotorController() = default;
 
+std::string MotorController::get_session_key() const
+{
+  return {};
+}
+
 void MotorController::send_motor_positions(const std::array<int, 4>& new_positions, bool)
 {
   target_positions_ = new_positions;

@@ -10,6 +10,12 @@ InstrumentController::InstrumentController(Gearbox& gearbox, rclcpp::Logger logg
 {
 }
 
+InstrumentController::~InstrumentController()
+{
+  // Function to run during destruction
+  calculate_real_play(gearbox.motor_controller.get_positions(), true); // Runs here so m1_m2_offset is updated before destruction, so it can be saved to JSON in the Gearbox destructor
+}
+
 double InstrumentController::update_history_and_get_mean(std::deque<double>& history,
   double sample,
   std::size_t max_size,
@@ -62,7 +68,7 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   }
 
   int starting_difference = gearbox.motor_controller.get_starting_positions()[2] - gearbox.motor_controller.get_starting_positions()[1]; // Starting difference between motor 2 and motor 1, compensated for the initial offset found in setup
-  //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * bend_play_compensation_; // Current difference between motor 2 and motor 1, compensated for play
+  //int current_difference = gearbox.motor_controller.get_positions()[2] - gearbox.motor_controller.get_positions()[1] - starting_difference - 2 * gearbox.bend_play_compensation; // Current difference between motor 2 and motor 1, compensated for play
   
   // Use real play to prevent incorrect position estimate if the motors havent reached target yet.
   std::array<int, 4> current_positions = gearbox.motor_controller.get_positions();
@@ -73,23 +79,23 @@ int InstrumentController::get_motor2_value_for_angle(double radians, bool verbos
   int relative_difference = wanted_difference - current_difference;
 
   int deadband_threshold = static_cast<int>(std::round(gearbox.get_pulses_per_degree(1) * 2.5)); // deadband threshold in pulses
-  if (verbose) RCLCPP_DEBUG(logger_, "relative_difference: '%d', real_play: '%d', deadband_threshold: '%d', bend_play_compensation_: '%d', current_difference: '%d', wanted_difference: '%d'", relative_difference, real_play, deadband_threshold, bend_play_compensation_, current_difference, wanted_difference);
+  if (verbose) RCLCPP_DEBUG(logger_, "relative_difference: '%d', real_play: '%d', deadband_threshold: '%d', gearbox.bend_play_compensation: '%d', current_difference: '%d', wanted_difference: '%d'", relative_difference, real_play, deadband_threshold, gearbox.bend_play_compensation, current_difference, wanted_difference);
 
   if (relative_difference < -deadband_threshold) {
     // Moving in the opposite direction, so apply deadband compensation
-    bend_play_compensation_ = -gearbox.get_pulses_lower_motors_play();
+    gearbox.bend_play_compensation = -gearbox.get_pulses_lower_motors_play();
   }
   else if (relative_difference > deadband_threshold) {
     // Moving in the opposite direction, so apply deadband compensation
-    bend_play_compensation_ = gearbox.get_pulses_lower_motors_play();
+    gearbox.bend_play_compensation = gearbox.get_pulses_lower_motors_play();
   }
   else {
     // Within deadband, so keep the current compensation and angle;
-    if (verbose) RCLCPP_DEBUG(logger_, "Within deadband, not changing angle and keeping current bend_play_compensation_: '%d'", bend_play_compensation_);
+    if (verbose) RCLCPP_DEBUG(logger_, "Within deadband, not changing angle and keeping current gearbox.bend_play_compensation: '%d'", gearbox.bend_play_compensation);
     return current_difference;
   }
 
-  if (verbose) RCLCPP_DEBUG(logger_, "play_compensation_: '%d'", bend_play_compensation_);
+  if (verbose) RCLCPP_DEBUG(logger_, "play_compensation_: '%d'", gearbox.bend_play_compensation);
 
   return wanted_difference;
 }
@@ -144,8 +150,8 @@ std::array<int, 4> InstrumentController::calculate_motor_positions_from_joint_an
   std::array<int, 4>  starting_positions = gearbox.motor_controller.get_starting_positions();
   std::array<int, 4>  new_positions = {
     static_cast<int>(std::round(starting_positions[0] + tip_rotation_pulses)),
-    static_cast<int>(std::round(starting_positions[1] + shaft_rotation_pulses - bend_play_compensation_)),
-    static_cast<int>(std::round(starting_positions[2] + shaft_rotation_pulses + m2_bend_pulses + bend_play_compensation_)), 
+    static_cast<int>(std::round(starting_positions[1] + shaft_rotation_pulses - gearbox.bend_play_compensation)),
+    static_cast<int>(std::round(starting_positions[2] + shaft_rotation_pulses + m2_bend_pulses + gearbox.bend_play_compensation)), 
     static_cast<int>(std::round(starting_positions[3] + tip_rotation_pulses + articulation_pulses))    
   };
   return new_positions;
@@ -160,24 +166,24 @@ int InstrumentController::calculate_real_play(const std::array<int, 4>& current_
 
   int diff = current_positions[2] - current_positions[1] - starting_diff; // Current difference between motor 2 and motor 1, not yet compensated for play
   if (diff > 0) {
-    if (diff > m1_m2_offset_+ 2*play){
-      m1_m2_offset_ = diff - 2*play; 
+    if (diff > gearbox.m1_m2_offset + 2*play){
+      gearbox.m1_m2_offset = diff - 2*play; 
     }
-    else if (diff < m1_m2_offset_ - 2*play) {
-      m1_m2_offset_ = diff + 2*play; 
+    else if (diff < gearbox.m1_m2_offset - 2*play) {
+      gearbox.m1_m2_offset = diff + 2*play; 
     }
   }
   else{
-    if (diff < m1_m2_offset_ - 2*play){
-      m1_m2_offset_ = diff + 2*play;
+    if (diff < gearbox.m1_m2_offset - 2*play){
+      gearbox.m1_m2_offset = diff + 2*play;
     }
-    else if (diff > m1_m2_offset_ + 2*play) {
-      m1_m2_offset_ = diff - 2*play; 
+    else if (diff > gearbox.m1_m2_offset + 2*play) {
+      gearbox.m1_m2_offset = diff - 2*play; 
     }
   }
 
-  int real_play = (diff - m1_m2_offset_)/2; // Calculate the real play based on the current offset
-  if (verbose) {RCLCPP_DEBUG(logger_, "Real play: %d diff: %d m1_m2_offset_: %d", real_play, diff, m1_m2_offset_);}
+  int real_play = (diff - gearbox.m1_m2_offset)/2; // Calculate the real play based on the current offset
+  if (verbose) {RCLCPP_DEBUG(logger_, "Real play: %d diff: %d gearbox.m1_m2_offset: %d", real_play, diff, gearbox.m1_m2_offset);}
   return real_play;
 }
 
@@ -192,7 +198,7 @@ std::array<double, 4> InstrumentController::joint_angles_from_motors(const std::
   double shaft_rot = (static_cast<double>(current_positions[1] - starting_positions[1] + real_play)); 
   double m2_bend = (static_cast<double>(current_positions[2] - starting_positions[2] - shaft_rot - real_play));
 
-  double bend_degrees = m1_m2_offset_ / (gearbox.get_pulses_per_degree(1) * BEND_FACTOR);
+  double bend_degrees = gearbox.m1_m2_offset / (gearbox.get_pulses_per_degree(1) * BEND_FACTOR);
   double bend_rad = bend_degrees * M_PI / 180.0;
 
   double shaft_roll = shaft_rot * TWO_PI / gearbox.get_pulses_per_rotation(1);

@@ -36,7 +36,7 @@ MotorController::~MotorController()
 {
   stop_stream_reader();
 
-  if (starting_positions_initialized_.load(std::memory_order_acquire))
+  if (starting_positions_initialized.load(std::memory_order_acquire))
   {
     save_state_to_json();
   }

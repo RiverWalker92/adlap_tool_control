@@ -1,11 +1,28 @@
 #pragma once
-#include "adlap_tool_control/adlap_gearbox.hpp"
+#include "adlap_tool_control/gearbox.hpp"
 
 
 // ------------------------------------------------------------
 // Control sequences for specific operations like coupling and setup
 // ------------------------------------------------------------
 
+Gearbox::Gearbox(MotorController& motor_controller, rclcpp::Logger logger, float upper_motor_factor, int lower_motors_play)
+    :motor_controller(motor_controller), logger_(logger), upper_motor_factor(upper_motor_factor), lower_motors_play(lower_motors_play)
+{
+  // Initialize member variables with default values
+  this->lower_motor_start_offset_ = 20 * this->get_pulses_per_degree(1); // Add some extra to compensate for backlash
+  this->gripper_start_offset_ = 200 * this->get_pulses_per_degree(3); // Move it away from the hard stop
+
+  RCLCPP_INFO(logger, "Initialized Gearbox with upper_motor_factor=%.2f and lower_motors_play=%d degrees", upper_motor_factor, lower_motors_play);
+}
+
+Gearbox::~Gearbox()
+{
+  if (motor_controller.starting_positions_initialized.load(std::memory_order_acquire))
+  {
+    save_state_to_json();
+  }
+}
 
 /**
  * @brief Couple the motors to the gearbox.

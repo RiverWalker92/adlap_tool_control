@@ -5,6 +5,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 
 /// @brief Configuration parameters for different motor types
@@ -78,9 +79,12 @@ public:
     // Save state to JSON on shutdown
     void save_state_to_json() const;
     void save_starting_positions_to_json(const std::array<int, 4>& starting_positions_snapshot);
+    std::string get_session_key() const;
+
 
     // State verification / restoration
     bool restore_saved_starting_positions(bool force_restore = false);
+    std::atomic<bool> starting_positions_initialized{false};
 
     // Member variables
     std::array<Motor, 4> motors;  // Motor configuration parameters
@@ -152,8 +156,8 @@ private:
     void find_hall_sensor_positions();
     struct LoadedSavedState
     {
-        std::string start_file_key;
-        std::string shutdown_file_key;
+        std::string start_file_session_key;
+        std::string shutdown_file_session_key;
         std::array<int, 4> start_file_starting_positions{0, 0, 0, 0};
         std::array<int, 4> shutdown_file_starting_positions{0, 0, 0, 0};
         std::array<int, 4> shutdown_file_current_positions{0, 0, 0, 0};
@@ -165,8 +169,8 @@ private:
 
     // Motor state
     std::array<int, 4>  starting_positions = {0, 0, 0, 0}; // Starting positions for the motors
-    std::atomic<bool> starting_positions_initialized_{false};
-    std::string starting_positions_key_;
+    
+    std::string session_key_;
     std::array<int, 4> target_positions_{0, 0, 0, 0};
     std::array<int, 10> response_values_{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::array<int, 4> response_positions_{0, 0, 0, 0};

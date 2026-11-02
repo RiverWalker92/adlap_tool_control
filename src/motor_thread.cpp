@@ -364,7 +364,7 @@ void MotorController::update_starting_positions()
       starting_positions[i] = response_positions_[i];
       starting_positions_snapshot[i] = starting_positions[i];
     }
-    starting_positions_initialized_.store(true, std::memory_order_release);
+    starting_positions_initialized.store(true, std::memory_order_release);
   }
   save_starting_positions_to_json(starting_positions_snapshot);
 }

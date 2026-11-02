@@ -51,9 +51,7 @@ void InstrumentController::manual_adjustment()
         smoothed_shaft_roll_ = update_history_and_get_mean(shaft_roll_history_, 0.0, 1, -M_PI, M_PI);
         RCLCPP_INFO(logger_, "Smoothed angles - roll: '%f', pitch: '%f', yaw: '%f', articulation: '%f'", smoothed_tip_rotation_, smoothed_pitch_, smoothed_yaw_, smoothed_articulation_);
         absolute_shaft_roll_ = 0.0;
-        bend_play_compensation_ = 0;
-        play_comp_position_m1_ = current_positions[1];
-        play_comp_position_m2_ = current_positions[2];
+        gearbox.bend_play_compensation = 0;
         ready_for_angles = true;
         break;
       case KEYCODE_I:
@@ -199,6 +197,20 @@ void InstrumentController::manual_adjustment()
           ready_for_angles = true;
         }
         break;
+      case KEYCODE_T: 
+        RCLCPP_INFO(logger_, "F -> Try soft restore saved starting positions");
+        if (gearbox.motor_controller.restore_saved_starting_positions()) {
+          ready_for_angles = true;
+          RCLCPP_INFO(logger_, "Successfully restored saved starting positions");
+          if(gearbox.load_state_from_json()){
+            RCLCPP_INFO(logger_, "Successfully loaded gearboxstate from JSON");
+          }
+        }
+        else{
+          RCLCPP_ERROR(logger_, "Failed to restore saved starting positions (force with 'F' if not moved and power cycled)");
+          
+        }
+        break;
       case KEYCODE_G:
         RCLCPP_INFO(logger_, "G -> reset joint angles to 0");
         if (!ready_for_angles) {
@@ -219,12 +231,15 @@ void InstrumentController::manual_adjustment()
         RCLCPP_INFO(logger_, "ENTER");
         if (!ready_for_angles) {
           RCLCPP_WARN(logger_, "Not initialized yet, press 'I' to initialize motors and 'U' to update starting positions, will try to restore saved starting positions now");  
-          if (!gearbox.motor_controller.restore_saved_starting_positions()) {
-            RCLCPP_ERROR(logger_, "Failed to restore saved starting positions (force with 'F' if not moved and power cycled)");
-            break;
+          if (gearbox.motor_controller.restore_saved_starting_positions()) {
+            RCLCPP_INFO(logger_, "Successfully restored saved starting positions");
+            if(gearbox.load_state_from_json()){
+              RCLCPP_INFO(logger_, "Successfully loaded gearboxstate from JSON");
+            }
           }
           else{
-            RCLCPP_INFO(logger_, "Successfully restored saved starting positions");
+            RCLCPP_ERROR(logger_, "Failed to restore saved starting positions (force with 'F' if not moved and power cycled)");
+            break;
           }
         }
         input.shutdown();

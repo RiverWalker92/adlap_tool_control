@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
         Motor::create_default(),
         Motor::create_default()
       });
-    Gearbox gearbox = Gearbox::version_1(motor, logger);
+    Gearbox gearbox(motor, logger);
     InstrumentController controller(gearbox, logger);
 
   std::ofstream out(options.output_path);

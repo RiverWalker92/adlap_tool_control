@@ -11,21 +11,12 @@ public:
         
     float upper_motor_factor;    // Gear ratio factor for upper motors (if different)
     int lower_motors_play;       // Backlash compensation in degrees
+    int bend_play_compensation = 0; // Current compensation for the bend play, updated after each motor command
+    int m1_m2_offset = 0;
 
     // Constructor
-    Gearbox(MotorController& motor_controller, rclcpp::Logger logger):motor_controller(motor_controller), logger_(logger) {}
-
-    static Gearbox version_1(MotorController& motor_controller, rclcpp::Logger logger, float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15) {
-        Gearbox gearbox(motor_controller, logger);
-        gearbox.upper_motor_factor = upper_motor_factor;
-        gearbox.lower_motors_play = lower_motors_play;
-
-        gearbox.lower_motor_start_offset_ = 20 * gearbox.get_pulses_per_degree(1); // Add some extra to compensate for backlash
-        gearbox.gripper_start_offset_ = 200 * gearbox.get_pulses_per_degree(3); // Move it away from the hard stop
-
-        RCLCPP_INFO(logger, "Initialized Gearbox with upper_motor_factor=%.2f and lower_motors_play=%d degrees", upper_motor_factor, lower_motors_play);
-        return gearbox;
-    }
+    Gearbox(MotorController& motor_controller, rclcpp::Logger logger, float upper_motor_factor = 25.0f / 15.0f, int lower_motors_play = 15);
+    ~Gearbox();
 
     bool is_upper_motor(int motor_index) const { return motor_index == 0 || motor_index == 3; }
 
@@ -41,6 +32,8 @@ public:
 
     void couple_sequence();
     void setup_motors();
+    void save_state_to_json() const;
+    bool load_state_from_json();
     
 
 private:

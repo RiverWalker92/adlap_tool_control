@@ -1,41 +1,16 @@
 #include "adlap_tool_control/motor_controller.hpp"
+#include "adlap_tool_control/saving_utils.hpp"
 
 #include <array>
-#include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <random>
 #include <string>
 #include <system_error>
-#include <time.h>
 
 namespace
 {
-std::filesystem::path get_state_directory()
-{
-  if (const char* ros_home = std::getenv("ROS_HOME"))
-  {
-    return std::filesystem::path(ros_home) / "adlap_tool_control";
-  }
-  if (const char* home = std::getenv("HOME"))
-  {
-    return std::filesystem::path(home) / ".ros" / "adlap_tool_control";
-  }
-  return std::filesystem::path(".") / "adlap_tool_control";
-}
-
-std::string make_timestamp()
-{
-  std::time_t now = std::time(nullptr);
-  std::tm tm{};
-  localtime_r(&now, &tm);
-  char buffer[32];
-  std::strftime(buffer, sizeof(buffer), "%Y%m%d_%H%M%S", &tm);
-  return std::string(buffer);
-}
-
 nlohmann::json make_position_json(const std::array<int, 4>& positions)
 {
   return nlohmann::json({positions[0], positions[1], positions[2], positions[3]});
@@ -89,11 +64,11 @@ void MotorController::save_state_to_json() const
     std::lock_guard<std::mutex> lock(state_mtx_);
     starting_positions_snapshot = starting_positions;
     current_positions_snapshot = response_positions_;
-    key_copy = starting_positions_key_;
+    key_copy = session_key_;
   }
 
   std::error_code ec;
-  const auto output_dir = get_state_directory();
+  const auto output_dir = saving_utils::get_state_directory();
   std::filesystem::create_directories(output_dir, ec);
   if (ec)
   {
@@ -111,10 +86,10 @@ void MotorController::save_state_to_json() const
   }
 
   nlohmann::json j;
-  j["saved_at"] = make_timestamp();
+  j["saved_at"] = saving_utils::make_timestamp();
   if (!key_copy.empty())
   {
-    j["state_key"] = key_copy;
+    j["session_key"] = key_copy;
   }
   j["starting_positions"] = make_position_json(starting_positions_snapshot);
   j["current_positions"] = make_position_json(current_positions_snapshot);
@@ -125,7 +100,7 @@ void MotorController::save_state_to_json() const
 void MotorController::save_starting_positions_to_json(const std::array<int, 4>& starting_positions_snapshot)
 {
   std::error_code ec;
-  const auto output_dir = get_state_directory();
+  const auto output_dir = saving_utils::get_state_directory();
   std::filesystem::create_directories(output_dir, ec);
   if (ec)
   {
@@ -145,20 +120,26 @@ void MotorController::save_starting_positions_to_json(const std::array<int, 4>& 
   const std::string key = make_random_hex_key(16);
   {
     std::lock_guard<std::mutex> lock(state_mtx_);
-    starting_positions_key_ = key;
+    session_key_ = key;
   }
 
   nlohmann::json j;
-  j["saved_at"] = make_timestamp();
-  j["state_key"] = key;
+  j["saved_at"] = saving_utils::make_timestamp();
+  j["session_key"] = key;
   j["starting_positions"] = make_position_json(starting_positions_snapshot);
   out << j.dump(2) << "\n";
+}
+
+std::string MotorController::get_session_key() const
+{
+    std::lock_guard<std::mutex> lock(state_mtx_);
+    return session_key_;
 }
 
 /** Read both saved JSON files and validate required fields. */
 bool MotorController::load_saved_state_files(MotorController::LoadedSavedState& loaded_state) const
 {
-  const auto dir = get_state_directory();
+  const auto dir = saving_utils::get_state_directory();
   const auto start_file = dir / "starting_positions_last.json";
   const auto shutdown_file = dir / "motor_state_shutdown_last.json";
 
@@ -194,10 +175,10 @@ bool MotorController::load_saved_state_files(MotorController::LoadedSavedState& 
     start_stream >> start_json;
     shutdown_stream >> shutdown_json;
 
-    if (!start_json.contains("state_key") || !start_json["state_key"].is_string() ||
-        !shutdown_json.contains("state_key") || !shutdown_json["state_key"].is_string())
+    if (!start_json.contains("session_key") || !start_json["session_key"].is_string() ||
+        !shutdown_json.contains("session_key") || !shutdown_json["session_key"].is_string())
     {
-      RCLCPP_WARN(logger_, "Missing or invalid state_key in saved state files");
+      RCLCPP_WARN(logger_, "Missing or invalid session_key in saved state files");
       return false;
     }
 
@@ -210,8 +191,8 @@ bool MotorController::load_saved_state_files(MotorController::LoadedSavedState& 
       return false;
     }
 
-    loaded_state.start_file_key = start_json["state_key"].get<std::string>();
-    loaded_state.shutdown_file_key = shutdown_json["state_key"].get<std::string>();
+    loaded_state.start_file_session_key = start_json["session_key"].get<std::string>();
+    loaded_state.shutdown_file_session_key = shutdown_json["session_key"].get<std::string>();
     loaded_state.start_file_starting_positions = *start_positions;
     loaded_state.shutdown_file_starting_positions = *shutdown_start_positions;
     loaded_state.shutdown_file_current_positions = *shutdown_current_positions;
@@ -227,10 +208,10 @@ bool MotorController::load_saved_state_files(MotorController::LoadedSavedState& 
 /** Ensure both JSON files belong to the same saved state. */
 bool MotorController::compare_saved_state_files(const MotorController::LoadedSavedState& loaded_state) const
 {
-  if (loaded_state.start_file_key != loaded_state.shutdown_file_key)
+  if (loaded_state.start_file_session_key != loaded_state.shutdown_file_session_key)
   {
-    RCLCPP_WARN(logger_, "State keys do not match: %s != %s",
-                loaded_state.start_file_key.c_str(), loaded_state.shutdown_file_key.c_str());
+    RCLCPP_WARN(logger_, "Session keys do not match: %s != %s",
+                loaded_state.start_file_session_key.c_str(), loaded_state.shutdown_file_session_key.c_str());
     return false;
   }
 
@@ -301,9 +282,9 @@ bool MotorController::restore_saved_starting_positions(bool force_restore)
     starting_positions = starting_positions_to_apply;
     if (!used_force_offset_restore)
     {
-      starting_positions_key_ = loaded_state.start_file_key;
+      session_key_ = loaded_state.start_file_session_key;
     }
-    starting_positions_initialized_.store(true, std::memory_order_release);
+    starting_positions_initialized.store(true, std::memory_order_release);
   }
 
   if (used_force_offset_restore)

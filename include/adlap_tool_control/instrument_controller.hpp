@@ -1,6 +1,6 @@
 #pragma once
 
-#include "adlap_tool_control/adlap_gearbox.hpp"
+#include "adlap_tool_control/gearbox.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
@@ -17,6 +17,7 @@ class InstrumentController
 {
 public:
     InstrumentController(Gearbox& gearbox, rclcpp::Logger logger);
+    ~InstrumentController();
 
     // Instrument control methods
     void manual_adjustment();
@@ -47,10 +48,6 @@ private:
     std::deque<double> tip_rotation_history_; // History for smoothing
 
     int smoothing_factor_ = 1; // Number of samples to average for smoothing
-    int bend_play_compensation_ = 0; // Current compensation for the bend play, updated after each motor command
-    int play_comp_position_m1_ = 0; 
-    int play_comp_position_m2_ = 0; 
-    int m1_m2_offset_ = 0;
     
     // Instrument state
     double smoothed_shaft_roll_ = 0.0;

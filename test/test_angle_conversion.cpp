@@ -48,7 +48,7 @@ protected:
 					Motor::create_default(),
 					Motor::create_default()
 				    }),
-			gearbox_(Gearbox::version_1(motor_, logger_)),
+			gearbox_(motor_, logger_),
 			controller_(gearbox_, logger_)
 	{
 	}
@@ -111,7 +111,7 @@ TEST_F(AngleConversionTest, OppositeM1M2MotionWithinPlayKeepsAnglesConstant)
 					Motor::create_default(),
 					Motor::create_default()
 				});
-	Gearbox backlash_gearbox = Gearbox::version_1(backlash_motor, logger_);
+	Gearbox backlash_gearbox(backlash_motor, logger_);
 	InstrumentController backlash_controller(backlash_gearbox, logger_);
 
 	const std::array<double, 4> baseline = backlash_controller.euler_angles_from_motors(backlash_motor.get_positions());

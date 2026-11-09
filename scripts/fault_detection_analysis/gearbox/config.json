@@ -12,9 +12,9 @@
   ],
   "runs": [
     {
-      "id": "auto_dof3_resistance_20260921_121136",
+      "id": "degraded_1",
       "label": 1,
-      "file": "data/auto_dof3_resistance_20260921_121136_motor_dt_replay.jsonl"
+      "file": "data/auto_dof3_resistance_20260921_120510_motor_dt_replay.jsonl"
     },
     {
       "id": "auto_dof3_resistance_20261007_101649",
@@ -30,6 +30,11 @@
       "id": "auto_dof3_resistance_20261007_102015",
       "label": 0,
       "file": "data/auto_dof3_resistance_20261007_102015_motor_dt_replay.jsonl"
+    },
+    {
+      "id": "degraded_2",
+      "label": 1,
+      "file": "data/auto_dof3_resistance_20260921_121014_motor_dt_replay.jsonl"
     }
   ]
 }

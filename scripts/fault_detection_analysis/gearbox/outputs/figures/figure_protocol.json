@@ -1,0 +1,22 @@
+{
+  "descriptive_figures": [
+    "lda_rms",
+    "lda_mixed_parameters",
+    "lda_rms_rotation_windows",
+    "lda_rms_five_rotation_blocks"
+  ],
+  "descriptive_fit": "All five-rotation blocks of every run. Not held-out validation.",
+  "validation_figures": [
+    "leave_one_run_out_validation_5",
+    "leave_one_run_out_validation_10"
+  ],
+  "validation_fit": "Exactly one entire run excluded from scaler and LDA fitting in every fold.",
+  "replaced_legacy_figure": "last_five_validation is replaced by run-wise LOOCV figures.",
+  "run_mapping": "run_labels.csv",
+  "formats": [
+    "png",
+    "svg"
+  ],
+  "style_helper": "/home/leanne/ros2_ws/src/adlap_tool_control/scripts/fault_detection_analysis/common/plot_style.py",
+  "style_reference": "Original plots.py dimensions, subplot margins, labels and shared plot_style.py; LOOCV gets one panel per complete held-out run."
+}

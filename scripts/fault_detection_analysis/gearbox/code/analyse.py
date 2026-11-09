@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce the gearbox parameter study from an explicit run manifest.
+"""Gearbox parameter study with complete leave-one-run-out cross-validation.
 
 Run from any directory: python3 code/analyse.py --config config.json
 All residuals come from the supplied Motor DT replays; the DT is not refitted.
@@ -31,8 +31,6 @@ NAMES = dict(zip(PARAMETERS, ['Signed maximum', 'Absolute maximum', 'Phase mean'
     'RC coefficient']))
 COLUMNS = [f'{m}_{p}' for m in ('M0', 'M3') for p in PARAMETERS] + ['shape_corr', 'ellipse_area']
 MAIN_MODELS = ['M0_M3_' + p for p in PARAMETERS] + ['shape_corr', 'ellipse_area']
-FORWARD_MODELS = ['M0_M3_peak', 'M0_M3_abs_auc', 'M0_M3_rms',
-                  'M0_M3_phase_sd', 'M0_M3_rc']
 TRAP = np.trapezoid if hasattr(np, 'trapezoid') else np.trapz
 
 
@@ -203,54 +201,81 @@ def summarise_predictions(predictions):
     return pd.DataFrame(rows)
 
 
-def blocked_validation(features, definitions, progress=False):
+def validate_feature_table(features):
+    required = {'run', 'label', 'window', 'n', 'start', 'end', *COLUMNS}
+    if not required.issubset(features.columns):
+        raise ValueError('Missing required feature-table columns.')
+    if features.run.isna().any() or features.window.isna().any():
+        raise ValueError('Run and window IDs must be present.')
+    if features.duplicated(['run', 'window']).any():
+        raise ValueError('Duplicate run/window observations.')
+    if set(features.label) != {0, 1} or (features.groupby('run').label.nunique() != 1).any():
+        raise ValueError('Each run needs one consistent label: healthy=0, degraded=1.')
+    run_labels = features.groupby('run').label.first()
+    if any(int((run_labels == label).sum()) < 2 for label in (0, 1)):
+        raise ValueError('Complete run-wise LOOCV requires at least two healthy and two degraded runs; withholding a sole run of one class leaves no training examples of that class.')
+    if not np.isfinite(features[COLUMNS].to_numpy()).all():
+        raise ValueError('Features must be finite.')
+    expected = {(w, end-start, start, end) for w, start, end in observation_windows()}
+    for run, group in features.groupby('run'):
+        actual = set(group[['window', 'n', 'start', 'end']].itertuples(index=False, name=None))
+        if actual != expected:
+            raise ValueError(f'Run {run} needs all 12 original observation windows and bounds.')
+
+
+def validation_folds(features, length):
+    """Withhold exactly one complete run, including every block of that run."""
+    observations = features[features.n == length]
+    if observations.empty:
+        raise ValueError(f'No {length}-rotation observations.')
+    for held in observations.run.unique():
+        train = observations[observations.run != held]
+        test = observations[observations.run == held]
+        if set(train.label) != {0, 1}:
+            raise ValueError(f'Withholding {held} removes a training class. Complete LOOCV requires at least two runs of each class.')
+        assert set(train.run).isdisjoint(test.run)
+        yield train, test, dict(n=length, held_out_run=held)
+
+
+def leave_one_run_out_validation(features, definitions, progress=False):
     predictions = []
     for length in [5, 10]:
-        observations = features[features.n == length]
+        folds = list(validation_folds(features, length))
         for index, (name, definition) in enumerate(definitions.items(), start=1):
-            for nominal_run in observations[observations.label == 0].run.unique():
-                for _, withheld in observations[observations.label == 1].iterrows():
-                    overlap = (observations.label == 1) & (observations.start < withheld.end) & (observations.end > withheld.start)
-                    train = observations[(observations.run != nominal_run) & ~overlap]
-                    test = observations[(observations.run == nominal_run) | ((observations.label == 1) & (observations.window == withheld.window))]
-                    assert nominal_run not in train.run.values
-                    assert not ((train.label == 1) & (train.start < withheld.end) & (train.end > withheld.start)).any()
-                    estimator = fit_classifier(train, definition)
-                    metadata = {'n': length, 'model': name, 'held_nominal': nominal_run, 'held_degraded': withheld.window}
-                    predictions.extend(predict_rows(estimator, test, definition, metadata))
+            for train, test, metadata in folds:
+                estimator = fit_classifier(train, definition)
+                predictions.extend(predict_rows(estimator, test, definition,
+                                                dict(metadata, model=name)))
             if progress and (index % 25 == 0 or index == len(definitions)):
                 print(f'Margin analysis: {length} rotations, {index}/{len(definitions)} candidates completed', flush=True)
     return pd.DataFrame(predictions)
 
 
-def chronological_validation(features, definitions):
-    predictions = []
+def write_fold_manifest(features, output):
+    rows = []
     for length in [5, 10]:
-        observations = features[features.n == length]
-        faulty = observations[observations.label == 1].sort_values('start')
-        for name in FORWARD_MODELS:
-            for nominal_run in observations[observations.label == 0].run.unique():
-                for _, withheld in faulty.iloc[2:].iterrows():
-                    train = observations[((observations.label == 0) & (observations.run != nominal_run)) |
-                        ((observations.label == 1) & (observations.end <= withheld.start))]
-                    assert (train[train.label == 1].end <= withheld.start).all()
-                    test = observations[(observations.run == nominal_run) | ((observations.label == 1) & (observations.window == withheld.window))]
-                    estimator = fit_classifier(train, definitions[name])
-                    predictions.extend(predict_rows(estimator, test, definitions[name],
-                        {'n': length, 'model': name, 'held_nominal': nominal_run, 'held_degraded': withheld.window}))
-    return pd.DataFrame(predictions)
+        for train, test, metadata in validation_folds(features, length):
+            rows.append(dict(metadata,
+                training_runs=';'.join(train.run.unique()),
+                test_runs=';'.join(test.run.unique()),
+                n_train=len(train), n_test=len(test),
+                training_observations=';'.join(train.run + ':' + train.window),
+                test_observations=';'.join(test.run + ':' + test.window)))
+    pd.DataFrame(rows).to_csv(Path(output)/'fold_manifest.csv', index=False)
 
 
 def margin_ranking(predictions, definitions):
     """Exploratory ranking of held-out predictions, separately for n=5/10.
 
-    A positive margin points towards the true class. Repeated predictions of
-    the same block are dependent: retain their worst margin and median, then
-    give each unique block one entry when summarising within each class.
+    A positive margin points towards the true class. Each block has one
+    held-out prediction per model and length; the stored per-block minimum
+    and median are both that single margin. Class medians weight blocks once.
     Undefined margins (e.g. zero discriminant variance) are never ranked.
     """
     keys = ['n', 'model', 'run', 'window', 'label']
     data = predictions.copy()
+    if data.duplicated(keys).any():
+        raise ValueError('LOOCV must produce exactly one prediction per block and model.')
     data['margin_valid'] = np.isfinite(data.margin)
     blocks = data.groupby(keys, as_index=False).agg(
         margin_min=('margin', 'min'), margin_median=('margin', 'median'),
@@ -292,7 +317,7 @@ def margin_ranking(predictions, definitions):
 
 
 def write_margin_outputs(predictions, definitions, output, make_plot=True, reference_checks=None):
-    """Use blocked CV only; descriptive/full-data scores must not enter here."""
+    """Use complete run-wise LOOCV only; descriptive/full-data scores must not enter here."""
     output = Path(output)
     blocks, ranking = margin_ranking(predictions, definitions)
     blocks.to_csv(output/'cv_margin_blocks.csv', index=False)
@@ -323,13 +348,14 @@ def write_margin_outputs(predictions, definitions, output, make_plot=True, refer
         'Sigma': 'Training-only prior-weighted within-class covariance with automatic shrinkage',
         'threshold': 0,
         'ranking': 'Perfect classification first; then balanced accuracy, valid margins, largest worst margin, weaker-class median, fewer features, model name. rank_perfect only numbers perfect models with valid margins.',
-        'repeated_predictions': 'Per block: minimum across held-out folds for worst margin; median across held-out folds for typical margin. Class medians weight each unique block once.',
+        'repeated_predictions': 'None: every block has exactly one held-out prediction per model and observation length. Per-block minimum and median therefore equal that one margin.',
+        'validation': 'Leave one complete run out. StandardScaler and shrinkage LDA fitted only on all other runs.',
         'both_lengths': 'Only candidates perfect with valid margins at both n=5 and n=10; largest worst margin across both lengths first.',
         'zero_variance': 'Undefined normalized margins are NaN; candidate excluded from margin ranking.',
         'scope': f'{len(definitions)} classifiers; see cv_margin_model_registry.csv for candidate features and aliases.',
         'n_candidates': len(definitions),
         'reference_checks': reference_checks or {},
-        'limitations': 'Exploratory selection, not nested validation. One degraded run; folds and blocks are dependent. No independent evidence of general superiority. Margins are model-based SD units, not calibrated probabilities or measured noise tolerance.'}
+        'limitations': 'Exploratory selection, not nested validation. Folds and blocks within runs are dependent. Exactly one entire run is held out in every fold; at least two runs per class are required. No independent evidence of general superiority. Margins are model-based SD units, not calibrated probabilities or measured noise tolerance.'}
     (output/'cv_margin_metadata.json').write_text(json.dumps(metadata, indent=2))
     if make_plot:
         import matplotlib
@@ -387,7 +413,9 @@ def check_combination_reference(predictions, definitions, output):
     path = output/'combinations/cv_predictions.csv'
     if path.exists():
         reference = pd.read_csv(path)
-        keys = ['n', 'model', 'held_nominal', 'held_degraded', 'run', 'window', 'label']
+        keys = ['n', 'model', 'held_out_run', 'run', 'window', 'label']
+        if not set(keys).issubset(reference.columns):
+            raise ValueError('Existing combinations exports use a different validation protocol. Use a fresh output directory for leave-one-run-out CV.')
         joined = predictions.merge(reference[keys + ['predicted']], on=keys,
                                    how='outer', suffixes=('_new', '_reference'),
                                    indicator=True, validate='one_to_one')
@@ -409,11 +437,11 @@ def check_combination_reference(predictions, definitions, output):
 
 
 def rank_feature_margins(features, output, make_plot=True):
-    """Evaluate all singles and pairs on the original held-out folds."""
+    """Evaluate all singles and pairs using complete run-wise LOOCV."""
     output = Path(output)
     definitions = combination_model_definitions()
     print('Comparing all 300 candidates: 24 single features and 276 pairs.', flush=True)
-    predictions = blocked_validation(features, definitions, progress=True)
+    predictions = leave_one_run_out_validation(features, definitions, progress=True)
     checks = check_combination_reference(predictions, definitions, output)
     if checks:
         print('Existing combination results verified:', checks, flush=True)
@@ -433,11 +461,19 @@ def rank_feature_margins(features, output, make_plot=True):
 def rank_existing_features(output, make_plot=True):
     """Re-fit all 300 candidates; raw replay files are not needed."""
     output = Path(output)
-    return rank_feature_margins(pd.read_csv(output/'features.csv'), output, make_plot)
+    features = pd.read_csv(output/'features.csv')
+    validate_feature_table(features)
+    write_fold_manifest(features, output)
+    return rank_feature_margins(features, output, make_plot)
 
 
 def run(config_path, output):
     config = json.loads(config_path.read_text())
+    specs = config['runs']
+    if any(spec['label'] not in (0, 1) for spec in specs):
+        raise ValueError('Run labels must be healthy=0 or degraded=1.')
+    if any(sum(spec['label'] == label for spec in specs) < 2 for label in (0, 1)):
+        raise ValueError('Complete run-wise LOOCV requires at least two healthy and two degraded runs.')
     output.mkdir(parents=True, exist_ok=True)
     phase = np.linspace(-np.pi, np.pi, config['phase_samples'] + 1)
     rotations, observations, inventory, sampling = {}, [], [], []
@@ -458,6 +494,8 @@ def run(config_path, output):
                 n=end-start, start=start, end=end, centre=(start+end+1)/2,
                 **extract_parameters(profile, phase)))
     features = pd.DataFrame(observations)
+    validate_feature_table(features)
+    write_fold_manifest(features, output)
     assert len(features) == len(config['runs']) * 12
     features.to_csv(output/'features.csv', index=False)
     pd.DataFrame(inventory).to_csv(output/'inventory.csv', index=False)
@@ -477,17 +515,20 @@ def run(config_path, output):
         group[COLUMNS].corr().to_csv(output/f'correlation_{scope}.csv')
     definitions = model_definitions()
     (output/'model_definitions.json').write_text(json.dumps(definitions, indent=2))
-    predictions = blocked_validation(features, definitions)
+    predictions = leave_one_run_out_validation(features, definitions)
     predictions.to_csv(output/'cv_predictions.csv', index=False)
+    run_results = []
+    for (length, model, run), group in predictions.groupby(['n', 'model', 'run'], sort=False):
+        run_results.append(dict(n=length, model=model, run=run, label=int(group.label.iloc[0]),
+            n_blocks=len(group), correct=int((group.predicted == group.label).sum()),
+            predicted_degraded=int(group.predicted.sum())))
+    pd.DataFrame(run_results).to_csv(output/'cv_per_run_counts.csv', index=False)
     summarise_predictions(predictions).to_csv(output/'cv_summary.csv', index=False)
     rank_feature_margins(features, output)
     votes = predictions.groupby(['n','model','run','window','label']).predicted.agg(['mean','size']).reset_index()
     votes['predicted'] = (votes['mean'] > .5).astype(int)
     votes['tie'] = votes['mean'] == .5
     votes.to_csv(output/'cv_unique_block_votes.csv', index=False)
-    forward = chronological_validation(features, definitions)
-    forward.to_csv(output/'chronological_predictions.csv', index=False)
-    summarise_predictions(forward).to_csv(output/'chronological_summary.csv', index=False)
     descriptive, coefficients = [], {}
     models_dir = output/'models'; models_dir.mkdir(exist_ok=True)
     for name, definition in definitions.items():
@@ -517,17 +558,22 @@ def run(config_path, output):
         'scipy': scipy.__version__, 'scikit_learn': sklearn.__version__, 'joblib': joblib.__version__}
     (output/'analysis_metadata.json').write_text(json.dumps({'config': config, 'versions': versions,
         'RC': 'OLS slope of current residual against phase with intercept, using unique phase points; mA/rad. This coefficient depends on the phase origin.',
-        'validation': 'Healthy run and degraded block withheld; 5 and 10 rotations separately',
-        'limitations': 'One degraded run. Repeated fold predictions are dependent. Twenty- and thirty-rotation predictions are descriptive.'}, indent=2))
+        'validation': 'Leave one entire run out; all its blocks excluded from scaler and LDA fitting; 5 and 10 rotations separately',
+        'validation_group': 'run',
+        'folds_per_observation_length': int(features.run.nunique()),
+        'predictions_per_block_per_model': 1,
+        'healthy_runs': int(features.loc[features.label == 0, 'run'].nunique()),
+        'degraded_runs': int(features.loc[features.label == 1, 'run'].nunique()),
+        'limitations': 'Blocks within a run and fitted CV models are dependent; each block is tested exactly once per model and observation length. Candidate selection is exploratory, not nested. Twenty- and thirty-rotation predictions are descriptive.'}, indent=2))
     print(summarise_predictions(predictions).query("model == 'M0_M3_rms'").to_string(index=False))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', type=Path)
+    parser.add_argument('--config', type=Path, default=Path(__file__).resolve().parents[1]/'config.json')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--rank-margins-only', action='store_true',
-                        help='Re-fit blocked CV from an existing OUTPUT/features.csv and rank margins; no raw replays needed.')
+                        help='Re-fit complete run-wise LOOCV from an existing OUTPUT/features.csv and rank margins; no raw replays needed.')
     parser.add_argument('--no-margin-plots', action='store_true',
                         help='Skip margin figures in --rank-margins-only mode.')
     args = parser.parse_args()
@@ -541,4 +587,4 @@ if __name__ == '__main__':
         if args.no_margin_plots:
             parser.error('--no-margin-plots is only supported with --rank-margins-only')
         config_path = args.config.resolve()
-        run(config_path, args.output.resolve() if args.output else config_path.parent/'output')
+        run(config_path, args.output.resolve() if args.output else config_path.parent/'outputs')

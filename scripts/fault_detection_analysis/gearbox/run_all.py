@@ -1,32 +1,42 @@
-"""Run the current gearbox analysis, PNG plots and numerical checks."""
+#!/usr/bin/env python3
+"""Run gearbox analysis, all figures and saved-output verification."""
 from pathlib import Path
-import argparse, os, subprocess, sys
-sys.dont_write_bytecode=True
-root=Path(__file__).resolve().parent
-common=root.parent/'common'
-sys.path[:0]=[str(root/'code'),str(common)]
-os.environ['PYTHONPATH']=os.pathsep.join([str(common),str(root/'code'),os.environ.get('PYTHONPATH','')])
-os.environ['MPLBACKEND']='Agg'
-os.environ['PYTHONDONTWRITEBYTECODE']='1'
-for name in ['OPENBLAS_NUM_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS']:os.environ.setdefault(name,'1')
-p=argparse.ArgumentParser(description=__doc__)
-mode=p.add_mutually_exclusive_group()
-mode.add_argument('--plots-only',action='store_true',help='Regenerate PNG figures and compact CSV tables from existing results.')
-mode.add_argument('--verify-only',action='store_true',help='Check the saved analysis results.')
-mode.add_argument('--combinations-only',action='store_true',help='Reuse features and rerun the parameter-combination analysis (gearbox/scissors).')
-a=p.parse_args()
-out=root/'outputs';out.mkdir(exist_ok=True)
-def command(script,*args):
-    subprocess.run([sys.executable,str(root/'code'/script),*map(str,args)],cwd=root,check=True)
+import argparse
+import shutil
+import subprocess
+import sys
 
-if not a.plots_only and not a.verify_only:
-    if not a.combinations_only:command('analyse.py','--config',root/'config.json','--output',out)
-    import combinations
-    combinations.run(out)
-import combinations
-if not a.verify_only:
-    combinations.export_tables(out)
-    import plots
-    plots.run(out)
-if not a.plots_only:command('verify.py','--output',out,'--figures',out/'figures')
-print('Results:',out)
+ROOT = Path(__file__).resolve().parent
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config', type=Path, default=ROOT/'config.json')
+    parser.add_argument('--output', type=Path, default=ROOT/'outputs')
+    args = parser.parse_args()
+    config = args.config.resolve()
+    output = args.output.resolve()
+    if not config.is_file():
+        parser.error(f'Missing {config}. First run clean_project.py with the current results folder.')
+    # The 300 candidates are now produced by analyse.py as cv_margin_*.
+    # The old combinations/ files use a different validation protocol.
+    legacy = output/'combinations'
+    if legacy.is_symlink():
+        parser.error(f'Refusing to remove a symbolic link: {legacy}')
+    if legacy.is_dir():
+        print(f'Removing obsolete combination exports: {legacy}', flush=True)
+        shutil.rmtree(legacy)
+    steps = [
+        ['analyse.py', '--config', str(config), '--output', str(output)],
+        ['plots.py', '--output', str(output)],
+        ['verify.py', '--output', str(output), '--figures', str(output/'figures')],
+    ]
+    for script, *arguments in steps:
+        print(f'\nGearbox: {script}', flush=True)
+        subprocess.run([sys.executable, str(ROOT/'code'/script), *arguments],
+                       check=True, cwd=ROOT)
+    print(f'\nCompleted. Results: {output}\nFigures: {output / "figures"}', flush=True)
+
+
+if __name__ == '__main__':
+    main()

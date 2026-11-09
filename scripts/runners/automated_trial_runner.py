@@ -272,7 +272,7 @@ def resolve_pattern_mode(
 
     if requested_pattern_mode == "auto":
         if coupling_mode == "motor_only":
-            return "motor"
+            return "dof"
 
         return "dof"
 

@@ -8,8 +8,8 @@
   "score": "Raw LDA decision_function; no true-label sign reversal or normalization.",
   "decision_boundary": 0,
   "y_axis_limits": [
-    -28.538544252068363,
-    29.792614677707782
+    -50.19156150146175,
+    63.021805830381496
   ],
   "windows": [
     {
@@ -52,12 +52,13 @@
     "Healthy run 3": "auto_dof3_resistance_20261007_102015"
   },
   "degraded_runs": [
-    "auto_dof3_resistance_20260921_121136"
+    "degraded_1",
+    "degraded_2"
   ],
   "raw_feature_weights": [
-    5.083037595561369,
-    2.9720677086080944
+    4.535912610616074,
+    1.1432358409004553
   ],
-  "raw_feature_intercept": -63.407593138539035,
+  "raw_feature_intercept": -66.33425962733872,
   "interpretation": "Descriptive window comparison, not independent cross-validation. Model training includes these measurements. The overview includes overlapping windows; five-rotation blocks are disjoint within each run but are not independent runs."
 }

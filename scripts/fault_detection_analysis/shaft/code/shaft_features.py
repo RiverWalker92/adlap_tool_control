@@ -9,13 +9,13 @@ CURRENT = ['maximum','absolute_maximum','mean','absolute_integral','positive_int
 VIDEO = ['gain_positive','gain_negative','gain_difference','video_mae','video_rmse','video_peak','video_relative_mae']
 RANGES = ['small','medium','full']
 AMPLITUDES = {'r0p2':('small',.10),'r0p5':('medium',.20),'r1p0':('full',.40)}
-
+ACTIVE_MOTORS = (1, 2)
 
 def definitions():
     labels=['Signed maximum','Absolute maximum','Phase mean','Absolute phase integral','Positive phase integral','RMS','Population SD','Peak-to-peak range','Fundamental amplitude','Second harmonic amplitude','RC coefficient']
     formulas=['max r','max |r|','integral r dphi / (2*pi)','integral |r| dphi','integral max(r,0) dphi','sqrt(mean r^2)','sqrt(mean (r - sample_mean)^2)','max r - min r','sqrt(a1^2+b1^2), native-sample least squares','sqrt(a2^2+b2^2), native-sample least squares','OLS slope of residual against fixed-origin command-cycle phase, with intercept']
     rows=[]
-    for m in range(4):
+    for m in ACTIVE_MOTORS:
         for key,label,formula in zip(CURRENT,labels,formulas):
             rows.append(dict(feature=f'M{m}_{key}',label=f'M{m} {label}',family='current',unit='mA rad' if 'integral' in key else ('mA/rad' if key=='rc' else 'mA'),definition=formula))
     labels=['Positive gain','Negative gain','Absolute gain difference','Centred video MAE','Centred video RMSE','Absolute centred video peak','Relative video MAE']
@@ -103,7 +103,7 @@ def extract(manifest_path,out,data_dir=None):
         cmd=column(ros,'commanded_instrument_angles',1);cv=interpolate(tr,cmd,tv)
         vc=cr[np.clip(np.searchsorted(tr,tv,side='right')-1,0,len(tr)-1)]
         residuals=[];filter_errors=[]
-        for m in range(4):
+        for m in ACTIVE_MOTORS:
             filtered=column(motor,'filtered_measured_currents',m);raw=column(motor,'raw_measured_currents',m)
             residual=filtered-column(motor,'offline_predicted_currents',m)
             if np.nanmax(abs(residual-column(motor,'filtered_current_deviation',m)))>1e-8:raise ValueError('Current residual mismatch')
@@ -137,8 +137,10 @@ def extract(manifest_path,out,data_dir=None):
                          cycle=cycle+1,range=range_name,waveform=wave,frequency_hz=frequency,command_amplitude_rad=amplitude,
                          start_s=a,end_s=b,current_n=int(mask.sum()),video_n=int(vm.sum()),current_coverage=ci,video_coverage=vi,
                          observed_command_peak_rad=float(np.max(abs(cmd[(tr>=a)&(tr<b)]))))
-                for m in range(4):
-                    features,sample_mean=current_parameters(tm[mask],currents[mask,m],a,b)
+                for column_index, m in enumerate(ACTIVE_MOTORS):
+                    features, sample_mean = current_parameters(
+                        tm[mask], currents[mask, column_index], a, b
+                    )
                     for k,v in features.items():row[f'M{m}_{k}']=v
                     row[f'M{m}_arithmetic_mean']=sample_mean
                     if not np.isclose(features['rms']**2,sample_mean**2+features['sd']**2,atol=1e-8):raise ValueError('RMS identity failed')

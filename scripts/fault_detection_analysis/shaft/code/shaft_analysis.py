@@ -17,29 +17,29 @@ import shaft_features as f
 
 
 def models():
-    registry={}
-    def add(key,columns,label):registry[key]=dict(features=columns,label=label)
-    d=f.definitions().set_index('feature')
-    for m in range(4):
-        for param in f.CURRENT:
-            key=f'M{m}_{param}';add(key,[key],d.loc[key,'label'])
-    for param in f.CURRENT:add('M1M2_'+param,['M1_'+param,'M2_'+param],'M1 + M2 '+d.loc['M1_'+param,'label'][3:])
-    for key in f.VIDEO:add(key,[key],d.loc[key,'label'])
-    add('gain_pair',['gain_positive','gain_negative'],'Positive + negative gain')
-    add('video_compact',['gain_difference','video_mae'],'Gain difference + centred video MAE')
-    for m in [1,2]:
-        for param in f.CURRENT:
-            current=f'M{m}_{param}'
-            for vid,suffix,label in [('gain_difference','gain','gain difference'),('video_mae','video','video MAE')]:
-                add(current+'_'+suffix,[current,vid],d.loc[current,'label']+' + '+label)
-    add('current_plane',['M1_absolute_maximum','M2_rms'],'M1 absolute maximum + M2 RMS')
-    add('current_compact',['M1_absolute_maximum','M2_mean','M2_a2'],'M1 peak + M2 mean + M2 A2')
-    add('mixed_compact',['M1_absolute_maximum','M2_mean','M2_a2','gain_difference'],'Three current features + gain difference')
-    active=[f'M{m}_{p}' for m in [1,2] for p in f.CURRENT]
-    add('all_active_current',active,'All 22 M1/M2 current parameters')
-    add('all_active_mixed',active+f.VIDEO,'All 22 active current + 7 video parameters')
-    return registry
+    from itertools import combinations
 
+    definitions = f.definitions().set_index('feature')
+    features = list(definitions.index)
+    registry = {}
+
+    for feature in features:
+        registry[feature] = {
+            'features': [feature],
+            'label': definitions.loc[feature, 'label'],
+        }
+
+    for first, second in combinations(features, 2):
+        registry[f'{first}__{second}'] = {
+            'features': [first, second],
+            'label': (
+                definitions.loc[first, 'label']
+                + ' + '
+                + definitions.loc[second, 'label']
+            ),
+        }
+
+    return registry
 
 MAIN=['M1_absolute_maximum','M1_rms','M2_mean','M2_a2','M2_rc','gain_difference','gain_pair','video_mae',
       'M1_absolute_maximum_gain','M2_mean_gain','M2_a2_gain','M2_a2_video','current_compact','mixed_compact']

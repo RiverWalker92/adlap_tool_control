@@ -1,0 +1,3035 @@
+{
+  "python": "3.12.3",
+  "numpy": "1.26.4",
+  "pandas": "2.1.4",
+  "sklearn": "1.4.1.post1",
+  "n_runs": 4,
+  "n_cycles": 216,
+  "n_conditions": 72,
+  "n_features": 29,
+  "models": {
+    "M1_maximum": {
+      "features": [
+        "M1_maximum"
+      ],
+      "label": "M1 Signed maximum"
+    },
+    "M1_absolute_maximum": {
+      "features": [
+        "M1_absolute_maximum"
+      ],
+      "label": "M1 Absolute maximum"
+    },
+    "M1_mean": {
+      "features": [
+        "M1_mean"
+      ],
+      "label": "M1 Phase mean"
+    },
+    "M1_absolute_integral": {
+      "features": [
+        "M1_absolute_integral"
+      ],
+      "label": "M1 Absolute phase integral"
+    },
+    "M1_positive_integral": {
+      "features": [
+        "M1_positive_integral"
+      ],
+      "label": "M1 Positive phase integral"
+    },
+    "M1_rms": {
+      "features": [
+        "M1_rms"
+      ],
+      "label": "M1 RMS"
+    },
+    "M1_sd": {
+      "features": [
+        "M1_sd"
+      ],
+      "label": "M1 Population SD"
+    },
+    "M1_range": {
+      "features": [
+        "M1_range"
+      ],
+      "label": "M1 Peak-to-peak range"
+    },
+    "M1_a1": {
+      "features": [
+        "M1_a1"
+      ],
+      "label": "M1 Fundamental amplitude"
+    },
+    "M1_a2": {
+      "features": [
+        "M1_a2"
+      ],
+      "label": "M1 Second harmonic amplitude"
+    },
+    "M1_rc": {
+      "features": [
+        "M1_rc"
+      ],
+      "label": "M1 RC coefficient"
+    },
+    "M2_maximum": {
+      "features": [
+        "M2_maximum"
+      ],
+      "label": "M2 Signed maximum"
+    },
+    "M2_absolute_maximum": {
+      "features": [
+        "M2_absolute_maximum"
+      ],
+      "label": "M2 Absolute maximum"
+    },
+    "M2_mean": {
+      "features": [
+        "M2_mean"
+      ],
+      "label": "M2 Phase mean"
+    },
+    "M2_absolute_integral": {
+      "features": [
+        "M2_absolute_integral"
+      ],
+      "label": "M2 Absolute phase integral"
+    },
+    "M2_positive_integral": {
+      "features": [
+        "M2_positive_integral"
+      ],
+      "label": "M2 Positive phase integral"
+    },
+    "M2_rms": {
+      "features": [
+        "M2_rms"
+      ],
+      "label": "M2 RMS"
+    },
+    "M2_sd": {
+      "features": [
+        "M2_sd"
+      ],
+      "label": "M2 Population SD"
+    },
+    "M2_range": {
+      "features": [
+        "M2_range"
+      ],
+      "label": "M2 Peak-to-peak range"
+    },
+    "M2_a1": {
+      "features": [
+        "M2_a1"
+      ],
+      "label": "M2 Fundamental amplitude"
+    },
+    "M2_a2": {
+      "features": [
+        "M2_a2"
+      ],
+      "label": "M2 Second harmonic amplitude"
+    },
+    "M2_rc": {
+      "features": [
+        "M2_rc"
+      ],
+      "label": "M2 RC coefficient"
+    },
+    "gain_positive": {
+      "features": [
+        "gain_positive"
+      ],
+      "label": "Positive gain"
+    },
+    "gain_negative": {
+      "features": [
+        "gain_negative"
+      ],
+      "label": "Negative gain"
+    },
+    "gain_difference": {
+      "features": [
+        "gain_difference"
+      ],
+      "label": "Absolute gain difference"
+    },
+    "video_mae": {
+      "features": [
+        "video_mae"
+      ],
+      "label": "Centred video MAE"
+    },
+    "video_rmse": {
+      "features": [
+        "video_rmse"
+      ],
+      "label": "Centred video RMSE"
+    },
+    "video_peak": {
+      "features": [
+        "video_peak"
+      ],
+      "label": "Absolute centred video peak"
+    },
+    "video_relative_mae": {
+      "features": [
+        "video_relative_mae"
+      ],
+      "label": "Relative video MAE"
+    },
+    "M1_maximum__M1_absolute_maximum": {
+      "features": [
+        "M1_maximum",
+        "M1_absolute_maximum"
+      ],
+      "label": "M1 Signed maximum + M1 Absolute maximum"
+    },
+    "M1_maximum__M1_mean": {
+      "features": [
+        "M1_maximum",
+        "M1_mean"
+      ],
+      "label": "M1 Signed maximum + M1 Phase mean"
+    },
+    "M1_maximum__M1_absolute_integral": {
+      "features": [
+        "M1_maximum",
+        "M1_absolute_integral"
+      ],
+      "label": "M1 Signed maximum + M1 Absolute phase integral"
+    },
+    "M1_maximum__M1_positive_integral": {
+      "features": [
+        "M1_maximum",
+        "M1_positive_integral"
+      ],
+      "label": "M1 Signed maximum + M1 Positive phase integral"
+    },
+    "M1_maximum__M1_rms": {
+      "features": [
+        "M1_maximum",
+        "M1_rms"
+      ],
+      "label": "M1 Signed maximum + M1 RMS"
+    },
+    "M1_maximum__M1_sd": {
+      "features": [
+        "M1_maximum",
+        "M1_sd"
+      ],
+      "label": "M1 Signed maximum + M1 Population SD"
+    },
+    "M1_maximum__M1_range": {
+      "features": [
+        "M1_maximum",
+        "M1_range"
+      ],
+      "label": "M1 Signed maximum + M1 Peak-to-peak range"
+    },
+    "M1_maximum__M1_a1": {
+      "features": [
+        "M1_maximum",
+        "M1_a1"
+      ],
+      "label": "M1 Signed maximum + M1 Fundamental amplitude"
+    },
+    "M1_maximum__M1_a2": {
+      "features": [
+        "M1_maximum",
+        "M1_a2"
+      ],
+      "label": "M1 Signed maximum + M1 Second harmonic amplitude"
+    },
+    "M1_maximum__M1_rc": {
+      "features": [
+        "M1_maximum",
+        "M1_rc"
+      ],
+      "label": "M1 Signed maximum + M1 RC coefficient"
+    },
+    "M1_maximum__M2_maximum": {
+      "features": [
+        "M1_maximum",
+        "M2_maximum"
+      ],
+      "label": "M1 Signed maximum + M2 Signed maximum"
+    },
+    "M1_maximum__M2_absolute_maximum": {
+      "features": [
+        "M1_maximum",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Signed maximum + M2 Absolute maximum"
+    },
+    "M1_maximum__M2_mean": {
+      "features": [
+        "M1_maximum",
+        "M2_mean"
+      ],
+      "label": "M1 Signed maximum + M2 Phase mean"
+    },
+    "M1_maximum__M2_absolute_integral": {
+      "features": [
+        "M1_maximum",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Signed maximum + M2 Absolute phase integral"
+    },
+    "M1_maximum__M2_positive_integral": {
+      "features": [
+        "M1_maximum",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Signed maximum + M2 Positive phase integral"
+    },
+    "M1_maximum__M2_rms": {
+      "features": [
+        "M1_maximum",
+        "M2_rms"
+      ],
+      "label": "M1 Signed maximum + M2 RMS"
+    },
+    "M1_maximum__M2_sd": {
+      "features": [
+        "M1_maximum",
+        "M2_sd"
+      ],
+      "label": "M1 Signed maximum + M2 Population SD"
+    },
+    "M1_maximum__M2_range": {
+      "features": [
+        "M1_maximum",
+        "M2_range"
+      ],
+      "label": "M1 Signed maximum + M2 Peak-to-peak range"
+    },
+    "M1_maximum__M2_a1": {
+      "features": [
+        "M1_maximum",
+        "M2_a1"
+      ],
+      "label": "M1 Signed maximum + M2 Fundamental amplitude"
+    },
+    "M1_maximum__M2_a2": {
+      "features": [
+        "M1_maximum",
+        "M2_a2"
+      ],
+      "label": "M1 Signed maximum + M2 Second harmonic amplitude"
+    },
+    "M1_maximum__M2_rc": {
+      "features": [
+        "M1_maximum",
+        "M2_rc"
+      ],
+      "label": "M1 Signed maximum + M2 RC coefficient"
+    },
+    "M1_maximum__gain_positive": {
+      "features": [
+        "M1_maximum",
+        "gain_positive"
+      ],
+      "label": "M1 Signed maximum + Positive gain"
+    },
+    "M1_maximum__gain_negative": {
+      "features": [
+        "M1_maximum",
+        "gain_negative"
+      ],
+      "label": "M1 Signed maximum + Negative gain"
+    },
+    "M1_maximum__gain_difference": {
+      "features": [
+        "M1_maximum",
+        "gain_difference"
+      ],
+      "label": "M1 Signed maximum + Absolute gain difference"
+    },
+    "M1_maximum__video_mae": {
+      "features": [
+        "M1_maximum",
+        "video_mae"
+      ],
+      "label": "M1 Signed maximum + Centred video MAE"
+    },
+    "M1_maximum__video_rmse": {
+      "features": [
+        "M1_maximum",
+        "video_rmse"
+      ],
+      "label": "M1 Signed maximum + Centred video RMSE"
+    },
+    "M1_maximum__video_peak": {
+      "features": [
+        "M1_maximum",
+        "video_peak"
+      ],
+      "label": "M1 Signed maximum + Absolute centred video peak"
+    },
+    "M1_maximum__video_relative_mae": {
+      "features": [
+        "M1_maximum",
+        "video_relative_mae"
+      ],
+      "label": "M1 Signed maximum + Relative video MAE"
+    },
+    "M1_absolute_maximum__M1_mean": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_mean"
+      ],
+      "label": "M1 Absolute maximum + M1 Phase mean"
+    },
+    "M1_absolute_maximum__M1_absolute_integral": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_absolute_integral"
+      ],
+      "label": "M1 Absolute maximum + M1 Absolute phase integral"
+    },
+    "M1_absolute_maximum__M1_positive_integral": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_positive_integral"
+      ],
+      "label": "M1 Absolute maximum + M1 Positive phase integral"
+    },
+    "M1_absolute_maximum__M1_rms": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_rms"
+      ],
+      "label": "M1 Absolute maximum + M1 RMS"
+    },
+    "M1_absolute_maximum__M1_sd": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_sd"
+      ],
+      "label": "M1 Absolute maximum + M1 Population SD"
+    },
+    "M1_absolute_maximum__M1_range": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_range"
+      ],
+      "label": "M1 Absolute maximum + M1 Peak-to-peak range"
+    },
+    "M1_absolute_maximum__M1_a1": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_a1"
+      ],
+      "label": "M1 Absolute maximum + M1 Fundamental amplitude"
+    },
+    "M1_absolute_maximum__M1_a2": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_a2"
+      ],
+      "label": "M1 Absolute maximum + M1 Second harmonic amplitude"
+    },
+    "M1_absolute_maximum__M1_rc": {
+      "features": [
+        "M1_absolute_maximum",
+        "M1_rc"
+      ],
+      "label": "M1 Absolute maximum + M1 RC coefficient"
+    },
+    "M1_absolute_maximum__M2_maximum": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_maximum"
+      ],
+      "label": "M1 Absolute maximum + M2 Signed maximum"
+    },
+    "M1_absolute_maximum__M2_absolute_maximum": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Absolute maximum + M2 Absolute maximum"
+    },
+    "M1_absolute_maximum__M2_mean": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_mean"
+      ],
+      "label": "M1 Absolute maximum + M2 Phase mean"
+    },
+    "M1_absolute_maximum__M2_absolute_integral": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Absolute maximum + M2 Absolute phase integral"
+    },
+    "M1_absolute_maximum__M2_positive_integral": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Absolute maximum + M2 Positive phase integral"
+    },
+    "M1_absolute_maximum__M2_rms": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_rms"
+      ],
+      "label": "M1 Absolute maximum + M2 RMS"
+    },
+    "M1_absolute_maximum__M2_sd": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_sd"
+      ],
+      "label": "M1 Absolute maximum + M2 Population SD"
+    },
+    "M1_absolute_maximum__M2_range": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_range"
+      ],
+      "label": "M1 Absolute maximum + M2 Peak-to-peak range"
+    },
+    "M1_absolute_maximum__M2_a1": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_a1"
+      ],
+      "label": "M1 Absolute maximum + M2 Fundamental amplitude"
+    },
+    "M1_absolute_maximum__M2_a2": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_a2"
+      ],
+      "label": "M1 Absolute maximum + M2 Second harmonic amplitude"
+    },
+    "M1_absolute_maximum__M2_rc": {
+      "features": [
+        "M1_absolute_maximum",
+        "M2_rc"
+      ],
+      "label": "M1 Absolute maximum + M2 RC coefficient"
+    },
+    "M1_absolute_maximum__gain_positive": {
+      "features": [
+        "M1_absolute_maximum",
+        "gain_positive"
+      ],
+      "label": "M1 Absolute maximum + Positive gain"
+    },
+    "M1_absolute_maximum__gain_negative": {
+      "features": [
+        "M1_absolute_maximum",
+        "gain_negative"
+      ],
+      "label": "M1 Absolute maximum + Negative gain"
+    },
+    "M1_absolute_maximum__gain_difference": {
+      "features": [
+        "M1_absolute_maximum",
+        "gain_difference"
+      ],
+      "label": "M1 Absolute maximum + Absolute gain difference"
+    },
+    "M1_absolute_maximum__video_mae": {
+      "features": [
+        "M1_absolute_maximum",
+        "video_mae"
+      ],
+      "label": "M1 Absolute maximum + Centred video MAE"
+    },
+    "M1_absolute_maximum__video_rmse": {
+      "features": [
+        "M1_absolute_maximum",
+        "video_rmse"
+      ],
+      "label": "M1 Absolute maximum + Centred video RMSE"
+    },
+    "M1_absolute_maximum__video_peak": {
+      "features": [
+        "M1_absolute_maximum",
+        "video_peak"
+      ],
+      "label": "M1 Absolute maximum + Absolute centred video peak"
+    },
+    "M1_absolute_maximum__video_relative_mae": {
+      "features": [
+        "M1_absolute_maximum",
+        "video_relative_mae"
+      ],
+      "label": "M1 Absolute maximum + Relative video MAE"
+    },
+    "M1_mean__M1_absolute_integral": {
+      "features": [
+        "M1_mean",
+        "M1_absolute_integral"
+      ],
+      "label": "M1 Phase mean + M1 Absolute phase integral"
+    },
+    "M1_mean__M1_positive_integral": {
+      "features": [
+        "M1_mean",
+        "M1_positive_integral"
+      ],
+      "label": "M1 Phase mean + M1 Positive phase integral"
+    },
+    "M1_mean__M1_rms": {
+      "features": [
+        "M1_mean",
+        "M1_rms"
+      ],
+      "label": "M1 Phase mean + M1 RMS"
+    },
+    "M1_mean__M1_sd": {
+      "features": [
+        "M1_mean",
+        "M1_sd"
+      ],
+      "label": "M1 Phase mean + M1 Population SD"
+    },
+    "M1_mean__M1_range": {
+      "features": [
+        "M1_mean",
+        "M1_range"
+      ],
+      "label": "M1 Phase mean + M1 Peak-to-peak range"
+    },
+    "M1_mean__M1_a1": {
+      "features": [
+        "M1_mean",
+        "M1_a1"
+      ],
+      "label": "M1 Phase mean + M1 Fundamental amplitude"
+    },
+    "M1_mean__M1_a2": {
+      "features": [
+        "M1_mean",
+        "M1_a2"
+      ],
+      "label": "M1 Phase mean + M1 Second harmonic amplitude"
+    },
+    "M1_mean__M1_rc": {
+      "features": [
+        "M1_mean",
+        "M1_rc"
+      ],
+      "label": "M1 Phase mean + M1 RC coefficient"
+    },
+    "M1_mean__M2_maximum": {
+      "features": [
+        "M1_mean",
+        "M2_maximum"
+      ],
+      "label": "M1 Phase mean + M2 Signed maximum"
+    },
+    "M1_mean__M2_absolute_maximum": {
+      "features": [
+        "M1_mean",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Phase mean + M2 Absolute maximum"
+    },
+    "M1_mean__M2_mean": {
+      "features": [
+        "M1_mean",
+        "M2_mean"
+      ],
+      "label": "M1 Phase mean + M2 Phase mean"
+    },
+    "M1_mean__M2_absolute_integral": {
+      "features": [
+        "M1_mean",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Phase mean + M2 Absolute phase integral"
+    },
+    "M1_mean__M2_positive_integral": {
+      "features": [
+        "M1_mean",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Phase mean + M2 Positive phase integral"
+    },
+    "M1_mean__M2_rms": {
+      "features": [
+        "M1_mean",
+        "M2_rms"
+      ],
+      "label": "M1 Phase mean + M2 RMS"
+    },
+    "M1_mean__M2_sd": {
+      "features": [
+        "M1_mean",
+        "M2_sd"
+      ],
+      "label": "M1 Phase mean + M2 Population SD"
+    },
+    "M1_mean__M2_range": {
+      "features": [
+        "M1_mean",
+        "M2_range"
+      ],
+      "label": "M1 Phase mean + M2 Peak-to-peak range"
+    },
+    "M1_mean__M2_a1": {
+      "features": [
+        "M1_mean",
+        "M2_a1"
+      ],
+      "label": "M1 Phase mean + M2 Fundamental amplitude"
+    },
+    "M1_mean__M2_a2": {
+      "features": [
+        "M1_mean",
+        "M2_a2"
+      ],
+      "label": "M1 Phase mean + M2 Second harmonic amplitude"
+    },
+    "M1_mean__M2_rc": {
+      "features": [
+        "M1_mean",
+        "M2_rc"
+      ],
+      "label": "M1 Phase mean + M2 RC coefficient"
+    },
+    "M1_mean__gain_positive": {
+      "features": [
+        "M1_mean",
+        "gain_positive"
+      ],
+      "label": "M1 Phase mean + Positive gain"
+    },
+    "M1_mean__gain_negative": {
+      "features": [
+        "M1_mean",
+        "gain_negative"
+      ],
+      "label": "M1 Phase mean + Negative gain"
+    },
+    "M1_mean__gain_difference": {
+      "features": [
+        "M1_mean",
+        "gain_difference"
+      ],
+      "label": "M1 Phase mean + Absolute gain difference"
+    },
+    "M1_mean__video_mae": {
+      "features": [
+        "M1_mean",
+        "video_mae"
+      ],
+      "label": "M1 Phase mean + Centred video MAE"
+    },
+    "M1_mean__video_rmse": {
+      "features": [
+        "M1_mean",
+        "video_rmse"
+      ],
+      "label": "M1 Phase mean + Centred video RMSE"
+    },
+    "M1_mean__video_peak": {
+      "features": [
+        "M1_mean",
+        "video_peak"
+      ],
+      "label": "M1 Phase mean + Absolute centred video peak"
+    },
+    "M1_mean__video_relative_mae": {
+      "features": [
+        "M1_mean",
+        "video_relative_mae"
+      ],
+      "label": "M1 Phase mean + Relative video MAE"
+    },
+    "M1_absolute_integral__M1_positive_integral": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_positive_integral"
+      ],
+      "label": "M1 Absolute phase integral + M1 Positive phase integral"
+    },
+    "M1_absolute_integral__M1_rms": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_rms"
+      ],
+      "label": "M1 Absolute phase integral + M1 RMS"
+    },
+    "M1_absolute_integral__M1_sd": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_sd"
+      ],
+      "label": "M1 Absolute phase integral + M1 Population SD"
+    },
+    "M1_absolute_integral__M1_range": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_range"
+      ],
+      "label": "M1 Absolute phase integral + M1 Peak-to-peak range"
+    },
+    "M1_absolute_integral__M1_a1": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_a1"
+      ],
+      "label": "M1 Absolute phase integral + M1 Fundamental amplitude"
+    },
+    "M1_absolute_integral__M1_a2": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_a2"
+      ],
+      "label": "M1 Absolute phase integral + M1 Second harmonic amplitude"
+    },
+    "M1_absolute_integral__M1_rc": {
+      "features": [
+        "M1_absolute_integral",
+        "M1_rc"
+      ],
+      "label": "M1 Absolute phase integral + M1 RC coefficient"
+    },
+    "M1_absolute_integral__M2_maximum": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_maximum"
+      ],
+      "label": "M1 Absolute phase integral + M2 Signed maximum"
+    },
+    "M1_absolute_integral__M2_absolute_maximum": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Absolute phase integral + M2 Absolute maximum"
+    },
+    "M1_absolute_integral__M2_mean": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_mean"
+      ],
+      "label": "M1 Absolute phase integral + M2 Phase mean"
+    },
+    "M1_absolute_integral__M2_absolute_integral": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Absolute phase integral + M2 Absolute phase integral"
+    },
+    "M1_absolute_integral__M2_positive_integral": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Absolute phase integral + M2 Positive phase integral"
+    },
+    "M1_absolute_integral__M2_rms": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_rms"
+      ],
+      "label": "M1 Absolute phase integral + M2 RMS"
+    },
+    "M1_absolute_integral__M2_sd": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_sd"
+      ],
+      "label": "M1 Absolute phase integral + M2 Population SD"
+    },
+    "M1_absolute_integral__M2_range": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_range"
+      ],
+      "label": "M1 Absolute phase integral + M2 Peak-to-peak range"
+    },
+    "M1_absolute_integral__M2_a1": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_a1"
+      ],
+      "label": "M1 Absolute phase integral + M2 Fundamental amplitude"
+    },
+    "M1_absolute_integral__M2_a2": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_a2"
+      ],
+      "label": "M1 Absolute phase integral + M2 Second harmonic amplitude"
+    },
+    "M1_absolute_integral__M2_rc": {
+      "features": [
+        "M1_absolute_integral",
+        "M2_rc"
+      ],
+      "label": "M1 Absolute phase integral + M2 RC coefficient"
+    },
+    "M1_absolute_integral__gain_positive": {
+      "features": [
+        "M1_absolute_integral",
+        "gain_positive"
+      ],
+      "label": "M1 Absolute phase integral + Positive gain"
+    },
+    "M1_absolute_integral__gain_negative": {
+      "features": [
+        "M1_absolute_integral",
+        "gain_negative"
+      ],
+      "label": "M1 Absolute phase integral + Negative gain"
+    },
+    "M1_absolute_integral__gain_difference": {
+      "features": [
+        "M1_absolute_integral",
+        "gain_difference"
+      ],
+      "label": "M1 Absolute phase integral + Absolute gain difference"
+    },
+    "M1_absolute_integral__video_mae": {
+      "features": [
+        "M1_absolute_integral",
+        "video_mae"
+      ],
+      "label": "M1 Absolute phase integral + Centred video MAE"
+    },
+    "M1_absolute_integral__video_rmse": {
+      "features": [
+        "M1_absolute_integral",
+        "video_rmse"
+      ],
+      "label": "M1 Absolute phase integral + Centred video RMSE"
+    },
+    "M1_absolute_integral__video_peak": {
+      "features": [
+        "M1_absolute_integral",
+        "video_peak"
+      ],
+      "label": "M1 Absolute phase integral + Absolute centred video peak"
+    },
+    "M1_absolute_integral__video_relative_mae": {
+      "features": [
+        "M1_absolute_integral",
+        "video_relative_mae"
+      ],
+      "label": "M1 Absolute phase integral + Relative video MAE"
+    },
+    "M1_positive_integral__M1_rms": {
+      "features": [
+        "M1_positive_integral",
+        "M1_rms"
+      ],
+      "label": "M1 Positive phase integral + M1 RMS"
+    },
+    "M1_positive_integral__M1_sd": {
+      "features": [
+        "M1_positive_integral",
+        "M1_sd"
+      ],
+      "label": "M1 Positive phase integral + M1 Population SD"
+    },
+    "M1_positive_integral__M1_range": {
+      "features": [
+        "M1_positive_integral",
+        "M1_range"
+      ],
+      "label": "M1 Positive phase integral + M1 Peak-to-peak range"
+    },
+    "M1_positive_integral__M1_a1": {
+      "features": [
+        "M1_positive_integral",
+        "M1_a1"
+      ],
+      "label": "M1 Positive phase integral + M1 Fundamental amplitude"
+    },
+    "M1_positive_integral__M1_a2": {
+      "features": [
+        "M1_positive_integral",
+        "M1_a2"
+      ],
+      "label": "M1 Positive phase integral + M1 Second harmonic amplitude"
+    },
+    "M1_positive_integral__M1_rc": {
+      "features": [
+        "M1_positive_integral",
+        "M1_rc"
+      ],
+      "label": "M1 Positive phase integral + M1 RC coefficient"
+    },
+    "M1_positive_integral__M2_maximum": {
+      "features": [
+        "M1_positive_integral",
+        "M2_maximum"
+      ],
+      "label": "M1 Positive phase integral + M2 Signed maximum"
+    },
+    "M1_positive_integral__M2_absolute_maximum": {
+      "features": [
+        "M1_positive_integral",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Positive phase integral + M2 Absolute maximum"
+    },
+    "M1_positive_integral__M2_mean": {
+      "features": [
+        "M1_positive_integral",
+        "M2_mean"
+      ],
+      "label": "M1 Positive phase integral + M2 Phase mean"
+    },
+    "M1_positive_integral__M2_absolute_integral": {
+      "features": [
+        "M1_positive_integral",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Positive phase integral + M2 Absolute phase integral"
+    },
+    "M1_positive_integral__M2_positive_integral": {
+      "features": [
+        "M1_positive_integral",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Positive phase integral + M2 Positive phase integral"
+    },
+    "M1_positive_integral__M2_rms": {
+      "features": [
+        "M1_positive_integral",
+        "M2_rms"
+      ],
+      "label": "M1 Positive phase integral + M2 RMS"
+    },
+    "M1_positive_integral__M2_sd": {
+      "features": [
+        "M1_positive_integral",
+        "M2_sd"
+      ],
+      "label": "M1 Positive phase integral + M2 Population SD"
+    },
+    "M1_positive_integral__M2_range": {
+      "features": [
+        "M1_positive_integral",
+        "M2_range"
+      ],
+      "label": "M1 Positive phase integral + M2 Peak-to-peak range"
+    },
+    "M1_positive_integral__M2_a1": {
+      "features": [
+        "M1_positive_integral",
+        "M2_a1"
+      ],
+      "label": "M1 Positive phase integral + M2 Fundamental amplitude"
+    },
+    "M1_positive_integral__M2_a2": {
+      "features": [
+        "M1_positive_integral",
+        "M2_a2"
+      ],
+      "label": "M1 Positive phase integral + M2 Second harmonic amplitude"
+    },
+    "M1_positive_integral__M2_rc": {
+      "features": [
+        "M1_positive_integral",
+        "M2_rc"
+      ],
+      "label": "M1 Positive phase integral + M2 RC coefficient"
+    },
+    "M1_positive_integral__gain_positive": {
+      "features": [
+        "M1_positive_integral",
+        "gain_positive"
+      ],
+      "label": "M1 Positive phase integral + Positive gain"
+    },
+    "M1_positive_integral__gain_negative": {
+      "features": [
+        "M1_positive_integral",
+        "gain_negative"
+      ],
+      "label": "M1 Positive phase integral + Negative gain"
+    },
+    "M1_positive_integral__gain_difference": {
+      "features": [
+        "M1_positive_integral",
+        "gain_difference"
+      ],
+      "label": "M1 Positive phase integral + Absolute gain difference"
+    },
+    "M1_positive_integral__video_mae": {
+      "features": [
+        "M1_positive_integral",
+        "video_mae"
+      ],
+      "label": "M1 Positive phase integral + Centred video MAE"
+    },
+    "M1_positive_integral__video_rmse": {
+      "features": [
+        "M1_positive_integral",
+        "video_rmse"
+      ],
+      "label": "M1 Positive phase integral + Centred video RMSE"
+    },
+    "M1_positive_integral__video_peak": {
+      "features": [
+        "M1_positive_integral",
+        "video_peak"
+      ],
+      "label": "M1 Positive phase integral + Absolute centred video peak"
+    },
+    "M1_positive_integral__video_relative_mae": {
+      "features": [
+        "M1_positive_integral",
+        "video_relative_mae"
+      ],
+      "label": "M1 Positive phase integral + Relative video MAE"
+    },
+    "M1_rms__M1_sd": {
+      "features": [
+        "M1_rms",
+        "M1_sd"
+      ],
+      "label": "M1 RMS + M1 Population SD"
+    },
+    "M1_rms__M1_range": {
+      "features": [
+        "M1_rms",
+        "M1_range"
+      ],
+      "label": "M1 RMS + M1 Peak-to-peak range"
+    },
+    "M1_rms__M1_a1": {
+      "features": [
+        "M1_rms",
+        "M1_a1"
+      ],
+      "label": "M1 RMS + M1 Fundamental amplitude"
+    },
+    "M1_rms__M1_a2": {
+      "features": [
+        "M1_rms",
+        "M1_a2"
+      ],
+      "label": "M1 RMS + M1 Second harmonic amplitude"
+    },
+    "M1_rms__M1_rc": {
+      "features": [
+        "M1_rms",
+        "M1_rc"
+      ],
+      "label": "M1 RMS + M1 RC coefficient"
+    },
+    "M1_rms__M2_maximum": {
+      "features": [
+        "M1_rms",
+        "M2_maximum"
+      ],
+      "label": "M1 RMS + M2 Signed maximum"
+    },
+    "M1_rms__M2_absolute_maximum": {
+      "features": [
+        "M1_rms",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 RMS + M2 Absolute maximum"
+    },
+    "M1_rms__M2_mean": {
+      "features": [
+        "M1_rms",
+        "M2_mean"
+      ],
+      "label": "M1 RMS + M2 Phase mean"
+    },
+    "M1_rms__M2_absolute_integral": {
+      "features": [
+        "M1_rms",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 RMS + M2 Absolute phase integral"
+    },
+    "M1_rms__M2_positive_integral": {
+      "features": [
+        "M1_rms",
+        "M2_positive_integral"
+      ],
+      "label": "M1 RMS + M2 Positive phase integral"
+    },
+    "M1_rms__M2_rms": {
+      "features": [
+        "M1_rms",
+        "M2_rms"
+      ],
+      "label": "M1 RMS + M2 RMS"
+    },
+    "M1_rms__M2_sd": {
+      "features": [
+        "M1_rms",
+        "M2_sd"
+      ],
+      "label": "M1 RMS + M2 Population SD"
+    },
+    "M1_rms__M2_range": {
+      "features": [
+        "M1_rms",
+        "M2_range"
+      ],
+      "label": "M1 RMS + M2 Peak-to-peak range"
+    },
+    "M1_rms__M2_a1": {
+      "features": [
+        "M1_rms",
+        "M2_a1"
+      ],
+      "label": "M1 RMS + M2 Fundamental amplitude"
+    },
+    "M1_rms__M2_a2": {
+      "features": [
+        "M1_rms",
+        "M2_a2"
+      ],
+      "label": "M1 RMS + M2 Second harmonic amplitude"
+    },
+    "M1_rms__M2_rc": {
+      "features": [
+        "M1_rms",
+        "M2_rc"
+      ],
+      "label": "M1 RMS + M2 RC coefficient"
+    },
+    "M1_rms__gain_positive": {
+      "features": [
+        "M1_rms",
+        "gain_positive"
+      ],
+      "label": "M1 RMS + Positive gain"
+    },
+    "M1_rms__gain_negative": {
+      "features": [
+        "M1_rms",
+        "gain_negative"
+      ],
+      "label": "M1 RMS + Negative gain"
+    },
+    "M1_rms__gain_difference": {
+      "features": [
+        "M1_rms",
+        "gain_difference"
+      ],
+      "label": "M1 RMS + Absolute gain difference"
+    },
+    "M1_rms__video_mae": {
+      "features": [
+        "M1_rms",
+        "video_mae"
+      ],
+      "label": "M1 RMS + Centred video MAE"
+    },
+    "M1_rms__video_rmse": {
+      "features": [
+        "M1_rms",
+        "video_rmse"
+      ],
+      "label": "M1 RMS + Centred video RMSE"
+    },
+    "M1_rms__video_peak": {
+      "features": [
+        "M1_rms",
+        "video_peak"
+      ],
+      "label": "M1 RMS + Absolute centred video peak"
+    },
+    "M1_rms__video_relative_mae": {
+      "features": [
+        "M1_rms",
+        "video_relative_mae"
+      ],
+      "label": "M1 RMS + Relative video MAE"
+    },
+    "M1_sd__M1_range": {
+      "features": [
+        "M1_sd",
+        "M1_range"
+      ],
+      "label": "M1 Population SD + M1 Peak-to-peak range"
+    },
+    "M1_sd__M1_a1": {
+      "features": [
+        "M1_sd",
+        "M1_a1"
+      ],
+      "label": "M1 Population SD + M1 Fundamental amplitude"
+    },
+    "M1_sd__M1_a2": {
+      "features": [
+        "M1_sd",
+        "M1_a2"
+      ],
+      "label": "M1 Population SD + M1 Second harmonic amplitude"
+    },
+    "M1_sd__M1_rc": {
+      "features": [
+        "M1_sd",
+        "M1_rc"
+      ],
+      "label": "M1 Population SD + M1 RC coefficient"
+    },
+    "M1_sd__M2_maximum": {
+      "features": [
+        "M1_sd",
+        "M2_maximum"
+      ],
+      "label": "M1 Population SD + M2 Signed maximum"
+    },
+    "M1_sd__M2_absolute_maximum": {
+      "features": [
+        "M1_sd",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Population SD + M2 Absolute maximum"
+    },
+    "M1_sd__M2_mean": {
+      "features": [
+        "M1_sd",
+        "M2_mean"
+      ],
+      "label": "M1 Population SD + M2 Phase mean"
+    },
+    "M1_sd__M2_absolute_integral": {
+      "features": [
+        "M1_sd",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Population SD + M2 Absolute phase integral"
+    },
+    "M1_sd__M2_positive_integral": {
+      "features": [
+        "M1_sd",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Population SD + M2 Positive phase integral"
+    },
+    "M1_sd__M2_rms": {
+      "features": [
+        "M1_sd",
+        "M2_rms"
+      ],
+      "label": "M1 Population SD + M2 RMS"
+    },
+    "M1_sd__M2_sd": {
+      "features": [
+        "M1_sd",
+        "M2_sd"
+      ],
+      "label": "M1 Population SD + M2 Population SD"
+    },
+    "M1_sd__M2_range": {
+      "features": [
+        "M1_sd",
+        "M2_range"
+      ],
+      "label": "M1 Population SD + M2 Peak-to-peak range"
+    },
+    "M1_sd__M2_a1": {
+      "features": [
+        "M1_sd",
+        "M2_a1"
+      ],
+      "label": "M1 Population SD + M2 Fundamental amplitude"
+    },
+    "M1_sd__M2_a2": {
+      "features": [
+        "M1_sd",
+        "M2_a2"
+      ],
+      "label": "M1 Population SD + M2 Second harmonic amplitude"
+    },
+    "M1_sd__M2_rc": {
+      "features": [
+        "M1_sd",
+        "M2_rc"
+      ],
+      "label": "M1 Population SD + M2 RC coefficient"
+    },
+    "M1_sd__gain_positive": {
+      "features": [
+        "M1_sd",
+        "gain_positive"
+      ],
+      "label": "M1 Population SD + Positive gain"
+    },
+    "M1_sd__gain_negative": {
+      "features": [
+        "M1_sd",
+        "gain_negative"
+      ],
+      "label": "M1 Population SD + Negative gain"
+    },
+    "M1_sd__gain_difference": {
+      "features": [
+        "M1_sd",
+        "gain_difference"
+      ],
+      "label": "M1 Population SD + Absolute gain difference"
+    },
+    "M1_sd__video_mae": {
+      "features": [
+        "M1_sd",
+        "video_mae"
+      ],
+      "label": "M1 Population SD + Centred video MAE"
+    },
+    "M1_sd__video_rmse": {
+      "features": [
+        "M1_sd",
+        "video_rmse"
+      ],
+      "label": "M1 Population SD + Centred video RMSE"
+    },
+    "M1_sd__video_peak": {
+      "features": [
+        "M1_sd",
+        "video_peak"
+      ],
+      "label": "M1 Population SD + Absolute centred video peak"
+    },
+    "M1_sd__video_relative_mae": {
+      "features": [
+        "M1_sd",
+        "video_relative_mae"
+      ],
+      "label": "M1 Population SD + Relative video MAE"
+    },
+    "M1_range__M1_a1": {
+      "features": [
+        "M1_range",
+        "M1_a1"
+      ],
+      "label": "M1 Peak-to-peak range + M1 Fundamental amplitude"
+    },
+    "M1_range__M1_a2": {
+      "features": [
+        "M1_range",
+        "M1_a2"
+      ],
+      "label": "M1 Peak-to-peak range + M1 Second harmonic amplitude"
+    },
+    "M1_range__M1_rc": {
+      "features": [
+        "M1_range",
+        "M1_rc"
+      ],
+      "label": "M1 Peak-to-peak range + M1 RC coefficient"
+    },
+    "M1_range__M2_maximum": {
+      "features": [
+        "M1_range",
+        "M2_maximum"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Signed maximum"
+    },
+    "M1_range__M2_absolute_maximum": {
+      "features": [
+        "M1_range",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Absolute maximum"
+    },
+    "M1_range__M2_mean": {
+      "features": [
+        "M1_range",
+        "M2_mean"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Phase mean"
+    },
+    "M1_range__M2_absolute_integral": {
+      "features": [
+        "M1_range",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Absolute phase integral"
+    },
+    "M1_range__M2_positive_integral": {
+      "features": [
+        "M1_range",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Positive phase integral"
+    },
+    "M1_range__M2_rms": {
+      "features": [
+        "M1_range",
+        "M2_rms"
+      ],
+      "label": "M1 Peak-to-peak range + M2 RMS"
+    },
+    "M1_range__M2_sd": {
+      "features": [
+        "M1_range",
+        "M2_sd"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Population SD"
+    },
+    "M1_range__M2_range": {
+      "features": [
+        "M1_range",
+        "M2_range"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Peak-to-peak range"
+    },
+    "M1_range__M2_a1": {
+      "features": [
+        "M1_range",
+        "M2_a1"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Fundamental amplitude"
+    },
+    "M1_range__M2_a2": {
+      "features": [
+        "M1_range",
+        "M2_a2"
+      ],
+      "label": "M1 Peak-to-peak range + M2 Second harmonic amplitude"
+    },
+    "M1_range__M2_rc": {
+      "features": [
+        "M1_range",
+        "M2_rc"
+      ],
+      "label": "M1 Peak-to-peak range + M2 RC coefficient"
+    },
+    "M1_range__gain_positive": {
+      "features": [
+        "M1_range",
+        "gain_positive"
+      ],
+      "label": "M1 Peak-to-peak range + Positive gain"
+    },
+    "M1_range__gain_negative": {
+      "features": [
+        "M1_range",
+        "gain_negative"
+      ],
+      "label": "M1 Peak-to-peak range + Negative gain"
+    },
+    "M1_range__gain_difference": {
+      "features": [
+        "M1_range",
+        "gain_difference"
+      ],
+      "label": "M1 Peak-to-peak range + Absolute gain difference"
+    },
+    "M1_range__video_mae": {
+      "features": [
+        "M1_range",
+        "video_mae"
+      ],
+      "label": "M1 Peak-to-peak range + Centred video MAE"
+    },
+    "M1_range__video_rmse": {
+      "features": [
+        "M1_range",
+        "video_rmse"
+      ],
+      "label": "M1 Peak-to-peak range + Centred video RMSE"
+    },
+    "M1_range__video_peak": {
+      "features": [
+        "M1_range",
+        "video_peak"
+      ],
+      "label": "M1 Peak-to-peak range + Absolute centred video peak"
+    },
+    "M1_range__video_relative_mae": {
+      "features": [
+        "M1_range",
+        "video_relative_mae"
+      ],
+      "label": "M1 Peak-to-peak range + Relative video MAE"
+    },
+    "M1_a1__M1_a2": {
+      "features": [
+        "M1_a1",
+        "M1_a2"
+      ],
+      "label": "M1 Fundamental amplitude + M1 Second harmonic amplitude"
+    },
+    "M1_a1__M1_rc": {
+      "features": [
+        "M1_a1",
+        "M1_rc"
+      ],
+      "label": "M1 Fundamental amplitude + M1 RC coefficient"
+    },
+    "M1_a1__M2_maximum": {
+      "features": [
+        "M1_a1",
+        "M2_maximum"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Signed maximum"
+    },
+    "M1_a1__M2_absolute_maximum": {
+      "features": [
+        "M1_a1",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Absolute maximum"
+    },
+    "M1_a1__M2_mean": {
+      "features": [
+        "M1_a1",
+        "M2_mean"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Phase mean"
+    },
+    "M1_a1__M2_absolute_integral": {
+      "features": [
+        "M1_a1",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Absolute phase integral"
+    },
+    "M1_a1__M2_positive_integral": {
+      "features": [
+        "M1_a1",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Positive phase integral"
+    },
+    "M1_a1__M2_rms": {
+      "features": [
+        "M1_a1",
+        "M2_rms"
+      ],
+      "label": "M1 Fundamental amplitude + M2 RMS"
+    },
+    "M1_a1__M2_sd": {
+      "features": [
+        "M1_a1",
+        "M2_sd"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Population SD"
+    },
+    "M1_a1__M2_range": {
+      "features": [
+        "M1_a1",
+        "M2_range"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Peak-to-peak range"
+    },
+    "M1_a1__M2_a1": {
+      "features": [
+        "M1_a1",
+        "M2_a1"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Fundamental amplitude"
+    },
+    "M1_a1__M2_a2": {
+      "features": [
+        "M1_a1",
+        "M2_a2"
+      ],
+      "label": "M1 Fundamental amplitude + M2 Second harmonic amplitude"
+    },
+    "M1_a1__M2_rc": {
+      "features": [
+        "M1_a1",
+        "M2_rc"
+      ],
+      "label": "M1 Fundamental amplitude + M2 RC coefficient"
+    },
+    "M1_a1__gain_positive": {
+      "features": [
+        "M1_a1",
+        "gain_positive"
+      ],
+      "label": "M1 Fundamental amplitude + Positive gain"
+    },
+    "M1_a1__gain_negative": {
+      "features": [
+        "M1_a1",
+        "gain_negative"
+      ],
+      "label": "M1 Fundamental amplitude + Negative gain"
+    },
+    "M1_a1__gain_difference": {
+      "features": [
+        "M1_a1",
+        "gain_difference"
+      ],
+      "label": "M1 Fundamental amplitude + Absolute gain difference"
+    },
+    "M1_a1__video_mae": {
+      "features": [
+        "M1_a1",
+        "video_mae"
+      ],
+      "label": "M1 Fundamental amplitude + Centred video MAE"
+    },
+    "M1_a1__video_rmse": {
+      "features": [
+        "M1_a1",
+        "video_rmse"
+      ],
+      "label": "M1 Fundamental amplitude + Centred video RMSE"
+    },
+    "M1_a1__video_peak": {
+      "features": [
+        "M1_a1",
+        "video_peak"
+      ],
+      "label": "M1 Fundamental amplitude + Absolute centred video peak"
+    },
+    "M1_a1__video_relative_mae": {
+      "features": [
+        "M1_a1",
+        "video_relative_mae"
+      ],
+      "label": "M1 Fundamental amplitude + Relative video MAE"
+    },
+    "M1_a2__M1_rc": {
+      "features": [
+        "M1_a2",
+        "M1_rc"
+      ],
+      "label": "M1 Second harmonic amplitude + M1 RC coefficient"
+    },
+    "M1_a2__M2_maximum": {
+      "features": [
+        "M1_a2",
+        "M2_maximum"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Signed maximum"
+    },
+    "M1_a2__M2_absolute_maximum": {
+      "features": [
+        "M1_a2",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Absolute maximum"
+    },
+    "M1_a2__M2_mean": {
+      "features": [
+        "M1_a2",
+        "M2_mean"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Phase mean"
+    },
+    "M1_a2__M2_absolute_integral": {
+      "features": [
+        "M1_a2",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Absolute phase integral"
+    },
+    "M1_a2__M2_positive_integral": {
+      "features": [
+        "M1_a2",
+        "M2_positive_integral"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Positive phase integral"
+    },
+    "M1_a2__M2_rms": {
+      "features": [
+        "M1_a2",
+        "M2_rms"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 RMS"
+    },
+    "M1_a2__M2_sd": {
+      "features": [
+        "M1_a2",
+        "M2_sd"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Population SD"
+    },
+    "M1_a2__M2_range": {
+      "features": [
+        "M1_a2",
+        "M2_range"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Peak-to-peak range"
+    },
+    "M1_a2__M2_a1": {
+      "features": [
+        "M1_a2",
+        "M2_a1"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Fundamental amplitude"
+    },
+    "M1_a2__M2_a2": {
+      "features": [
+        "M1_a2",
+        "M2_a2"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 Second harmonic amplitude"
+    },
+    "M1_a2__M2_rc": {
+      "features": [
+        "M1_a2",
+        "M2_rc"
+      ],
+      "label": "M1 Second harmonic amplitude + M2 RC coefficient"
+    },
+    "M1_a2__gain_positive": {
+      "features": [
+        "M1_a2",
+        "gain_positive"
+      ],
+      "label": "M1 Second harmonic amplitude + Positive gain"
+    },
+    "M1_a2__gain_negative": {
+      "features": [
+        "M1_a2",
+        "gain_negative"
+      ],
+      "label": "M1 Second harmonic amplitude + Negative gain"
+    },
+    "M1_a2__gain_difference": {
+      "features": [
+        "M1_a2",
+        "gain_difference"
+      ],
+      "label": "M1 Second harmonic amplitude + Absolute gain difference"
+    },
+    "M1_a2__video_mae": {
+      "features": [
+        "M1_a2",
+        "video_mae"
+      ],
+      "label": "M1 Second harmonic amplitude + Centred video MAE"
+    },
+    "M1_a2__video_rmse": {
+      "features": [
+        "M1_a2",
+        "video_rmse"
+      ],
+      "label": "M1 Second harmonic amplitude + Centred video RMSE"
+    },
+    "M1_a2__video_peak": {
+      "features": [
+        "M1_a2",
+        "video_peak"
+      ],
+      "label": "M1 Second harmonic amplitude + Absolute centred video peak"
+    },
+    "M1_a2__video_relative_mae": {
+      "features": [
+        "M1_a2",
+        "video_relative_mae"
+      ],
+      "label": "M1 Second harmonic amplitude + Relative video MAE"
+    },
+    "M1_rc__M2_maximum": {
+      "features": [
+        "M1_rc",
+        "M2_maximum"
+      ],
+      "label": "M1 RC coefficient + M2 Signed maximum"
+    },
+    "M1_rc__M2_absolute_maximum": {
+      "features": [
+        "M1_rc",
+        "M2_absolute_maximum"
+      ],
+      "label": "M1 RC coefficient + M2 Absolute maximum"
+    },
+    "M1_rc__M2_mean": {
+      "features": [
+        "M1_rc",
+        "M2_mean"
+      ],
+      "label": "M1 RC coefficient + M2 Phase mean"
+    },
+    "M1_rc__M2_absolute_integral": {
+      "features": [
+        "M1_rc",
+        "M2_absolute_integral"
+      ],
+      "label": "M1 RC coefficient + M2 Absolute phase integral"
+    },
+    "M1_rc__M2_positive_integral": {
+      "features": [
+        "M1_rc",
+        "M2_positive_integral"
+      ],
+      "label": "M1 RC coefficient + M2 Positive phase integral"
+    },
+    "M1_rc__M2_rms": {
+      "features": [
+        "M1_rc",
+        "M2_rms"
+      ],
+      "label": "M1 RC coefficient + M2 RMS"
+    },
+    "M1_rc__M2_sd": {
+      "features": [
+        "M1_rc",
+        "M2_sd"
+      ],
+      "label": "M1 RC coefficient + M2 Population SD"
+    },
+    "M1_rc__M2_range": {
+      "features": [
+        "M1_rc",
+        "M2_range"
+      ],
+      "label": "M1 RC coefficient + M2 Peak-to-peak range"
+    },
+    "M1_rc__M2_a1": {
+      "features": [
+        "M1_rc",
+        "M2_a1"
+      ],
+      "label": "M1 RC coefficient + M2 Fundamental amplitude"
+    },
+    "M1_rc__M2_a2": {
+      "features": [
+        "M1_rc",
+        "M2_a2"
+      ],
+      "label": "M1 RC coefficient + M2 Second harmonic amplitude"
+    },
+    "M1_rc__M2_rc": {
+      "features": [
+        "M1_rc",
+        "M2_rc"
+      ],
+      "label": "M1 RC coefficient + M2 RC coefficient"
+    },
+    "M1_rc__gain_positive": {
+      "features": [
+        "M1_rc",
+        "gain_positive"
+      ],
+      "label": "M1 RC coefficient + Positive gain"
+    },
+    "M1_rc__gain_negative": {
+      "features": [
+        "M1_rc",
+        "gain_negative"
+      ],
+      "label": "M1 RC coefficient + Negative gain"
+    },
+    "M1_rc__gain_difference": {
+      "features": [
+        "M1_rc",
+        "gain_difference"
+      ],
+      "label": "M1 RC coefficient + Absolute gain difference"
+    },
+    "M1_rc__video_mae": {
+      "features": [
+        "M1_rc",
+        "video_mae"
+      ],
+      "label": "M1 RC coefficient + Centred video MAE"
+    },
+    "M1_rc__video_rmse": {
+      "features": [
+        "M1_rc",
+        "video_rmse"
+      ],
+      "label": "M1 RC coefficient + Centred video RMSE"
+    },
+    "M1_rc__video_peak": {
+      "features": [
+        "M1_rc",
+        "video_peak"
+      ],
+      "label": "M1 RC coefficient + Absolute centred video peak"
+    },
+    "M1_rc__video_relative_mae": {
+      "features": [
+        "M1_rc",
+        "video_relative_mae"
+      ],
+      "label": "M1 RC coefficient + Relative video MAE"
+    },
+    "M2_maximum__M2_absolute_maximum": {
+      "features": [
+        "M2_maximum",
+        "M2_absolute_maximum"
+      ],
+      "label": "M2 Signed maximum + M2 Absolute maximum"
+    },
+    "M2_maximum__M2_mean": {
+      "features": [
+        "M2_maximum",
+        "M2_mean"
+      ],
+      "label": "M2 Signed maximum + M2 Phase mean"
+    },
+    "M2_maximum__M2_absolute_integral": {
+      "features": [
+        "M2_maximum",
+        "M2_absolute_integral"
+      ],
+      "label": "M2 Signed maximum + M2 Absolute phase integral"
+    },
+    "M2_maximum__M2_positive_integral": {
+      "features": [
+        "M2_maximum",
+        "M2_positive_integral"
+      ],
+      "label": "M2 Signed maximum + M2 Positive phase integral"
+    },
+    "M2_maximum__M2_rms": {
+      "features": [
+        "M2_maximum",
+        "M2_rms"
+      ],
+      "label": "M2 Signed maximum + M2 RMS"
+    },
+    "M2_maximum__M2_sd": {
+      "features": [
+        "M2_maximum",
+        "M2_sd"
+      ],
+      "label": "M2 Signed maximum + M2 Population SD"
+    },
+    "M2_maximum__M2_range": {
+      "features": [
+        "M2_maximum",
+        "M2_range"
+      ],
+      "label": "M2 Signed maximum + M2 Peak-to-peak range"
+    },
+    "M2_maximum__M2_a1": {
+      "features": [
+        "M2_maximum",
+        "M2_a1"
+      ],
+      "label": "M2 Signed maximum + M2 Fundamental amplitude"
+    },
+    "M2_maximum__M2_a2": {
+      "features": [
+        "M2_maximum",
+        "M2_a2"
+      ],
+      "label": "M2 Signed maximum + M2 Second harmonic amplitude"
+    },
+    "M2_maximum__M2_rc": {
+      "features": [
+        "M2_maximum",
+        "M2_rc"
+      ],
+      "label": "M2 Signed maximum + M2 RC coefficient"
+    },
+    "M2_maximum__gain_positive": {
+      "features": [
+        "M2_maximum",
+        "gain_positive"
+      ],
+      "label": "M2 Signed maximum + Positive gain"
+    },
+    "M2_maximum__gain_negative": {
+      "features": [
+        "M2_maximum",
+        "gain_negative"
+      ],
+      "label": "M2 Signed maximum + Negative gain"
+    },
+    "M2_maximum__gain_difference": {
+      "features": [
+        "M2_maximum",
+        "gain_difference"
+      ],
+      "label": "M2 Signed maximum + Absolute gain difference"
+    },
+    "M2_maximum__video_mae": {
+      "features": [
+        "M2_maximum",
+        "video_mae"
+      ],
+      "label": "M2 Signed maximum + Centred video MAE"
+    },
+    "M2_maximum__video_rmse": {
+      "features": [
+        "M2_maximum",
+        "video_rmse"
+      ],
+      "label": "M2 Signed maximum + Centred video RMSE"
+    },
+    "M2_maximum__video_peak": {
+      "features": [
+        "M2_maximum",
+        "video_peak"
+      ],
+      "label": "M2 Signed maximum + Absolute centred video peak"
+    },
+    "M2_maximum__video_relative_mae": {
+      "features": [
+        "M2_maximum",
+        "video_relative_mae"
+      ],
+      "label": "M2 Signed maximum + Relative video MAE"
+    },
+    "M2_absolute_maximum__M2_mean": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_mean"
+      ],
+      "label": "M2 Absolute maximum + M2 Phase mean"
+    },
+    "M2_absolute_maximum__M2_absolute_integral": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_absolute_integral"
+      ],
+      "label": "M2 Absolute maximum + M2 Absolute phase integral"
+    },
+    "M2_absolute_maximum__M2_positive_integral": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_positive_integral"
+      ],
+      "label": "M2 Absolute maximum + M2 Positive phase integral"
+    },
+    "M2_absolute_maximum__M2_rms": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_rms"
+      ],
+      "label": "M2 Absolute maximum + M2 RMS"
+    },
+    "M2_absolute_maximum__M2_sd": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_sd"
+      ],
+      "label": "M2 Absolute maximum + M2 Population SD"
+    },
+    "M2_absolute_maximum__M2_range": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_range"
+      ],
+      "label": "M2 Absolute maximum + M2 Peak-to-peak range"
+    },
+    "M2_absolute_maximum__M2_a1": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_a1"
+      ],
+      "label": "M2 Absolute maximum + M2 Fundamental amplitude"
+    },
+    "M2_absolute_maximum__M2_a2": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_a2"
+      ],
+      "label": "M2 Absolute maximum + M2 Second harmonic amplitude"
+    },
+    "M2_absolute_maximum__M2_rc": {
+      "features": [
+        "M2_absolute_maximum",
+        "M2_rc"
+      ],
+      "label": "M2 Absolute maximum + M2 RC coefficient"
+    },
+    "M2_absolute_maximum__gain_positive": {
+      "features": [
+        "M2_absolute_maximum",
+        "gain_positive"
+      ],
+      "label": "M2 Absolute maximum + Positive gain"
+    },
+    "M2_absolute_maximum__gain_negative": {
+      "features": [
+        "M2_absolute_maximum",
+        "gain_negative"
+      ],
+      "label": "M2 Absolute maximum + Negative gain"
+    },
+    "M2_absolute_maximum__gain_difference": {
+      "features": [
+        "M2_absolute_maximum",
+        "gain_difference"
+      ],
+      "label": "M2 Absolute maximum + Absolute gain difference"
+    },
+    "M2_absolute_maximum__video_mae": {
+      "features": [
+        "M2_absolute_maximum",
+        "video_mae"
+      ],
+      "label": "M2 Absolute maximum + Centred video MAE"
+    },
+    "M2_absolute_maximum__video_rmse": {
+      "features": [
+        "M2_absolute_maximum",
+        "video_rmse"
+      ],
+      "label": "M2 Absolute maximum + Centred video RMSE"
+    },
+    "M2_absolute_maximum__video_peak": {
+      "features": [
+        "M2_absolute_maximum",
+        "video_peak"
+      ],
+      "label": "M2 Absolute maximum + Absolute centred video peak"
+    },
+    "M2_absolute_maximum__video_relative_mae": {
+      "features": [
+        "M2_absolute_maximum",
+        "video_relative_mae"
+      ],
+      "label": "M2 Absolute maximum + Relative video MAE"
+    },
+    "M2_mean__M2_absolute_integral": {
+      "features": [
+        "M2_mean",
+        "M2_absolute_integral"
+      ],
+      "label": "M2 Phase mean + M2 Absolute phase integral"
+    },
+    "M2_mean__M2_positive_integral": {
+      "features": [
+        "M2_mean",
+        "M2_positive_integral"
+      ],
+      "label": "M2 Phase mean + M2 Positive phase integral"
+    },
+    "M2_mean__M2_rms": {
+      "features": [
+        "M2_mean",
+        "M2_rms"
+      ],
+      "label": "M2 Phase mean + M2 RMS"
+    },
+    "M2_mean__M2_sd": {
+      "features": [
+        "M2_mean",
+        "M2_sd"
+      ],
+      "label": "M2 Phase mean + M2 Population SD"
+    },
+    "M2_mean__M2_range": {
+      "features": [
+        "M2_mean",
+        "M2_range"
+      ],
+      "label": "M2 Phase mean + M2 Peak-to-peak range"
+    },
+    "M2_mean__M2_a1": {
+      "features": [
+        "M2_mean",
+        "M2_a1"
+      ],
+      "label": "M2 Phase mean + M2 Fundamental amplitude"
+    },
+    "M2_mean__M2_a2": {
+      "features": [
+        "M2_mean",
+        "M2_a2"
+      ],
+      "label": "M2 Phase mean + M2 Second harmonic amplitude"
+    },
+    "M2_mean__M2_rc": {
+      "features": [
+        "M2_mean",
+        "M2_rc"
+      ],
+      "label": "M2 Phase mean + M2 RC coefficient"
+    },
+    "M2_mean__gain_positive": {
+      "features": [
+        "M2_mean",
+        "gain_positive"
+      ],
+      "label": "M2 Phase mean + Positive gain"
+    },
+    "M2_mean__gain_negative": {
+      "features": [
+        "M2_mean",
+        "gain_negative"
+      ],
+      "label": "M2 Phase mean + Negative gain"
+    },
+    "M2_mean__gain_difference": {
+      "features": [
+        "M2_mean",
+        "gain_difference"
+      ],
+      "label": "M2 Phase mean + Absolute gain difference"
+    },
+    "M2_mean__video_mae": {
+      "features": [
+        "M2_mean",
+        "video_mae"
+      ],
+      "label": "M2 Phase mean + Centred video MAE"
+    },
+    "M2_mean__video_rmse": {
+      "features": [
+        "M2_mean",
+        "video_rmse"
+      ],
+      "label": "M2 Phase mean + Centred video RMSE"
+    },
+    "M2_mean__video_peak": {
+      "features": [
+        "M2_mean",
+        "video_peak"
+      ],
+      "label": "M2 Phase mean + Absolute centred video peak"
+    },
+    "M2_mean__video_relative_mae": {
+      "features": [
+        "M2_mean",
+        "video_relative_mae"
+      ],
+      "label": "M2 Phase mean + Relative video MAE"
+    },
+    "M2_absolute_integral__M2_positive_integral": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_positive_integral"
+      ],
+      "label": "M2 Absolute phase integral + M2 Positive phase integral"
+    },
+    "M2_absolute_integral__M2_rms": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_rms"
+      ],
+      "label": "M2 Absolute phase integral + M2 RMS"
+    },
+    "M2_absolute_integral__M2_sd": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_sd"
+      ],
+      "label": "M2 Absolute phase integral + M2 Population SD"
+    },
+    "M2_absolute_integral__M2_range": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_range"
+      ],
+      "label": "M2 Absolute phase integral + M2 Peak-to-peak range"
+    },
+    "M2_absolute_integral__M2_a1": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_a1"
+      ],
+      "label": "M2 Absolute phase integral + M2 Fundamental amplitude"
+    },
+    "M2_absolute_integral__M2_a2": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_a2"
+      ],
+      "label": "M2 Absolute phase integral + M2 Second harmonic amplitude"
+    },
+    "M2_absolute_integral__M2_rc": {
+      "features": [
+        "M2_absolute_integral",
+        "M2_rc"
+      ],
+      "label": "M2 Absolute phase integral + M2 RC coefficient"
+    },
+    "M2_absolute_integral__gain_positive": {
+      "features": [
+        "M2_absolute_integral",
+        "gain_positive"
+      ],
+      "label": "M2 Absolute phase integral + Positive gain"
+    },
+    "M2_absolute_integral__gain_negative": {
+      "features": [
+        "M2_absolute_integral",
+        "gain_negative"
+      ],
+      "label": "M2 Absolute phase integral + Negative gain"
+    },
+    "M2_absolute_integral__gain_difference": {
+      "features": [
+        "M2_absolute_integral",
+        "gain_difference"
+      ],
+      "label": "M2 Absolute phase integral + Absolute gain difference"
+    },
+    "M2_absolute_integral__video_mae": {
+      "features": [
+        "M2_absolute_integral",
+        "video_mae"
+      ],
+      "label": "M2 Absolute phase integral + Centred video MAE"
+    },
+    "M2_absolute_integral__video_rmse": {
+      "features": [
+        "M2_absolute_integral",
+        "video_rmse"
+      ],
+      "label": "M2 Absolute phase integral + Centred video RMSE"
+    },
+    "M2_absolute_integral__video_peak": {
+      "features": [
+        "M2_absolute_integral",
+        "video_peak"
+      ],
+      "label": "M2 Absolute phase integral + Absolute centred video peak"
+    },
+    "M2_absolute_integral__video_relative_mae": {
+      "features": [
+        "M2_absolute_integral",
+        "video_relative_mae"
+      ],
+      "label": "M2 Absolute phase integral + Relative video MAE"
+    },
+    "M2_positive_integral__M2_rms": {
+      "features": [
+        "M2_positive_integral",
+        "M2_rms"
+      ],
+      "label": "M2 Positive phase integral + M2 RMS"
+    },
+    "M2_positive_integral__M2_sd": {
+      "features": [
+        "M2_positive_integral",
+        "M2_sd"
+      ],
+      "label": "M2 Positive phase integral + M2 Population SD"
+    },
+    "M2_positive_integral__M2_range": {
+      "features": [
+        "M2_positive_integral",
+        "M2_range"
+      ],
+      "label": "M2 Positive phase integral + M2 Peak-to-peak range"
+    },
+    "M2_positive_integral__M2_a1": {
+      "features": [
+        "M2_positive_integral",
+        "M2_a1"
+      ],
+      "label": "M2 Positive phase integral + M2 Fundamental amplitude"
+    },
+    "M2_positive_integral__M2_a2": {
+      "features": [
+        "M2_positive_integral",
+        "M2_a2"
+      ],
+      "label": "M2 Positive phase integral + M2 Second harmonic amplitude"
+    },
+    "M2_positive_integral__M2_rc": {
+      "features": [
+        "M2_positive_integral",
+        "M2_rc"
+      ],
+      "label": "M2 Positive phase integral + M2 RC coefficient"
+    },
+    "M2_positive_integral__gain_positive": {
+      "features": [
+        "M2_positive_integral",
+        "gain_positive"
+      ],
+      "label": "M2 Positive phase integral + Positive gain"
+    },
+    "M2_positive_integral__gain_negative": {
+      "features": [
+        "M2_positive_integral",
+        "gain_negative"
+      ],
+      "label": "M2 Positive phase integral + Negative gain"
+    },
+    "M2_positive_integral__gain_difference": {
+      "features": [
+        "M2_positive_integral",
+        "gain_difference"
+      ],
+      "label": "M2 Positive phase integral + Absolute gain difference"
+    },
+    "M2_positive_integral__video_mae": {
+      "features": [
+        "M2_positive_integral",
+        "video_mae"
+      ],
+      "label": "M2 Positive phase integral + Centred video MAE"
+    },
+    "M2_positive_integral__video_rmse": {
+      "features": [
+        "M2_positive_integral",
+        "video_rmse"
+      ],
+      "label": "M2 Positive phase integral + Centred video RMSE"
+    },
+    "M2_positive_integral__video_peak": {
+      "features": [
+        "M2_positive_integral",
+        "video_peak"
+      ],
+      "label": "M2 Positive phase integral + Absolute centred video peak"
+    },
+    "M2_positive_integral__video_relative_mae": {
+      "features": [
+        "M2_positive_integral",
+        "video_relative_mae"
+      ],
+      "label": "M2 Positive phase integral + Relative video MAE"
+    },
+    "M2_rms__M2_sd": {
+      "features": [
+        "M2_rms",
+        "M2_sd"
+      ],
+      "label": "M2 RMS + M2 Population SD"
+    },
+    "M2_rms__M2_range": {
+      "features": [
+        "M2_rms",
+        "M2_range"
+      ],
+      "label": "M2 RMS + M2 Peak-to-peak range"
+    },
+    "M2_rms__M2_a1": {
+      "features": [
+        "M2_rms",
+        "M2_a1"
+      ],
+      "label": "M2 RMS + M2 Fundamental amplitude"
+    },
+    "M2_rms__M2_a2": {
+      "features": [
+        "M2_rms",
+        "M2_a2"
+      ],
+      "label": "M2 RMS + M2 Second harmonic amplitude"
+    },
+    "M2_rms__M2_rc": {
+      "features": [
+        "M2_rms",
+        "M2_rc"
+      ],
+      "label": "M2 RMS + M2 RC coefficient"
+    },
+    "M2_rms__gain_positive": {
+      "features": [
+        "M2_rms",
+        "gain_positive"
+      ],
+      "label": "M2 RMS + Positive gain"
+    },
+    "M2_rms__gain_negative": {
+      "features": [
+        "M2_rms",
+        "gain_negative"
+      ],
+      "label": "M2 RMS + Negative gain"
+    },
+    "M2_rms__gain_difference": {
+      "features": [
+        "M2_rms",
+        "gain_difference"
+      ],
+      "label": "M2 RMS + Absolute gain difference"
+    },
+    "M2_rms__video_mae": {
+      "features": [
+        "M2_rms",
+        "video_mae"
+      ],
+      "label": "M2 RMS + Centred video MAE"
+    },
+    "M2_rms__video_rmse": {
+      "features": [
+        "M2_rms",
+        "video_rmse"
+      ],
+      "label": "M2 RMS + Centred video RMSE"
+    },
+    "M2_rms__video_peak": {
+      "features": [
+        "M2_rms",
+        "video_peak"
+      ],
+      "label": "M2 RMS + Absolute centred video peak"
+    },
+    "M2_rms__video_relative_mae": {
+      "features": [
+        "M2_rms",
+        "video_relative_mae"
+      ],
+      "label": "M2 RMS + Relative video MAE"
+    },
+    "M2_sd__M2_range": {
+      "features": [
+        "M2_sd",
+        "M2_range"
+      ],
+      "label": "M2 Population SD + M2 Peak-to-peak range"
+    },
+    "M2_sd__M2_a1": {
+      "features": [
+        "M2_sd",
+        "M2_a1"
+      ],
+      "label": "M2 Population SD + M2 Fundamental amplitude"
+    },
+    "M2_sd__M2_a2": {
+      "features": [
+        "M2_sd",
+        "M2_a2"
+      ],
+      "label": "M2 Population SD + M2 Second harmonic amplitude"
+    },
+    "M2_sd__M2_rc": {
+      "features": [
+        "M2_sd",
+        "M2_rc"
+      ],
+      "label": "M2 Population SD + M2 RC coefficient"
+    },
+    "M2_sd__gain_positive": {
+      "features": [
+        "M2_sd",
+        "gain_positive"
+      ],
+      "label": "M2 Population SD + Positive gain"
+    },
+    "M2_sd__gain_negative": {
+      "features": [
+        "M2_sd",
+        "gain_negative"
+      ],
+      "label": "M2 Population SD + Negative gain"
+    },
+    "M2_sd__gain_difference": {
+      "features": [
+        "M2_sd",
+        "gain_difference"
+      ],
+      "label": "M2 Population SD + Absolute gain difference"
+    },
+    "M2_sd__video_mae": {
+      "features": [
+        "M2_sd",
+        "video_mae"
+      ],
+      "label": "M2 Population SD + Centred video MAE"
+    },
+    "M2_sd__video_rmse": {
+      "features": [
+        "M2_sd",
+        "video_rmse"
+      ],
+      "label": "M2 Population SD + Centred video RMSE"
+    },
+    "M2_sd__video_peak": {
+      "features": [
+        "M2_sd",
+        "video_peak"
+      ],
+      "label": "M2 Population SD + Absolute centred video peak"
+    },
+    "M2_sd__video_relative_mae": {
+      "features": [
+        "M2_sd",
+        "video_relative_mae"
+      ],
+      "label": "M2 Population SD + Relative video MAE"
+    },
+    "M2_range__M2_a1": {
+      "features": [
+        "M2_range",
+        "M2_a1"
+      ],
+      "label": "M2 Peak-to-peak range + M2 Fundamental amplitude"
+    },
+    "M2_range__M2_a2": {
+      "features": [
+        "M2_range",
+        "M2_a2"
+      ],
+      "label": "M2 Peak-to-peak range + M2 Second harmonic amplitude"
+    },
+    "M2_range__M2_rc": {
+      "features": [
+        "M2_range",
+        "M2_rc"
+      ],
+      "label": "M2 Peak-to-peak range + M2 RC coefficient"
+    },
+    "M2_range__gain_positive": {
+      "features": [
+        "M2_range",
+        "gain_positive"
+      ],
+      "label": "M2 Peak-to-peak range + Positive gain"
+    },
+    "M2_range__gain_negative": {
+      "features": [
+        "M2_range",
+        "gain_negative"
+      ],
+      "label": "M2 Peak-to-peak range + Negative gain"
+    },
+    "M2_range__gain_difference": {
+      "features": [
+        "M2_range",
+        "gain_difference"
+      ],
+      "label": "M2 Peak-to-peak range + Absolute gain difference"
+    },
+    "M2_range__video_mae": {
+      "features": [
+        "M2_range",
+        "video_mae"
+      ],
+      "label": "M2 Peak-to-peak range + Centred video MAE"
+    },
+    "M2_range__video_rmse": {
+      "features": [
+        "M2_range",
+        "video_rmse"
+      ],
+      "label": "M2 Peak-to-peak range + Centred video RMSE"
+    },
+    "M2_range__video_peak": {
+      "features": [
+        "M2_range",
+        "video_peak"
+      ],
+      "label": "M2 Peak-to-peak range + Absolute centred video peak"
+    },
+    "M2_range__video_relative_mae": {
+      "features": [
+        "M2_range",
+        "video_relative_mae"
+      ],
+      "label": "M2 Peak-to-peak range + Relative video MAE"
+    },
+    "M2_a1__M2_a2": {
+      "features": [
+        "M2_a1",
+        "M2_a2"
+      ],
+      "label": "M2 Fundamental amplitude + M2 Second harmonic amplitude"
+    },
+    "M2_a1__M2_rc": {
+      "features": [
+        "M2_a1",
+        "M2_rc"
+      ],
+      "label": "M2 Fundamental amplitude + M2 RC coefficient"
+    },
+    "M2_a1__gain_positive": {
+      "features": [
+        "M2_a1",
+        "gain_positive"
+      ],
+      "label": "M2 Fundamental amplitude + Positive gain"
+    },
+    "M2_a1__gain_negative": {
+      "features": [
+        "M2_a1",
+        "gain_negative"
+      ],
+      "label": "M2 Fundamental amplitude + Negative gain"
+    },
+    "M2_a1__gain_difference": {
+      "features": [
+        "M2_a1",
+        "gain_difference"
+      ],
+      "label": "M2 Fundamental amplitude + Absolute gain difference"
+    },
+    "M2_a1__video_mae": {
+      "features": [
+        "M2_a1",
+        "video_mae"
+      ],
+      "label": "M2 Fundamental amplitude + Centred video MAE"
+    },
+    "M2_a1__video_rmse": {
+      "features": [
+        "M2_a1",
+        "video_rmse"
+      ],
+      "label": "M2 Fundamental amplitude + Centred video RMSE"
+    },
+    "M2_a1__video_peak": {
+      "features": [
+        "M2_a1",
+        "video_peak"
+      ],
+      "label": "M2 Fundamental amplitude + Absolute centred video peak"
+    },
+    "M2_a1__video_relative_mae": {
+      "features": [
+        "M2_a1",
+        "video_relative_mae"
+      ],
+      "label": "M2 Fundamental amplitude + Relative video MAE"
+    },
+    "M2_a2__M2_rc": {
+      "features": [
+        "M2_a2",
+        "M2_rc"
+      ],
+      "label": "M2 Second harmonic amplitude + M2 RC coefficient"
+    },
+    "M2_a2__gain_positive": {
+      "features": [
+        "M2_a2",
+        "gain_positive"
+      ],
+      "label": "M2 Second harmonic amplitude + Positive gain"
+    },
+    "M2_a2__gain_negative": {
+      "features": [
+        "M2_a2",
+        "gain_negative"
+      ],
+      "label": "M2 Second harmonic amplitude + Negative gain"
+    },
+    "M2_a2__gain_difference": {
+      "features": [
+        "M2_a2",
+        "gain_difference"
+      ],
+      "label": "M2 Second harmonic amplitude + Absolute gain difference"
+    },
+    "M2_a2__video_mae": {
+      "features": [
+        "M2_a2",
+        "video_mae"
+      ],
+      "label": "M2 Second harmonic amplitude + Centred video MAE"
+    },
+    "M2_a2__video_rmse": {
+      "features": [
+        "M2_a2",
+        "video_rmse"
+      ],
+      "label": "M2 Second harmonic amplitude + Centred video RMSE"
+    },
+    "M2_a2__video_peak": {
+      "features": [
+        "M2_a2",
+        "video_peak"
+      ],
+      "label": "M2 Second harmonic amplitude + Absolute centred video peak"
+    },
+    "M2_a2__video_relative_mae": {
+      "features": [
+        "M2_a2",
+        "video_relative_mae"
+      ],
+      "label": "M2 Second harmonic amplitude + Relative video MAE"
+    },
+    "M2_rc__gain_positive": {
+      "features": [
+        "M2_rc",
+        "gain_positive"
+      ],
+      "label": "M2 RC coefficient + Positive gain"
+    },
+    "M2_rc__gain_negative": {
+      "features": [
+        "M2_rc",
+        "gain_negative"
+      ],
+      "label": "M2 RC coefficient + Negative gain"
+    },
+    "M2_rc__gain_difference": {
+      "features": [
+        "M2_rc",
+        "gain_difference"
+      ],
+      "label": "M2 RC coefficient + Absolute gain difference"
+    },
+    "M2_rc__video_mae": {
+      "features": [
+        "M2_rc",
+        "video_mae"
+      ],
+      "label": "M2 RC coefficient + Centred video MAE"
+    },
+    "M2_rc__video_rmse": {
+      "features": [
+        "M2_rc",
+        "video_rmse"
+      ],
+      "label": "M2 RC coefficient + Centred video RMSE"
+    },
+    "M2_rc__video_peak": {
+      "features": [
+        "M2_rc",
+        "video_peak"
+      ],
+      "label": "M2 RC coefficient + Absolute centred video peak"
+    },
+    "M2_rc__video_relative_mae": {
+      "features": [
+        "M2_rc",
+        "video_relative_mae"
+      ],
+      "label": "M2 RC coefficient + Relative video MAE"
+    },
+    "gain_positive__gain_negative": {
+      "features": [
+        "gain_positive",
+        "gain_negative"
+      ],
+      "label": "Positive gain + Negative gain"
+    },
+    "gain_positive__gain_difference": {
+      "features": [
+        "gain_positive",
+        "gain_difference"
+      ],
+      "label": "Positive gain + Absolute gain difference"
+    },
+    "gain_positive__video_mae": {
+      "features": [
+        "gain_positive",
+        "video_mae"
+      ],
+      "label": "Positive gain + Centred video MAE"
+    },
+    "gain_positive__video_rmse": {
+      "features": [
+        "gain_positive",
+        "video_rmse"
+      ],
+      "label": "Positive gain + Centred video RMSE"
+    },
+    "gain_positive__video_peak": {
+      "features": [
+        "gain_positive",
+        "video_peak"
+      ],
+      "label": "Positive gain + Absolute centred video peak"
+    },
+    "gain_positive__video_relative_mae": {
+      "features": [
+        "gain_positive",
+        "video_relative_mae"
+      ],
+      "label": "Positive gain + Relative video MAE"
+    },
+    "gain_negative__gain_difference": {
+      "features": [
+        "gain_negative",
+        "gain_difference"
+      ],
+      "label": "Negative gain + Absolute gain difference"
+    },
+    "gain_negative__video_mae": {
+      "features": [
+        "gain_negative",
+        "video_mae"
+      ],
+      "label": "Negative gain + Centred video MAE"
+    },
+    "gain_negative__video_rmse": {
+      "features": [
+        "gain_negative",
+        "video_rmse"
+      ],
+      "label": "Negative gain + Centred video RMSE"
+    },
+    "gain_negative__video_peak": {
+      "features": [
+        "gain_negative",
+        "video_peak"
+      ],
+      "label": "Negative gain + Absolute centred video peak"
+    },
+    "gain_negative__video_relative_mae": {
+      "features": [
+        "gain_negative",
+        "video_relative_mae"
+      ],
+      "label": "Negative gain + Relative video MAE"
+    },
+    "gain_difference__video_mae": {
+      "features": [
+        "gain_difference",
+        "video_mae"
+      ],
+      "label": "Absolute gain difference + Centred video MAE"
+    },
+    "gain_difference__video_rmse": {
+      "features": [
+        "gain_difference",
+        "video_rmse"
+      ],
+      "label": "Absolute gain difference + Centred video RMSE"
+    },
+    "gain_difference__video_peak": {
+      "features": [
+        "gain_difference",
+        "video_peak"
+      ],
+      "label": "Absolute gain difference + Absolute centred video peak"
+    },
+    "gain_difference__video_relative_mae": {
+      "features": [
+        "gain_difference",
+        "video_relative_mae"
+      ],
+      "label": "Absolute gain difference + Relative video MAE"
+    },
+    "video_mae__video_rmse": {
+      "features": [
+        "video_mae",
+        "video_rmse"
+      ],
+      "label": "Centred video MAE + Centred video RMSE"
+    },
+    "video_mae__video_peak": {
+      "features": [
+        "video_mae",
+        "video_peak"
+      ],
+      "label": "Centred video MAE + Absolute centred video peak"
+    },
+    "video_mae__video_relative_mae": {
+      "features": [
+        "video_mae",
+        "video_relative_mae"
+      ],
+      "label": "Centred video MAE + Relative video MAE"
+    },
+    "video_rmse__video_peak": {
+      "features": [
+        "video_rmse",
+        "video_peak"
+      ],
+      "label": "Centred video RMSE + Absolute centred video peak"
+    },
+    "video_rmse__video_relative_mae": {
+      "features": [
+        "video_rmse",
+        "video_relative_mae"
+      ],
+      "label": "Centred video RMSE + Relative video MAE"
+    },
+    "video_peak__video_relative_mae": {
+      "features": [
+        "video_peak",
+        "video_relative_mae"
+      ],
+      "label": "Absolute centred video peak + Relative video MAE"
+    }
+  },
+  "native_samples": true,
+  "aggregation": "mean of three per-cycle features; average absolute gain differences after fitting",
+  "rc_phase_origin": "logged cycle start; no phase-origin optimisation",
+  "thresholds": {
+    "standard": 0.0,
+    "sensitivity_oriented": -1.0986122886681098
+  }
+}

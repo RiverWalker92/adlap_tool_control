@@ -144,7 +144,7 @@ def run(output):
     pooled(cycles,p/'03_pooled_current_lda','Pooled one-cycle observations')
     pooled(frame,p/'lda_three_cycle','Pooled three-cycle feature means')
     lda_planes(frame,p/'lda_by_amplitude')
-    for m in range(4):all_boxes(frame,[f'M{m}_{x}' for x in f.CURRENT],p/f'current_M{m}_all_parameters')
+    for m in f.ACTIVE_MOTORS:all_boxes(frame,[f'M{m}_{x}' for x in f.CURRENT],p/f'current_M{m}_all_parameters')
     all_boxes(frame,f.VIDEO,p/'video_all_parameters')
     active=[f'M{m}_{x}' for m in [1,2] for x in f.CURRENT]+f.VIDEO
     for cls,name in [(None,'pooled'),(0,'healthy'),(1,'degraded')]:

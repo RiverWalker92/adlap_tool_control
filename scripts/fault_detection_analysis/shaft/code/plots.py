@@ -33,7 +33,13 @@ def one_box(ax,frame,feature):
         ax.scatter(cls+jitter,part[feature],c=COLORS[cls],marker=marker,s=13,alpha=.8,zorder=4,linewidths=.25)
     ax.set_xticks([0,1],['Healthy','Degraded']);ax.set_ylabel(unit);ax.set_xlim(-.65,1.65)
     ax.grid(axis='y',alpha=.16);ax.set_axisbelow(True)
-    ax.set_title(SHORT.get(feature,defs.loc[feature,'label']),pad=5)
+    label = SHORT.get(feature, defs.loc[feature, 'label'])
+    label = label.replace('Signed maximum', 'Signed peak')
+    label = label.replace('signed maximum', 'Signed peak')
+    label = label.replace('absolute peak', 'Absolute peak')
+    label = label.replace('Absolute maximum', 'Absolute peak')
+    label = label.replace('absolute maximum', 'Absolute peak')
+    ax.set_title(label, pad=5)
 
 
 def selected_boxes(frame,path):
@@ -141,7 +147,7 @@ def run(output):
     frame=pd.read_csv(out/'condition_features.csv');cycles=pd.read_csv(out/'cycle_features.csv')
     selected_boxes(frame,p/'01_parameter_boxplots')
     matrix(frame[SELECT].corr(),SELECT,p/'02_parameter_correlations','Three-cycle feature means')
-    pooled(cycles,p/'03_pooled_current_lda','Pooled one-cycle observations')
+    pooled(cycles,p/'03_pooled_current_lda','LDA classification of healthy and degraded shafts')
     pooled(frame,p/'lda_three_cycle','Pooled three-cycle feature means')
     lda_planes(frame,p/'lda_by_amplitude')
     for m in f.ACTIVE_MOTORS:all_boxes(frame,[f'M{m}_{x}' for x in f.CURRENT],p/f'current_M{m}_all_parameters')
@@ -168,4 +174,4 @@ def export_tables(out):
     metrics[(metrics.window_cycles==3)&(metrics.strategy=='pooled')&(metrics.evaluated_range!='all')&(metrics.threshold=='standard')].to_csv(tables/'pooled_amplitude_counts.csv',index=False)
 
 if __name__=='__main__':
-    a=argparse.ArgumentParser();a.add_argument('--output-dir',type=Path,default=Path(__file__).resolve().parents[1]/'outputs');run(a.parse_args().output_dir)
+    a=argparse.ArgumentParser();a.add_argument('--output-dir',type=Path,default=Path(__file__).resolve().parents[1]/'results_active_motors');run(a.parse_args().output_dir)

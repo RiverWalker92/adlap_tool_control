@@ -440,6 +440,9 @@ def descriptive_lda_figures(five, directory):
     handles = [run_handle(st) for st in styles.values()]
     handles += [Line2D([],[],color=ORANGE,marker='*',ls='',label='Final degraded blocks'), boundary_handle()]
     original_legend(fig,handles,2)
+
+    ax.spines[['top', 'right']].set_visible(False)
+
     save_figure(fig,directory,'lda_rms')
     registry = combination_model_definitions()
     fig, axes = plt.subplots(1,3,figsize=(7.16,3.2))

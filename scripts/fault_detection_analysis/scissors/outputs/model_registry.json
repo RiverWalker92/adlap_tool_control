@@ -4,7 +4,7 @@
     "parameters": [
       "closing_M3_signed_max"
     ],
-    "label": "Closing M3 Signed maximum",
+    "label": "Closing M3 Signed peak",
     "category": "residual_single"
   },
   {
@@ -12,7 +12,7 @@
     "parameters": [
       "closing_M3_abs_max"
     ],
-    "label": "Closing M3 Absolute maximum",
+    "label": "Closing M3 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -84,7 +84,7 @@
     "parameters": [
       "closing_M0_signed_max"
     ],
-    "label": "Closing M0 Signed maximum",
+    "label": "Closing M0 Signed peak",
     "category": "residual_single"
   },
   {
@@ -92,7 +92,7 @@
     "parameters": [
       "closing_M0_abs_max"
     ],
-    "label": "Closing M0 Absolute maximum",
+    "label": "Closing M0 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -180,7 +180,7 @@
     "parameters": [
       "opening_M3_signed_max"
     ],
-    "label": "Opening M3 Signed maximum",
+    "label": "Opening M3 Signed peak",
     "category": "residual_single"
   },
   {
@@ -188,7 +188,7 @@
     "parameters": [
       "opening_M3_abs_max"
     ],
-    "label": "Opening M3 Absolute maximum",
+    "label": "Opening M3 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -260,7 +260,7 @@
     "parameters": [
       "opening_M0_signed_max"
     ],
-    "label": "Opening M0 Signed maximum",
+    "label": "Opening M0 Signed peak",
     "category": "residual_single"
   },
   {
@@ -268,7 +268,7 @@
     "parameters": [
       "opening_M0_abs_max"
     ],
-    "label": "Opening M0 Absolute maximum",
+    "label": "Opening M0 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -356,7 +356,7 @@
     "parameters": [
       "cycle_M3_signed_max"
     ],
-    "label": "Cycle M3 Signed maximum",
+    "label": "Cycle M3 Signed peak",
     "category": "residual_single"
   },
   {
@@ -364,7 +364,7 @@
     "parameters": [
       "cycle_M3_abs_max"
     ],
-    "label": "Cycle M3 Absolute maximum",
+    "label": "Cycle M3 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -436,7 +436,7 @@
     "parameters": [
       "cycle_M0_signed_max"
     ],
-    "label": "Cycle M0 Signed maximum",
+    "label": "Cycle M0 Signed peak",
     "category": "residual_single"
   },
   {
@@ -444,7 +444,7 @@
     "parameters": [
       "cycle_M0_abs_max"
     ],
-    "label": "Cycle M0 Absolute maximum",
+    "label": "Cycle M0 Absolute peak",
     "category": "residual_single"
   },
   {
@@ -549,7 +549,7 @@
       "closing_M0_signed_max",
       "closing_M3_signed_max"
     ],
-    "label": "Closing M0 + M3 Signed maximum",
+    "label": "Closing M0 + M3 Signed peak",
     "category": "motor_pair"
   },
   {
@@ -558,7 +558,7 @@
       "closing_M0_abs_max",
       "closing_M3_abs_max"
     ],
-    "label": "Closing M0 + M3 Absolute maximum",
+    "label": "Closing M0 + M3 Absolute peak",
     "category": "motor_pair"
   },
   {
@@ -639,7 +639,7 @@
       "opening_M0_signed_max",
       "opening_M3_signed_max"
     ],
-    "label": "Opening M0 + M3 Signed maximum",
+    "label": "Opening M0 + M3 Signed peak",
     "category": "motor_pair"
   },
   {
@@ -648,7 +648,7 @@
       "opening_M0_abs_max",
       "opening_M3_abs_max"
     ],
-    "label": "Opening M0 + M3 Absolute maximum",
+    "label": "Opening M0 + M3 Absolute peak",
     "category": "motor_pair"
   },
   {
@@ -729,7 +729,7 @@
       "cycle_M0_signed_max",
       "cycle_M3_signed_max"
     ],
-    "label": "Cycle M0 + M3 Signed maximum",
+    "label": "Cycle M0 + M3 Signed peak",
     "category": "motor_pair"
   },
   {
@@ -738,7 +738,7 @@
       "cycle_M0_abs_max",
       "cycle_M3_abs_max"
     ],
-    "label": "Cycle M0 + M3 Absolute maximum",
+    "label": "Cycle M0 + M3 Absolute peak",
     "category": "motor_pair"
   },
   {
@@ -819,7 +819,7 @@
       "closing_M3_signed_max",
       "opening_M3_signed_max"
     ],
-    "label": "M3 closing + opening Signed maximum",
+    "label": "M3 closing + opening Signed peak",
     "category": "direction_pair"
   },
   {
@@ -828,7 +828,7 @@
       "closing_M3_abs_max",
       "opening_M3_abs_max"
     ],
-    "label": "M3 closing + opening Absolute maximum",
+    "label": "M3 closing + opening Absolute peak",
     "category": "direction_pair"
   },
   {

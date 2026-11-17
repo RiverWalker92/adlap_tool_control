@@ -17,6 +17,6 @@
     "png",
     "svg"
   ],
-  "style_helper": "/home/leanne/ros2_ws/src/adlap_tool_control/scripts/fault_detection_analysis/common/plot_style.py",
+  "style_helper": "/home/leannevg/ros2_ws/src/adlap_tool_control/scripts/fault_detection_analysis/common/plot_style.py",
   "style_reference": "Original plots.py dimensions, subplot margins, labels and shared plot_style.py; LOOCV gets one panel per complete held-out run."
 }

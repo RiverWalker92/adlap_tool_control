@@ -25,7 +25,7 @@ from sklearn.preprocessing import StandardScaler
 
 PARAMETERS = ['peak', 'abs_peak', 'mean', 'abs_auc', 'pos_auc', 'rms',
               'phase_sd', 'ptp', 'a1', 'a2', 'rc']
-NAMES = dict(zip(PARAMETERS, ['Signed maximum', 'Absolute maximum', 'Phase mean',
+NAMES = dict(zip(PARAMETERS, ['Signed peak', 'Absolute peak', 'Phase mean',
     'Absolute integral', 'Positive integral', 'RMS', 'Phase SD',
     'Peak to peak range', 'Fundamental amplitude', 'Second harmonic amplitude',
     'RC coefficient']))

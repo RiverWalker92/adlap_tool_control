@@ -26,7 +26,7 @@ STROKE_MAP = {
 LABELS={'directions_M3_phase_mean':'M3 closing and opening mean',
 'directions_M3_peak_to_peak':'M3 closing and opening range',
 'opening_paired_phase_mean':'M0 and M3 opening mean',
-'closing_peak_rc':'M3 closing absolute maximum and RC',
+'closing_peak_rc':'M3 closing absolute peak and RC',
 'closing_M3_phase_mean':'M3 closing mean','opening_M3_phase_mean':'M3 opening mean',
 'cycle_M3_phase_mean':'M3 active-cycle mean','directions_M3_rms':'M3 closing and opening RMS',
 'opening_M3_rms':'M3 opening RMS'}
@@ -287,7 +287,7 @@ def panel(ax,scenario,selection,model,title):
             ax.scatter(x[mask],y[mask],color=palette[cls],marker=marker,s=28,edgecolors='white',linewidths=.4,zorder=3)
     ax.set(title=title,xlabel=feature_label(cols[0]),ylabel='Recorded class' if single else feature_label(cols[1]))
     if single:ax.set_yticks(range(k),['H','F'] if k==2 else ['H','I','B'])
-    ax.set_xlabel(ax.get_xlabel().replace(' signed maximum','\nsigned maximum'))
+    ax.set_xlabel(ax.get_xlabel().replace(' signed peak','\nsigned peak'))
     cm=np.zeros((k,k),dtype=int);np.add.at(cm,(truth,pred),1)
     expected=CACHE['metrics'].loc[(scenario,selection,model)]
     assert cm.tolist()==json.loads(expected.confusion_matrix)

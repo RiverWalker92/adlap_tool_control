@@ -58,7 +58,7 @@
   "fft": "DFT on a uniform grid of N equal to actual observed sample count per window; h1/h2 describe profile shape, not physical rotation orders",
   "joint": "Pearson waveform correlation and pi sqrt(det(population covariance)) from paired original M0/M3 samples",
   "same_data_verified": true,
-  "checks_against_old_features": true,
+  "checks_against_old_features": false,
   "rc": "Residual OLS against native time, M0 and M3, 30-80% commanded closing travel",
   "dt_training_independence": "Not established from run/replay metadata"
 }
